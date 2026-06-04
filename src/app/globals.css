@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-primary-50: #eff6ff;
   --color-primary-100: #dbeafe;
@@ -35,15 +37,15 @@
   --color-surface-800: #1e293b;
   --color-surface-900: #0f172a;
   --color-surface-950: #020617;
+
+  --animate-shimmer: shimmer 1.5s ease-in-out infinite;
 }
 
 @layer base {
-  * {
-    @apply border-surface-200;
-  }
-  body {
-    @apply bg-surface-50 text-surface-900 antialiased;
-  }
+  * { @apply border-surface-200 dark:border-surface-800; }
+  body { @apply bg-surface-50 text-surface-900 antialiased dark:bg-surface-950 dark:text-surface-100; }
+  h1, h2, h3, h4 { @apply dark:text-surface-100; }
+  label { @apply dark:text-surface-300; }
 }
 
 @keyframes caption-fade {
@@ -72,4 +74,15 @@
 
 .animate-caption-bounce {
   animation: caption-bounce 0.5s ease-out;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes progress-pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.6; }
+  100% { opacity: 1; }
 }

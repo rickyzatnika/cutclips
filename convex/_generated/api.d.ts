@@ -8,11 +8,13 @@
  * @module
  */
 
+import type * as brandTemplates from "../brandTemplates.js";
 import type * as credits from "../credits.js";
 import type * as crons from "../crons.js";
 import type * as processVideo from "../processVideo.js";
 import type * as processingJobs from "../processingJobs.js";
 import type * as projects from "../projects.js";
+import type * as scriptGenerator from "../scriptGenerator.js";
 import type * as users from "../users.js";
 import type * as workerMutations from "../workerMutations.js";
 
@@ -23,11 +25,13 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  brandTemplates: typeof brandTemplates;
   credits: typeof credits;
   crons: typeof crons;
   processVideo: typeof processVideo;
   processingJobs: typeof processingJobs;
   projects: typeof projects;
+  scriptGenerator: typeof scriptGenerator;
   users: typeof users;
   workerMutations: typeof workerMutations;
 }>;

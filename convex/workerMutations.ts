@@ -27,6 +27,16 @@ export const claimNextJob = mutation({
     const user = await ctx.db.get(job.userId);
     if (!user) return null;
 
+    const project = await ctx.db.get(job.projectId);
+    if (!project) {
+      await ctx.db.patch(job._id, {
+        status: "failed",
+        error: "Project sudah tidak ada",
+        completedAt: Date.now(),
+      });
+      return null;
+    }
+
     const isAdmin = user.role === "admin";
 
     if (user.credits < 5 && !isAdmin) {
@@ -75,8 +85,13 @@ export const claimNextJob = mutation({
       projectId: job.projectId,
       youtubeUrl: job.youtubeUrl,
       title: job.title,
+      type: job.type,
       provider: job.provider || null,
       model: job.model || null,
+      fontFamily: job.fontFamily || null,
+      outlineColor: job.outlineColor || null,
+      fontSize: job.fontSize || null,
+      script: job.script || null,
       isAdmin,
     };
   },

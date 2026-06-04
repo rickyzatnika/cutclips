@@ -3,15 +3,15 @@ import { cn } from "@/lib/utils";
 
 const variants = {
   primary:
-    "bg-primary-600 text-white hover:bg-primary-700 focus-visible:ring-primary-500 shadow-sm",
+    "bg-primary-600 text-white hover:bg-primary-700 focus-visible:ring-primary-500 shadow-sm dark:bg-primary-500 dark:hover:bg-primary-600",
   secondary:
-    "bg-surface-100 text-surface-900 hover:bg-surface-200 focus-visible:ring-surface-400",
+    "bg-surface-100 text-surface-900 hover:bg-surface-200 focus-visible:ring-surface-400 dark:bg-surface-800 dark:text-surface-200 dark:hover:bg-surface-700",
   outline:
-    "border border-surface-300 bg-white text-surface-700 hover:bg-surface-50 focus-visible:ring-primary-500",
+    "border border-surface-300 bg-white text-surface-700 hover:bg-surface-50 focus-visible:ring-primary-500 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-300 dark:hover:bg-surface-800",
   ghost:
-    "text-surface-600 hover:bg-surface-100 hover:text-surface-900 focus-visible:ring-surface-400",
+    "text-surface-600 hover:bg-surface-100 hover:text-surface-900 focus-visible:ring-surface-400 dark:text-surface-400 dark:hover:bg-surface-800 dark:hover:text-surface-200",
   danger:
-    "bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-500 shadow-sm",
+    "bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-500 shadow-sm dark:bg-red-700 dark:hover:bg-red-800",
 };
 
 const sizes = {

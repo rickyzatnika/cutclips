@@ -9,8 +9,8 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "ShortAI - AI Short Video Generator",
-    template: "%s | ShortAI",
+    default: "CutClips - AI Short Video Generator",
+    template: "%s | CutClips",
   },
   description:
     "Ubah video YouTube panjang menjadi short video viral dengan AI. AI clipping, AI captioning, AI voice-over.",

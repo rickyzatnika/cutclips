@@ -59,10 +59,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`flex items-center gap-3 rounded-lg border bg-white px-4 py-3 shadow-lg animate-in slide-in-from-right ${borders[toast.type]}`}
+            className={`flex items-center gap-3 rounded-lg border bg-white px-4 py-3 shadow-lg animate-in slide-in-from-right dark:bg-surface-900 ${borders[toast.type]}`}
           >
             {icons[toast.type]}
-            <p className="text-sm text-surface-900">{toast.message}</p>
+            <p className="text-sm text-surface-900 dark:text-surface-100">{toast.message}</p>
             <button
               onClick={() => removeToast(toast.id)}
               className="ml-2 text-surface-400 hover:text-surface-600"

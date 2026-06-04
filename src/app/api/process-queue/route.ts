@@ -68,6 +68,16 @@ function convexFetch(path: string, args: Record<string, unknown>, accessToken?: 
   });
 }
 
+function convexQuery(path: string, args: Record<string, unknown>, accessToken?: string | null) {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+  return fetch(`${CONVEX_URL}/api/query`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ path, args }),
+  });
+}
+
 function execYtDlp(args: string[], timeout = 60000): Promise<string> {
   return new Promise((resolve, reject) => {
     execFile(YT_DLP, args, { timeout }, (err, stdout) => {
@@ -468,6 +478,7 @@ async function cutClip(
   ffmpegPath: string, workDir: string, videoName: string, outputName: string,
   start: number, duration: number,
   captions?: { start: number; end: number; text: string }[],
+  opts?: Record<string, string | number>,
 ): Promise<void> {
   let vf = "crop='min(iw,ih*9/16)':'min(ih,iw*16/9)',scale=1080:1920";
 
@@ -476,7 +487,10 @@ async function cutClip(
     const srtContent = generateSrtForClip(captions, start, clipEnd);
     if (srtContent.trim()) {
       fs.writeFileSync(path.join(workDir, "captions.srt"), srtContent, "utf-8");
-      const style = "FontName=Poppins\\,FontSize=8\\,PrimaryColour=&H00FFFFFF\\,OutlineColour=&H0000FF00\\,Outline=1\\,BorderStyle=1";
+      const fontFamily = (opts?.fontFamily as string) || "Arial";
+      const fontSize = (opts?.fontSize as number) || 13;
+      const outlineColor = (opts?.outlineColor as string) || "&H0000FF00";
+      const style = `FontName=${fontFamily}\\,FontSize=${fontSize}\\,PrimaryColour=&H00FFFFFF\\,OutlineColour=${outlineColor}\\,Outline=2\\,BorderStyle=1`;
       vf += `,subtitles=captions.srt:force_style=${style}`;
     }
   }
@@ -537,6 +551,17 @@ export async function POST(request: NextRequest) {
       };
 
       try {
+        // Cek type project DULU sebelum claim — biar gak ngantri/muter-muter
+        const projectRes = await convexQuery("projects:getById", { projectId }, accessToken);
+        const projectData = await projectRes.json();
+        const projectValue = projectData?.value || projectData;
+        const projectType = projectValue?.type || "youtube";
+
+        if (projectType === "script") {
+          controller.close();
+          return;
+        }
+
         const claimRes = await convexFetch("processingJobs:claimJob", { projectId }, accessToken);
         const claimData = await claimRes.json();
 
@@ -555,8 +580,12 @@ export async function POST(request: NextRequest) {
           projectId: string;
           youtubeUrl: string;
           title: string;
+          type?: string;
           provider?: string;
           model?: string;
+          fontFamily?: string;
+          outlineColor?: string;
+          fontSize?: number;
         };
 
         const tempDir = await fsp.mkdtemp(path.join(os.tmpdir(), "yt-dl-"));
@@ -595,7 +624,11 @@ export async function POST(request: NextRequest) {
             const clipCaptions = analysis.captions.filter(
               (cap: { start: number; end: number }) => cap.start < c.end && cap.end > c.start
             );
-            await cutClip(ffmpegPath, tempDir, "video.mp4", clipName, c.start, dur, clipCaptions);
+            const clipOpts: Record<string, string | number> = {};
+            if (jobInfo.fontFamily) clipOpts.fontFamily = jobInfo.fontFamily;
+            if (jobInfo.fontSize) clipOpts.fontSize = jobInfo.fontSize;
+            if (jobInfo.outlineColor) clipOpts.outlineColor = "&H00" + jobInfo.outlineColor.replace("#", "").toUpperCase();
+            await cutClip(ffmpegPath, tempDir, "video.mp4", clipName, c.start, dur, clipCaptions, clipOpts);
 
             send({ progress: clipProgress + 5, step: `Mengupload clip ${i + 1} ke cloud...` });
             const result = await cloudinary.uploader.upload(path.join(tempDir, clipName), {

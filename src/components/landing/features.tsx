@@ -45,10 +45,10 @@ export function Features() {
     <section id="features" className="px-4 py-16 sm:px-6 sm:py-24 lg:px-8">
       <div className="mx-auto max-w-7xl">
         <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-3xl font-bold tracking-tight text-surface-900 sm:text-4xl">
+          <h2 className="text-3xl font-bold tracking-tight text-surface-900 sm:text-4xl dark:text-white">
             Fitur Lengkap untuk Content Creator
           </h2>
-          <p className="mt-4 text-lg text-surface-500">
+          <p className="mt-4 text-lg text-surface-500 dark:text-surface-300">
             Semua alat yang Anda butuhkan untuk membuat short video viral dengan
             bantuan AI.
           </p>
@@ -57,15 +57,15 @@ export function Features() {
           {features.map((feature) => (
             <div
               key={feature.title}
-              className="group rounded-xl border border-surface-200 bg-white p-6 transition-all hover:border-primary-200 hover:shadow-md"
+              className="group rounded-xl border border-surface-200 bg-white p-6 transition-all hover:border-primary-200 hover:shadow-md dark:border-surface-800 dark:bg-surface-900"
             >
-              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-primary-100 text-primary-600 group-hover:bg-primary-600 group-hover:text-white transition-colors">
+              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-primary-100 text-primary-600 group-hover:bg-primary-600 group-hover:text-white transition-colors dark:bg-primary-900/50 dark:text-primary-300 dark:group-hover:bg-primary-600">
                 <feature.icon className="h-5 w-5" />
               </div>
-              <h3 className="mb-2 font-semibold text-surface-900">
+              <h3 className="mb-2 font-semibold text-surface-900 dark:text-surface-100">
                 {feature.title}
               </h3>
-              <p className="text-sm leading-relaxed text-surface-500">
+              <p className="text-sm leading-relaxed text-surface-500 dark:text-surface-400">
                 {feature.desc}
               </p>
             </div>

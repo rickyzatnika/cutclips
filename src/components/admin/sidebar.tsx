@@ -39,7 +39,7 @@ export function AdminSidebar() {
   return (
     <aside
       className={cn(
-        "flex flex-col border-r border-surface-200 bg-surface-900 text-white transition-all duration-300",
+        "flex flex-col border-r border-surface-200 bg-surface-900 text-white transition-all duration-300 dark:border-surface-800",
         collapsed ? "w-16" : "w-64",
       )}
     >

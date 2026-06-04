@@ -4,9 +4,45 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useQuery, useMutation } from "convex/react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { useToast } from "@/components/ui/toast";
+
+function SettingsSkeleton() {
+  return (
+    <div className="p-6 lg:p-8">
+      <div className="mb-8">
+        <Skeleton className="h-8 w-36 mb-2" />
+        <Skeleton className="h-4 w-56" />
+      </div>
+      <div className="space-y-6 max-w-2xl">
+        <Card>
+          <CardHeader><Skeleton className="h-5 w-16" /></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Skeleton className="h-10 w-full rounded-lg" />
+              <Skeleton className="h-10 w-full rounded-lg" />
+            </div>
+            <Skeleton className="h-4 w-72" />
+            <Skeleton className="h-10 w-36 rounded-lg" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader><Skeleton className="h-5 w-32" /></CardHeader>
+          <CardContent className="space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="flex justify-between">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-4 w-16" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
 
 export default function SettingsPage() {
   const userData = useQuery(api.users.getMe);
@@ -22,11 +58,13 @@ export default function SettingsPage() {
     e.preventDefault();
   };
 
+  if (!userData) return <SettingsSkeleton />;
+
   return (
     <div className="p-6 lg:p-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-surface-900">Pengaturan</h1>
-        <p className="mt-1 text-sm text-surface-500">
+        <h1 className="text-2xl font-bold text-surface-900 ">Pengaturan</h1>
+        <p className="mt-1 text-sm text-surface-500 ">
           Kelola pengaturan akun Anda.
         </p>
       </div>
@@ -52,7 +90,7 @@ export default function SettingsPage() {
                   disabled
                 />
               </div>
-              <p className="text-xs text-surface-400">
+              <p className="text-xs text-surface-400 dark:text-surface-500">
                 Email tidak dapat diubah karena terhubung dengan akun Auth0 Anda.
               </p>
               <Button onClick={handleSave} loading={saving}>
@@ -69,16 +107,16 @@ export default function SettingsPage() {
           <CardContent>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-surface-500">Paket Saat Ini</span>
-                <span className="font-medium text-surface-900 capitalize">{userData?.plan || "-"}</span>
+                <span className="text-surface-500 dark:text-surface-400">Paket Saat Ini</span>
+                <span className="font-medium text-surface-900 capitalize dark:text-surface-100">{userData?.plan || "-"}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-surface-500">Sisa Credits</span>
-                <span className="font-medium text-surface-900">{userData?.credits ?? "-"}</span>
+                <span className="text-surface-500 dark:text-surface-400">Sisa Credits</span>
+                <span className="font-medium text-surface-900 dark:text-surface-100">{userData?.credits ?? "-"}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-surface-500">Total Credits Digunakan</span>
-                <span className="font-medium text-surface-900">{userData?.totalCreditsUsed ?? "-"}</span>
+                <span className="text-surface-500 dark:text-surface-400">Total Credits Digunakan</span>
+                <span className="font-medium text-surface-900 dark:text-surface-100">{userData?.totalCreditsUsed ?? "-"}</span>
               </div>
             </div>
           </CardContent>

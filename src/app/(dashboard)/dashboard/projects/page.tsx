@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { Plus, MoreHorizontal, Eye, ExternalLink, Trash2 } from "lucide-react";
+import { Folder, MoreHorizontal, Eye, ExternalLink, Trash2, Film, FileText, Globe } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { useToast } from "@/components/ui/toast";
@@ -15,19 +16,6 @@ export default function ProjectsPage() {
   const deleteProject = useMutation(api.projects.remove);
   const { addToast } = useToast();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
-  const [menuPos, setMenuPos] = useState({ x: 0, y: 0 });
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!openMenu) return;
-    const handleClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setOpenMenu(null);
-      }
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [openMenu]);
 
   const handleDelete = async (projectId: string) => {
     try {
@@ -48,178 +36,139 @@ export default function ProjectsPage() {
     <div className="p-6 lg:p-8">
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-surface-900">
-            Proyek Saya
-          </h1>
-          <p className="mt-1 text-sm text-surface-500">
-            Kelola semua proyek short video Anda.
-          </p>
+          <h1 className="text-2xl font-bold text-surface-900">Proyek Saya</h1>
+          <p className="mt-1 text-sm text-surface-500">Kelola semua proyek short video Anda.</p>
         </div>
-        <Link href="/dashboard/new">
-          <Button className="gap-2">
-            <Plus className="h-4 w-4" />
-            Proyek Baru
-          </Button>
-        </Link>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-surface-200">
-                  <th className="px-6 py-4 font-medium text-surface-500">
-                    Judul
-                  </th>
-                  <th className="px-6 py-4 font-medium text-surface-500">
-                    Status
-                  </th>
-                  <th className="px-6 py-4 font-medium text-surface-500">
-                    Short
-                  </th>
-                  <th className="px-6 py-4 font-medium text-surface-500">
-                    Views
-                  </th>
-                  <th className="px-6 py-4 font-medium text-surface-500">
-                    Tanggal
-                  </th>
-                  <th className="px-6 py-4 font-medium text-surface-500">
-                    Aksi
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-surface-100">
-                {!projects ? (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-surface-400">
-                      Memuat...
-                    </td>
-                  </tr>
-                ) : projects.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-surface-400">
-                      Belum ada proyek.{" "}
-                      <Link
-                        href="/dashboard/new"
-                        className="text-primary-600 hover:underline"
-                      >
-                        Buat proyek baru
-                      </Link>
-                    </td>
-                  </tr>
-                ) : (
-                  projects.map((project) => {
-                    const statusLabel =
-                      project.status === "processing"
-                        ? "Diproses"
-                        : project.status === "completed"
-                          ? "Selesai"
-                          : "Gagal";
-                    const statusVariant =
-                      project.status === "completed"
-                        ? ("success" as const)
-                        : project.status === "processing"
-                          ? ("warning" as const)
-                          : ("danger" as const);
+      {!projects ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-5">
+                <Skeleton className="mb-3 h-16 w-16 rounded-xl" />
+                <Skeleton className="mb-2 h-4 w-32" />
+                <Skeleton className="mb-3 h-3 w-20" />
+                <div className="flex gap-3">
+                  <Skeleton className="h-3 w-16" />
+                  <Skeleton className="h-3 w-16" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : projects.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center gap-4 py-16">
+            <Folder className="h-12 w-12 text-surface-300" />
+            <p className="text-sm text-surface-400">Belum ada proyek.</p>
+            <div className="flex gap-3">
+              <Link href="/dashboard/new">
+                <Button variant="outline" className="gap-2"><Globe className="h-4 w-4" />YouTube URL</Button>
+              </Link>
+              <Link href="/dashboard/script-generator">
+                <Button className="gap-2"><FileText className="h-4 w-4" />Text to Video</Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {projects.map((project) => {
+            const statusLabel =
+              project.status === "processing"
+                ? "Diproses"
+                : project.status === "completed"
+                  ? "Selesai"
+                  : "Gagal";
+            const statusVariant =
+              project.status === "completed"
+                ? ("success" as const)
+                : project.status === "processing"
+                  ? ("warning" as const)
+                  : ("danger" as const);
 
-                    const date = new Date(project.createdAt).toLocaleDateString(
-                      "id-ID",
-                      { dateStyle: "medium" },
-                    );
+            const date = new Date(project.createdAt).toLocaleDateString("id-ID", { dateStyle: "medium" });
+            const projectType = project.type || "youtube";
 
-                    return (
-                      <tr
-                        key={project._id}
-                        className="hover:bg-surface-50 transition-colors"
-                      >
-                        <td className="px-6 py-4">
-                          <div className="min-w-0 max-w-[250px]">
-                            <p className="truncate font-medium text-surface-900">
-                              {project.title}
-                            </p>
-                            <p className="mt-0.5 truncate text-xs text-surface-400">
-                              {project.youtubeUrl}
-                            </p>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <Badge variant={statusVariant}>
-                            {statusLabel}
-                          </Badge>
-                        </td>
-                        <td className="px-6 py-4 text-surface-600">
-                          {project.shortCount}
-                        </td>
-                        <td className="px-6 py-4 text-surface-600">
-                          {project.totalViews > 0
-                            ? `${(project.totalViews / 1000).toFixed(1)}K`
-                            : "-"}
-                        </td>
-                        <td className="px-6 py-4 text-surface-600">
-                          {date}
-                        </td>
-                        <td className="px-6 py-4 relative">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              e.preventDefault();
-                              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                              setMenuPos({ x: rect.right - 160, y: rect.bottom + 4 });
-                              setOpenMenu(openMenu === project._id ? null : project._id);
-                            }}
-                            className="rounded-lg p-1.5 text-surface-400 hover:bg-surface-100 hover:text-surface-600"
-                          >
-                            <MoreHorizontal className="h-4 w-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {openMenu && (() => {
-            const project = projects?.find(p => p._id === openMenu);
-            if (!project) return null;
             return (
-              <div
-                ref={menuRef}
-                className="fixed z-50 w-40 rounded-lg border border-surface-200 bg-white py-1 shadow-lg"
-                style={{ left: menuPos.x, top: menuPos.y }}
-              >
-                <Link
-                  href={`/dashboard/projects/${project._id}`}
-                  className="flex items-center gap-2 px-3 py-2 text-sm text-surface-700 hover:bg-surface-50"
-                  onClick={() => setOpenMenu(null)}
-                >
-                  <Eye className="h-4 w-4" />
-                  Detail
+              <div key={project._id} className="group relative">
+                <Link href={`/dashboard/projects/${project._id}`}>
+                  <Card className="cursor-pointer transition-all hover:border-primary-300 hover:shadow-md">
+                    <CardContent className="p-5">
+                      <div className="mb-3 flex items-start justify-between">
+                        <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-surface-100 text-surface-400 dark:bg-surface-800">
+                          {projectType === "script" ? (
+                            <FileText className="h-7 w-7" />
+                          ) : (
+                            <Film className="h-7 w-7" />
+                          )}
+                        </div>
+                        <Badge variant={statusVariant}>{statusLabel}</Badge>
+                      </div>
+                      <p className="mb-1 truncate font-medium text-surface-900 dark:text-surface-100">
+                        {project.title}
+                      </p>
+                      <p className="mb-3 text-xs text-surface-400">{date}</p>
+                      <div className="flex items-center gap-3 text-xs text-surface-500">
+                        <span>{project.shortCount || 0} short</span>
+                        <span className="text-surface-300">|</span>
+                        <span>{project.totalViews > 0 ? `${(project.totalViews / 1000).toFixed(1)}K` : "0"} views</span>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </Link>
-                <a
-                  href={project.youtubeUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-3 py-2 text-sm text-surface-700 hover:bg-surface-50"
-                  onClick={() => setOpenMenu(null)}
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  YouTube
-                </a>
+
                 <button
-                  onClick={() => handleDelete(project._id)}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    setOpenMenu(openMenu === project._id ? null : project._id);
+                  }}
+                  className="absolute right-3 top-3 z-10 rounded-lg p-1.5 text-surface-400 opacity-0 transition-opacity hover:bg-surface-100 hover:text-surface-600 group-hover:opacity-100 dark:hover:bg-surface-800 dark:hover:text-surface-300"
                 >
-                  <Trash2 className="h-4 w-4" />
-                  Hapus
+                  <MoreHorizontal className="h-4 w-4" />
                 </button>
+
+                {openMenu === project._id && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setOpenMenu(null)} />
+                    <div className="absolute right-0 top-12 z-50 w-40 rounded-lg border border-surface-200 bg-white py-1 shadow-lg dark:border-surface-700 dark:bg-surface-900">
+                      <Link
+                        href={`/dashboard/projects/${project._id}`}
+                        className="flex items-center gap-2 px-3 py-2 text-sm text-surface-700 hover:bg-surface-50 dark:text-surface-300 dark:hover:bg-surface-800"
+                        onClick={() => setOpenMenu(null)}
+                      >
+                        <Eye className="h-4 w-4" />
+                        Detail
+                      </Link>
+                      {project.youtubeUrl && (
+                        <a
+                          href={project.youtubeUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 px-3 py-2 text-sm text-surface-700 hover:bg-surface-50 dark:text-surface-300 dark:hover:bg-surface-800"
+                          onClick={() => setOpenMenu(null)}
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                          YouTube
+                        </a>
+                      )}
+                      <button
+                        onClick={() => handleDelete(project._id)}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Hapus
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             );
-          })()}
-        </CardContent>
-      </Card>
+          })}
+        </div>
+      )}
     </div>
   );
 }

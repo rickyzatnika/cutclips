@@ -85,10 +85,27 @@ export const remove = mutation({
 export const create = mutation({
   args: {
     title: v.string(),
-    youtubeUrl: v.string(),
+    youtubeUrl: v.optional(v.string()),
+    type: v.union(v.literal("youtube"), v.literal("script")),
     provider: v.optional(v.string()),
     model: v.optional(v.string()),
     accessToken: v.optional(v.string()),
+    fontFamily: v.optional(v.string()),
+    outlineColor: v.optional(v.string()),
+    fontSize: v.optional(v.number()),
+    script: v.optional(
+      v.object({
+        topic: v.string(),
+        scenes: v.array(
+          v.object({
+            sceneDescription: v.string(),
+            visualKeyword: v.string(),
+            narration: v.string(),
+            duration: v.number(),
+          }),
+        ),
+      }),
+    ),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -107,9 +124,14 @@ export const create = mutation({
       userId: user._id,
       title: args.title,
       youtubeUrl: args.youtubeUrl,
+      type: args.type,
       status: "queued",
       shortCount: 0,
       totalViews: 0,
+      fontFamily: args.fontFamily,
+      outlineColor: args.outlineColor,
+      fontSize: args.fontSize,
+      script: args.script,
       createdAt: now,
       updatedAt: now,
     });
@@ -119,9 +141,14 @@ export const create = mutation({
       userId: user._id,
       youtubeUrl: args.youtubeUrl,
       title: args.title,
+      type: args.type,
       provider: args.provider,
       model: args.model,
       accessToken: args.accessToken,
+      fontFamily: args.fontFamily,
+      outlineColor: args.outlineColor,
+      fontSize: args.fontSize,
+      script: args.script,
       status: "queued",
       createdAt: now,
       retryCount: 0,

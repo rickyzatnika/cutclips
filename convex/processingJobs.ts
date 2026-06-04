@@ -70,9 +70,14 @@ export const claimJob = mutation({
       projectId: job.projectId,
       youtubeUrl: job.youtubeUrl,
       title: job.title,
+      type: job.type,
       provider: job.provider || null,
       model: job.model || null,
       accessToken: job.accessToken || null,
+      fontFamily: job.fontFamily || null,
+      outlineColor: job.outlineColor || null,
+      fontSize: job.fontSize || null,
+      script: job.script || null,
       isAdmin,
     };
   },
@@ -186,6 +191,11 @@ export const requeueStuckJobs = internalMutation({
     for (const job of stuckJobs) {
       if (job.startedAt && (now - job.startedAt) > timeoutMs) {
         const retryCount = (job.retryCount || 0) + 1;
+        const project = await ctx.db.get(job.projectId);
+        if (!project) {
+          await ctx.db.delete(job._id);
+          continue;
+        }
         if (retryCount >= 3) {
           await ctx.db.patch(job._id, {
             status: "failed",

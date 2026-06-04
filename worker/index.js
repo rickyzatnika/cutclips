@@ -6,12 +6,15 @@ const path = require("path");
 const os = require("os");
 const { execFile } = require("child_process");
 const cloudinary = require("cloudinary").v2;
+const { EdgeTTS } = require("node-edge-tts");
+
 
 // ─── Config ────────────────────────────────────────────────
-const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL;
+const CONVEX_URL = process.env.CONVEX_URL || process.env.NEXT_PUBLIC_CONVEX_URL;
 const WORKER_SECRET = process.env.WORKER_API_KEY;
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const PEXELS_API_KEY = process.env.PEXELS_API_KEY;
 const POLL_INTERVAL = parseInt(process.env.WORKER_POLL_INTERVAL || "5000", 10);
 
 cloudinary.config({
@@ -43,6 +46,7 @@ const YT_DLP = getYtDlpPath() || "yt-dlp";
 
 // ─── Convex REST helper ────────────────────────────────────
 async function convexCall(mutationPath, args) {
+  if (!CONVEX_URL) throw new Error("CONVEX_URL not set in .env.local");
   const res = await fetch(`${CONVEX_URL}/api/mutation`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -54,6 +58,13 @@ async function convexCall(mutationPath, args) {
 }
 
 // ─── Helpers ───────────────────────────────────────────────
+function srtTimeStr(seconds) {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = (seconds % 60).toFixed(3).replace(".", ",");
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(7, "0")}`;
+}
+
 function execYtDlp(args, timeout = 60000) {
   return new Promise((resolve, reject) => {
     execFile(YT_DLP, args, { timeout }, (err, stdout) => {
@@ -416,13 +427,6 @@ async function downloadYouTube(outputDir, filename, url, onProgress) {
   return outputPath;
 }
 
-function srtTimeStr(seconds) {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = (seconds % 60).toFixed(3).replace(".", ",");
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(7, "0")}`;
-}
-
 function generateSrtForClip(captions, clipStart, clipEnd) {
   let srt = "";
   let idx = 1;
@@ -451,7 +455,7 @@ function generateSrtForClip(captions, clipStart, clipEnd) {
   return srt;
 }
 
-function cutClip(ffmpegPath, workDir, videoName, outputName, start, duration, captions) {
+function cutClip(ffmpegPath, workDir, videoName, outputName, start, duration, captions, opts) {
   let vf = "crop='min(iw,ih*9/16)':'min(ih,iw*16/9)',scale=1080:1920";
 
   if (captions && captions.length > 0) {
@@ -459,7 +463,10 @@ function cutClip(ffmpegPath, workDir, videoName, outputName, start, duration, ca
     const srtContent = generateSrtForClip(captions, start, clipEnd);
     if (srtContent.trim()) {
       fs.writeFileSync(path.join(workDir, "captions.srt"), srtContent, "utf-8");
-      const style = "FontName=Arial\\,FontSize=13\\,PrimaryColour=&H00FFFFFF\\,OutlineColour=&H0000FF00\\,Outline=2\\,BorderStyle=1";
+      const fontFamily = (opts && opts.fontFamily) || "Arial";
+      const fontSize = (opts && opts.fontSize) || 13;
+      const outlineColor = (opts && opts.outlineColor) || "&H0000FF00";
+      const style = `FontName=${fontFamily}\\,FontSize=${fontSize}\\,PrimaryColour=&H00FFFFFF\\,OutlineColour=${outlineColor}\\,Outline=2\\,BorderStyle=1`;
       vf += `,subtitles=captions.srt:force_style=${style}`;
     }
   }
@@ -485,85 +492,511 @@ function cutClip(ffmpegPath, workDir, videoName, outputName, start, duration, ca
   });
 }
 
-// ─── Main loop ─────────────────────────────────────────────
+// ─── Script-type job helpers ───────────────────────────────
+
+async function tryPexelsSearch(query) {
+  const res = await fetch(
+    `https://api.pexels.com/videos/search?query=${encodeURIComponent(query)}&per_page=5&orientation=portrait`,
+    { headers: { Authorization: PEXELS_API_KEY } },
+  );
+  if (!res.ok) return null;
+  const data = await res.json();
+  if (!data.videos?.length) return null;
+  for (const v of data.videos) {
+    if (v.duration < 8) continue;
+    const hdFile = v.video_files?.find((f) => f.quality === "hd" && f.width >= 720);
+    if (hdFile?.link) return { url: hdFile.link, duration: v.duration };
+    const sdFile = v.video_files?.find((f) => f.link);
+    if (sdFile?.link) return { url: sdFile.link, duration: v.duration };
+  }
+  return null;
+}
+
+async function searchStockVideo(keyword) {
+  if (!PEXELS_API_KEY) return null;
+
+  // Collect all keywords to try: original + broad fallbacks
+  const keywordsToTry = [
+    keyword,
+    ...keyword.split(/\s+/).filter((k) => k.length > 3),
+    "nature", "technology", "city", "people",
+    "business", "office", "food", "background",
+    "abstract", "landscape", "lifestyle", "science",
+  ];
+
+  const tried = new Set();
+  for (const kw of keywordsToTry) {
+    const lower = kw.toLowerCase().trim();
+    if (!lower || tried.has(lower)) continue;
+    tried.add(lower);
+    try {
+      const result = await tryPexelsSearch(lower);
+      if (result) {
+        console.log(`[Worker]   Found stock video via keyword "${lower}" (${result.duration}s)`);
+        return result;
+      }
+    } catch {}
+  }
+  return null;
+}
+
+async function downloadStockVideo(url, outputPath) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Failed to download stock video: ${res.status}`);
+  const buffer = Buffer.from(await res.arrayBuffer());
+  await fsp.writeFile(outputPath, buffer);
+}
+
+async function generateTTS(text, outputPath) {
+  const tts = new EdgeTTS({
+    voice: "id-ID-GadisNeural",
+    lang: "id-ID",
+    rate: "default",
+    pitch: "default",
+    timeout: 30000,
+  });
+  await tts.ttsPromise(text, outputPath);
+}
+
+function getAudioDuration(filePath) {
+  return new Promise((resolve, reject) => {
+    execFile(FFMPEG, ["-i", filePath, "-f", "null", "-"], (err, stdout, stderr) => {
+      if (err) return reject(err);
+      const m = stderr.match(/Duration: (\d+):(\d+):(\d+)\.(\d+)/);
+      if (m) {
+        resolve(parseInt(m[1]) * 3600 + parseInt(m[2]) * 60 + parseInt(m[3]) + parseInt(m[4]) / 100);
+      } else {
+        reject(new Error("Could not parse duration"));
+      }
+    });
+  });
+}
+
+async function renderSceneWithNarration(ffmpegPath, workDir, sceneIndex, scene, opts, actualDuration) {
+  const sceneInput = path.join(workDir, `scene_${sceneIndex}_input.mp4`);
+  const ttsAudio = path.join(workDir, `scene_${sceneIndex}_tts.mp3`);
+  const outputRaw = path.join(workDir, `scene_${sceneIndex}_raw.mp4`);
+  const outputFinal = `scene_${sceneIndex}.mp4`;
+
+  const duration = actualDuration || scene.duration;
+  let inputFile = sceneInput;
+
+  // Check if stock video was downloaded
+  if (!fs.existsSync(sceneInput)) {
+    // Generate a colorful background with text instead
+    const bgColor = ["#1a1a2e", "#16213e", "#0f3460", "#533483", "#e94560"][sceneIndex % 5];
+    const textDesc = scene.sceneDescription.replace(/'/g, "'\\''").substring(0, 50);
+    const label = `Scene ${sceneIndex + 1}`;
+    const ffCmd = [
+      "-f", "lavfi",
+      "-i", `color=c=${bgColor}:s=1080x1920:d=${duration}:r=30`,
+      "-vf", `drawtext=text='${label}':fontcolor=white:fontsize=48:x=(w-text_w)/2:y=(h-text_h)/2-40:fontfile=${escapeFontPath("Arial")},drawtext=text='${textDesc}':fontcolor=white:fontsize=32:x=(w-text_w)/2:y=(h-text_h)/2+20:fontfile=${escapeFontPath("Arial")}`,
+      "-c:v", "libx264",
+      "-preset", "ultrafast",
+      "-y",
+      outputRaw,
+    ];
+    await new Promise((resolve, reject) => {
+      execFile(ffmpegPath, ffCmd, { cwd: workDir }, (err) => {
+        if (err) return reject(err);
+        resolve();
+      });
+    });
+    inputFile = outputRaw;
+  } else {
+    // We have stock footage - center-crop to 9:16 and scale
+    const vf = "crop='min(iw,ih*9/16)':'min(ih,iw*16/9)',scale=1080:1920";
+    await new Promise((resolve, reject) => {
+      execFile(ffmpegPath, [
+        "-i", sceneInput,
+        "-t", String(duration),
+        "-vf", vf,
+        "-c:v", "libx264",
+        "-preset", "ultrafast",
+        "-y",
+        outputRaw,
+      ], { cwd: workDir }, (err) => {
+        if (err) return reject(err);
+        resolve();
+      });
+    });
+    inputFile = outputRaw;
+  }
+
+  // Generate TTS for narration (skip if pre-generated)
+  if (scene.narration && scene.narration.trim()) {
+    try {
+      if (!fs.existsSync(ttsAudio)) {
+        await generateTTS(scene.narration, ttsAudio);
+      }
+      await new Promise((resolve, reject) => {
+        execFile(ffmpegPath, [
+          "-i", inputFile,
+          "-i", ttsAudio,
+          "-c:v", "copy",
+          "-c:a", "aac",
+          "-map", "0:v:0",
+          "-map", "1:a:0",
+          "-shortest",
+          "-y",
+          outputFinal,
+        ], { cwd: workDir }, (err) => {
+          if (err) return reject(err);
+          resolve();
+        });
+      });
+      return outputFinal;
+    } catch {
+      // TTS failed, use video without audio
+    }
+  }
+
+  // No TTS, just rename the raw output
+  if (inputFile !== outputFinal) {
+    await fsp.rename(inputFile, path.join(workDir, outputFinal));
+  }
+  return outputFinal;
+}
+
+function escapeFontPath(fontName) {
+  // Simple font name for drawtext filter
+  return fontName.replace(/'/g, "'\\''");
+}
+
+function generateCaptionsForScript(scenes) {
+  const captions = [];
+  let currentTime = 0;
+  for (const scene of scenes) {
+    const dur = scene.duration;
+    const words = scene.narration.split(/\s+/).filter(Boolean);
+    const wordCount = words.length;
+    if (wordCount === 0) {
+      currentTime += dur;
+      continue;
+    }
+    const timePerWord = dur / wordCount;
+    // Group words into chunks of 3-4 for display
+    const chunkSize = 3;
+    for (let i = 0; i < wordCount; i += chunkSize) {
+      const chunk = words.slice(i, i + chunkSize).join(" ");
+      const start = currentTime + i * timePerWord;
+      const end = Math.min(start + timePerWord * chunkSize, currentTime + dur);
+      captions.push({
+        start,
+        end,
+        text: chunk,
+        style: "fade-in",
+      });
+    }
+    currentTime += dur;
+  }
+  return captions;
+}
+
+function formatAssTime(seconds) {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const sec = seconds % 60;
+  const cs = Math.floor((sec % 1) * 100);
+  return `${h}:${String(m).padStart(2, "0")}:${String(Math.floor(sec)).padStart(2, "0")}.${String(cs).padStart(2, "0")}`;
+}
+
+function generateAssCaptions(scenes, opts, actualDurations) {
+  const fontName = opts.fontFamily || "Arial";
+  const fontSize = opts.fontSize || 16;
+  const rawColor = opts.outlineColor || "&H0000FF00";
+  const primaryColor = "&H00FFFFFF";
+
+  let ass = `[Script Info]
+ScriptType: v4.00+
+PlayResX: 1080
+PlayResY: 1920
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,${fontName},${fontSize},${primaryColor},&H0000FFFF,${rawColor},&H00000000,0,0,0,0,100,100,0,0,1,2,2,2,10,10,50,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+`;
+
+  let currentTime = 0;
+  for (let si = 0; si < scenes.length; si++) {
+    const scene = scenes[si];
+    const dur = (actualDurations && actualDurations[si]) || scene.duration;
+    const words = scene.narration.split(/\s+/).filter(Boolean);
+    if (words.length === 0) { currentTime += dur; continue; }
+
+    const timePerWord = dur / words.length;
+    const chunkSize = 4;
+
+    for (let i = 0; i < words.length; i += chunkSize) {
+      const chunk = words.slice(i, i + chunkSize).join(" ");
+      const start = currentTime + i * timePerWord;
+      const end = Math.min(start + timePerWord * chunkSize, currentTime + dur);
+
+      ass += `Dialogue: 0,${formatAssTime(start)},${formatAssTime(end)},Default,,0,0,0,,{\\move(540,1970,540,1770,0,250)}{\\fad(80,150)}${chunk}\n`;
+    }
+    currentTime += dur;
+  }
+
+  return ass;
+}
+
+function concatVideos(ffmpegPath, workDir, sceneFiles, outputName) {
+  // Create concat file
+  const listContent = sceneFiles.map((f) => `file '${f}'`).join("\n");
+  fs.writeFileSync(path.join(workDir, "concat.txt"), listContent, "utf-8");
+
+  return new Promise((resolve, reject) => {
+    execFile(ffmpegPath, [
+      "-f", "concat",
+      "-safe", "0",
+      "-i", "concat.txt",
+      "-c", "copy",
+      "-y",
+      outputName,
+    ], { cwd: workDir }, (err) => {
+      if (err) return reject(err);
+      resolve();
+    });
+  });
+}
+
+// ─── YouTube job processing ────────────────────────────────
+
+async function processYoutubeJob(job, tempDir) {
+  console.log(`[Worker] Getting video info for: ${job.youtubeUrl}`);
+  const context = await getVideoContext(job.youtubeUrl, tempDir);
+  console.log(`[Worker] Video: "${context.title}" (${Math.floor(context.duration)}s)`);
+
+  console.log(`[Worker] Analyzing with ${job.provider || "groq"}/${job.model || "llama-3.1-8b-instant"}...`);
+  const analysis = await analyzeVideo({
+    ...context,
+    title: job.title,
+    model: job.model || "llama-3.1-8b-instant",
+    provider: job.provider || "groq",
+  });
+  console.log(`[Worker] AI found ${analysis.clips.length} clips`);
+
+  console.log(`[Worker] Downloading video...`);
+  await convexCall("workerMutations:workerUpdateProgress", {
+    workerSecret: WORKER_SECRET,
+    jobId: job.jobId,
+    progress: 30,
+  });
+  await downloadYouTube(tempDir, "video.mp4", job.youtubeUrl, (dlPct) => {
+    const scaled = 30 + Math.round(dlPct * 0.10);
+    convexCall("workerMutations:workerUpdateProgress", {
+      workerSecret: WORKER_SECRET,
+      jobId: job.jobId,
+      progress: scaled,
+    }).catch(() => {});
+  });
+
+  const videoUrls = [];
+  for (let i = 0; i < analysis.clips.length; i++) {
+    const c = analysis.clips[i];
+    const dur = Math.max(5, c.end - c.start);
+    const clipName = `clip-${i}.mp4`;
+    const progressBase = 40;
+    const stepSize = 25;
+    const clipProgress = progressBase + Math.round((stepSize / analysis.clips.length) * (i + 1));
+
+    console.log(`[Worker] Cutting clip ${i + 1}/${analysis.clips.length} (${c.start}s → ${c.start + dur}s)...`);
+    const clipCaptions = analysis.captions.filter(
+      (cap) => cap.start < c.end && cap.end > c.start
+    );
+    const clipOpts = {};
+    if (job.fontFamily) clipOpts.fontFamily = job.fontFamily;
+    if (job.fontSize) clipOpts.fontSize = job.fontSize;
+    if (job.outlineColor) clipOpts.outlineColor = "&H00" + job.outlineColor.replace("#", "").toUpperCase();
+    await cutClip(FFMPEG, tempDir, "video.mp4", clipName, c.start, dur, clipCaptions, clipOpts);
+
+    console.log(`[Worker] Uploading clip ${i + 1} to Cloudinary...`);
+    const result = await cloudinary.uploader.upload(path.join(tempDir, clipName), {
+      resource_type: "video",
+      folder: `shortsai/${job.projectId}`,
+      public_id: `clip-${i}`,
+    });
+    videoUrls.push(result.secure_url);
+
+    await convexCall("workerMutations:workerUpdateProgress", {
+      workerSecret: WORKER_SECRET,
+      jobId: job.jobId,
+      progress: clipProgress + 5,
+    }).catch(() => {});
+  }
+
+  return { clips: analysis.clips, captions: analysis.captions, voiceOver: analysis.voiceOver, videoUrls };
+}
+
+// ─── Script job processing ─────────────────────────────────
+
+async function processScriptJob(job, tempDir) {
+  const script = job.script;
+  console.log(`[Worker] Processing script job: "${script.topic}" (${script.scenes.length} scenes)`);
+
+  await convexCall("workerMutations:workerUpdateProgress", {
+    workerSecret: WORKER_SECRET,
+    jobId: job.jobId,
+    progress: 10,
+  });
+
+  // 1. Search and download stock footage for each scene
+  for (let i = 0; i < script.scenes.length; i++) {
+    const scene = script.scenes[i];
+    console.log(`[Worker] Scene ${i + 1}/${script.scenes.length}: "${scene.visualKeyword}"`);
+
+    const stockVideo = await searchStockVideo(scene.visualKeyword);
+    if (stockVideo) {
+      try {
+        const outputPath = path.join(tempDir, `scene_${i}_input.mp4`);
+        console.log(`[Worker]   Downloading stock video: ${stockVideo.url}`);
+        await downloadStockVideo(stockVideo.url, outputPath);
+        console.log(`[Worker]   Stock video downloaded (${stockVideo.duration}s)`);
+      } catch (e) {
+        console.log(`[Worker]   Stock download failed: ${e.message}`);
+      }
+    } else {
+      console.log(`[Worker]   No stock video found for "${scene.visualKeyword}"`);
+    }
+
+    const sceneProgress = 10 + Math.round((40 / script.scenes.length) * (i + 1));
+    await convexCall("workerMutations:workerUpdateProgress", {
+      workerSecret: WORKER_SECRET,
+      jobId: job.jobId,
+      progress: sceneProgress,
+    }).catch(() => {});
+  }
+
+  // 2. Pre-generate TTS for each scene to get actual audio duration
+  const actualDurations = [];
+  for (let i = 0; i < script.scenes.length; i++) {
+    const scene = script.scenes[i];
+    const ttsPath = path.join(tempDir, `scene_${i}_tts.mp3`);
+    if (scene.narration && scene.narration.trim()) {
+      try {
+        console.log(`[Worker]   Generating TTS for scene ${i + 1}...`);
+        await generateTTS(scene.narration, ttsPath);
+        const audioDur = await getAudioDuration(ttsPath);
+        actualDurations.push(audioDur);
+        console.log(`[Worker]   TTS duration: ${audioDur.toFixed(1)}s (scene duration: ${scene.duration}s)`);
+      } catch (e) {
+        console.log(`[Worker]   TTS failed for scene ${i + 1}: ${e.message}`);
+        actualDurations.push(scene.duration);
+      }
+    } else {
+      actualDurations.push(scene.duration);
+    }
+  }
+
+  // 3. Render each scene with TTS and correct duration
+  const opts = {};
+  if (job.fontFamily) opts.fontFamily = job.fontFamily;
+  if (job.fontSize) opts.fontSize = job.fontSize;
+  if (job.outlineColor) opts.outlineColor = "&H00" + job.outlineColor.replace("#", "").toUpperCase();
+
+  const renderedScenes = [];
+  for (let i = 0; i < script.scenes.length; i++) {
+    console.log(`[Worker] Rendering scene ${i + 1}/${script.scenes.length}...`);
+    const sceneFile = await renderSceneWithNarration(FFMPEG, tempDir, i, script.scenes[i], opts, actualDurations[i]);
+    renderedScenes.push(sceneFile);
+
+    const renderProgress = 50 + Math.round((30 / script.scenes.length) * (i + 1));
+    await convexCall("workerMutations:workerUpdateProgress", {
+      workerSecret: WORKER_SECRET,
+      jobId: job.jobId,
+      progress: renderProgress,
+    }).catch(() => {});
+  }
+
+  // 4. Concatenate scenes
+  console.log(`[Worker] Concatenating ${renderedScenes.length} scenes...`);
+  const concatOutput = "final.mp4";
+  await concatVideos(FFMPEG, tempDir, renderedScenes, concatOutput);
+
+  // 5. Add animated captions to final video
+  const captions = generateCaptionsForScript(script.scenes);
+  const assContent = generateAssCaptions(script.scenes, opts, actualDurations);
+  let finalVideo = concatOutput;
+  if (assContent.trim()) {
+    fs.writeFileSync(path.join(tempDir, "final_captions.ass"), assContent, "utf-8");
+    const captionedVideo = "final_captioned.mp4";
+    await new Promise((resolve, reject) => {
+      execFile(FFMPEG, [
+        "-i", concatOutput,
+        "-vf", "ass=final_captions.ass",
+        "-c:a", "copy",
+        "-preset", "ultrafast",
+        "-y",
+        captionedVideo,
+      ], { cwd: tempDir }, (err) => {
+        if (err) return reject(err);
+        resolve();
+      });
+    });
+    finalVideo = captionedVideo;
+  }
+
+  await convexCall("workerMutations:workerUpdateProgress", {
+    workerSecret: WORKER_SECRET,
+    jobId: job.jobId,
+    progress: 85,
+  }).catch(() => {});
+
+  // 5. Upload to Cloudinary
+  console.log(`[Worker] Uploading final video to Cloudinary...`);
+  const result = await cloudinary.uploader.upload(path.join(tempDir, finalVideo), {
+    resource_type: "video",
+    folder: `shortsai/${job.projectId}`,
+    public_id: "script-video",
+  });
+
+  const totalDuration = script.scenes.reduce((s, sc) => s + sc.duration, 0);
+
+  await convexCall("workerMutations:workerUpdateProgress", {
+    workerSecret: WORKER_SECRET,
+    jobId: job.jobId,
+    progress: 95,
+  }).catch(() => {});
+
+  return {
+    clips: [{
+      start: 0,
+      end: totalDuration,
+      description: `Video tentang ${script.topic}`,
+    }],
+    captions,
+    voiceOver: script.scenes.map((s) => s.narration).join(" "),
+    videoUrls: [result.secure_url],
+  };
+}
+
+// ─── Main job processing ───────────────────────────────────
+
 async function processJob(job) {
-  console.log(`\n[Worker] Claimed job: ${job.jobId} — "${job.title}"`);
+  console.log(`\n[Worker] Claimed job: ${job.jobId} — "${job.title}" (type: ${job.type || "youtube"})`);
 
   const tempDir = await fsp.mkdtemp(path.join(os.tmpdir(), "saas-worker-"));
 
   try {
-    // 1. Video info
-    console.log(`[Worker] Getting video info for: ${job.youtubeUrl}`);
-    const context = await getVideoContext(job.youtubeUrl, tempDir);
-    console.log(`[Worker] Video: "${context.title}" (${Math.floor(context.duration)}s)`);
-
-    // 2. AI analysis
-    console.log(`[Worker] Analyzing with ${job.provider || "groq"}/${job.model || "llama-3.1-8b-instant"}...`);
-    const analysis = await analyzeVideo({
-      ...context,
-      title: job.title,
-      model: job.model || "llama-3.1-8b-instant",
-      provider: job.provider || "groq",
-    });
-    console.log(`[Worker] AI found ${analysis.clips.length} clips`);
-
-    // 3. Download
-    console.log(`[Worker] Downloading video...`);
-    await convexCall("workerMutations:workerUpdateProgress", {
-      workerSecret: WORKER_SECRET,
-      jobId: job.jobId,
-      progress: 30,
-    });
-    await downloadYouTube(tempDir, "video.mp4", job.youtubeUrl, (dlPct) => {
-      const scaled = 30 + Math.round(dlPct * 0.10);
-      convexCall("workerMutations:workerUpdateProgress", {
-        workerSecret: WORKER_SECRET,
-        jobId: job.jobId,
-        progress: scaled,
-      }).catch(() => {});
-    });
-
-    // 4. FFmpeg cut + upload
-    const videoUrls = [];
-    for (let i = 0; i < analysis.clips.length; i++) {
-      const c = analysis.clips[i];
-      const dur = Math.max(5, c.end - c.start);
-      const clipName = `clip-${i}.mp4`;
-
-      const progressBase = 40;
-      const stepSize = 25;
-      const clipProgress = progressBase + Math.round((stepSize / analysis.clips.length) * (i + 1));
-
-      console.log(`[Worker] Cutting clip ${i + 1}/${analysis.clips.length} (${c.start}s → ${c.start + dur}s)...`);
-      const clipCaptions = analysis.captions.filter(
-        (cap) => cap.start < c.end && cap.end > c.start
-      );
-      await cutClip(FFMPEG, tempDir, "video.mp4", clipName, c.start, dur, clipCaptions);
-
-      console.log(`[Worker] Uploading clip ${i + 1} to Cloudinary...`);
-      const result = await cloudinary.uploader.upload(path.join(tempDir, clipName), {
-        resource_type: "video",
-        folder: `shortsai/${job.projectId}`,
-        public_id: `clip-${i}`,
-      });
-      videoUrls.push(result.secure_url);
-
-      await convexCall("workerMutations:workerUpdateProgress", {
-        workerSecret: WORKER_SECRET,
-        jobId: job.jobId,
-        progress: clipProgress + 5,
-      }).catch(() => {});
+    let result;
+    if (job.type === "script" && job.script) {
+      result = await processScriptJob(job, tempDir);
+    } else {
+      result = await processYoutubeJob(job, tempDir);
     }
 
-    // 5. Complete
     console.log(`[Worker] Completing job...`);
     await convexCall("workerMutations:workerCompleteJob", {
       workerSecret: WORKER_SECRET,
       jobId: job.jobId,
-      clips: analysis.clips,
-      captions: analysis.captions,
-      voiceOver: analysis.voiceOver,
-      videoUrls,
+      clips: result.clips,
+      captions: result.captions,
+      voiceOver: result.voiceOver,
+      videoUrls: result.videoUrls,
     });
     console.log(`[Worker] ✅ Job ${job.jobId} completed!`);
 
@@ -583,6 +1016,8 @@ async function processJob(job) {
     await fsp.rm(tempDir, { recursive: true, force: true }).catch(() => {});
   }
 }
+
+// ─── Poll loop ─────────────────────────────────────────────
 
 async function pollLoop() {
   console.log(`[Worker] Starting poll loop (interval: ${POLL_INTERVAL}ms)`);
@@ -607,7 +1042,6 @@ async function pollLoop() {
       if (job) {
         await processJob(job);
       } else {
-        // no jobs — wait
         await new Promise((r) => setTimeout(r, POLL_INTERVAL));
       }
     } catch (error) {

@@ -6,16 +6,19 @@ import {
   LayoutDashboard,
   Video,
   Settings,
-  Sparkles,
+  Palette,
+  Scissors,
   LogOut,
   ChevronLeft,
   Menu,
-  User,
+  FileText,
+  Globe,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { useUser } from "@/providers/auth";
 import { signOut } from "next-auth/react";
+import { ThemeToggle } from "./theme-toggle";
 
 const navItems = [
   {
@@ -27,6 +30,21 @@ const navItems = [
     label: "Proyek Saya",
     href: "/dashboard/projects",
     icon: Video,
+  },
+  {
+    label: "YouTube URL",
+    href: "/dashboard/new",
+    icon: Globe,
+  },
+  {
+    label: "Text to Video",
+    href: "/dashboard/script-generator",
+    icon: FileText,
+  },
+  {
+    label: "Brand Templates",
+    href: "/dashboard/brand-templates",
+    icon: Palette,
   },
   {
     label: "Pengaturan",
@@ -43,22 +61,22 @@ export function DashboardSidebar() {
   return (
     <aside
       className={cn(
-        "flex flex-col border-r border-surface-200 bg-white transition-all duration-300",
+        "flex flex-col border-r border-surface-200 bg-white transition-all duration-300 dark:bg-surface-900",
         collapsed ? "w-16" : "w-64",
       )}
     >
       <div className="flex h-16 items-center justify-between border-b border-surface-200 px-4">
         {!collapsed && (
           <Link href="/" className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary-600" />
-            <span className="text-sm font-bold text-surface-900">
-              ShortAI
+            <Scissors className="h-5 w-5 text-primary-600" />
+            <span className="text-sm font-bold text-surface-900 dark:text-surface-100">
+              CutClips
             </span>
           </Link>
         )}
         {collapsed && (
           <Link href="/" className="mx-auto">
-            <Sparkles className="h-5 w-5 text-primary-600" />
+            <Scissors className="h-5 w-5 text-primary-600" />
           </Link>
         )}
         <button
@@ -82,13 +100,14 @@ export function DashboardSidebar() {
             {user.name?.charAt(0)?.toUpperCase() || "U"}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-surface-900">
+            <p className="truncate text-sm font-medium text-surface-900 dark:text-surface-100">
               {user.name || "User"}
             </p>
             <p className="truncate text-xs text-surface-400">
               {user.email}
             </p>
           </div>
+          <ThemeToggle />
         </div>
       )}
 
@@ -102,8 +121,8 @@ export function DashboardSidebar() {
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                 isActive
-                  ? "bg-primary-50 text-primary-700"
-                  : "text-surface-600 hover:bg-surface-100 hover:text-surface-900",
+                  ? "bg-primary-50 text-primary-700 dark:bg-primary-950 dark:text-primary-300"
+                  : "text-surface-600 hover:bg-surface-100 hover:text-surface-900 dark:text-surface-400 dark:hover:bg-surface-800 dark:hover:text-surface-200",
                 collapsed && "justify-center px-2",
               )}
             >
@@ -114,11 +133,11 @@ export function DashboardSidebar() {
         })}
       </nav>
 
-      <div className="border-t border-surface-200 p-3">
+      <div className="border-t border-surface-200 p-3 dark:border-surface-800">
         <button
           onClick={() => signOut({ callbackUrl: "/" })}
           className={cn(
-            "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-surface-600 transition-colors hover:bg-surface-100 hover:text-red-600",
+            "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-surface-600 transition-colors hover:bg-surface-100 hover:text-red-600 dark:text-surface-400 dark:hover:bg-surface-800",
             collapsed && "justify-center",
           )}
         >

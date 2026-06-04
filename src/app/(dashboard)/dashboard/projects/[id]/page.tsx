@@ -148,14 +148,15 @@ function VoiceOverCard({ text }: { text: string }) {
           </div>
           <button
             onClick={toggle}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-surface-300 bg-white px-3 py-1.5 text-sm font-medium text-surface-700 hover:bg-surface-50 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-surface-300 bg-white px-3 py-1.5 text-sm font-medium text-surface-700 hover:bg-surface-50 transition-colors dark:border-surface-700 dark:bg-surface-900 dark:text-surface-300 dark:hover:bg-surface-800"
           >
-            {playing ? "Stop" : "Putar"}
+            <ArrowLeft className="h-4 w-4" />
+            Kembali
           </button>
         </div>
       </CardHeader>
       <CardContent>
-        <p className="text-sm text-surface-600 leading-relaxed">
+        <p className="text-sm text-surface-600 leading-relaxed dark:text-surface-300">
           {text}
         </p>
       </CardContent>
@@ -173,6 +174,14 @@ export default function ProjectDetailPage({
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
   const updateProgress = useMutation(api.projects.updateProgress);
   const sseStarted = useRef(false);
+  const [sseError, setSseError] = useState("");
+
+  useEffect(() => {
+    if (!project) return;
+    if (project.status !== "queued") {
+      setSseError("");
+    }
+  }, [project?.status]);
 
   useEffect(() => {
     if (!project) return;
@@ -223,6 +232,9 @@ export default function ProjectDetailPage({
             if (!line.startsWith("data: ")) continue;
             try {
               const data = JSON.parse(line.slice(6));
+              if (data.error) {
+                setSseError(data.error);
+              }
               if (data.progress >= 0 && data.progress < 100) {
                 updateProgress({ projectId: id as any, progress: data.progress }).catch(() => {});
               }
@@ -273,14 +285,14 @@ export default function ProjectDetailPage({
       <div className="mb-8">
         <Link
           href="/dashboard/projects"
-          className="mb-4 inline-flex items-center gap-1 text-sm text-surface-500 hover:text-surface-700"
+          className="mb-4 inline-flex items-center gap-1 text-sm text-surface-500 hover:text-surface-700 dark:text-surface-400 dark:hover:text-surface-300"
         >
           <ArrowLeft className="h-4 w-4" />
           Kembali
         </Link>
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-surface-900">
+            <h1 className="text-2xl font-bold text-surface-900 dark:text-surface-100">
               {project.title}
             </h1>
             <a
@@ -301,23 +313,41 @@ export default function ProjectDetailPage({
       </div>
 
       {(project.status === "queued" || project.status === "processing") && (
-        <Card className="border-primary-200 bg-primary-50">
+        <Card className={`border ${sseError ? "border-amber-200 bg-amber-50" : "border-primary-200 bg-primary-50"}`}>
           <CardContent className="space-y-4 p-6">
             <div className="flex items-center gap-4">
-              <Loader2 className="h-6 w-6 animate-spin text-primary-600" />
-              <div>
-                <p className="font-medium text-primary-900">
-                  {project.status === "queued"
-                    ? "Video dalam antrian..."
-                    : "AI sedang memproses video..."}
-                </p>
-                <p className="text-sm text-primary-700">
-                  {project.status === "queued"
-                    ? "Menunggu giliran diproses..."
-                    : project.progress != null && project.progress > 0
-                      ? `Processing ${project.progress}%`
-                      : "Menganalisis konten, memotong short, dan menambahkan caption..."}
-                </p>
+              <Loader2 className={`h-6 w-6 animate-spin ${sseError ? "text-amber-500" : "text-primary-600"}`} />
+              <div className="min-w-0 flex-1">
+                {sseError ? (
+                  <>
+                    <p className="font-medium text-amber-900">Menunggu worker memproses...</p>
+                    <p className="mt-1 text-sm text-amber-700 whitespace-pre-wrap">
+                      Project script generator akan diproses oleh worker.
+                      Pastikan worker sudah jalan di terminal:
+                    </p>
+                    <div className="mt-2 rounded bg-amber-100 px-3 py-2 font-mono text-xs text-amber-800 select-all">
+                      node worker/index.js
+                    </div>
+                    <p className="mt-1 text-xs text-amber-600">
+                      Halaman ini akan otomatis ter-update saat worker mulai memproses.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-medium text-primary-900">
+                      {project.status === "queued"
+                        ? "Video dalam antrian..."
+                        : "AI sedang memproses video..."}
+                    </p>
+                    <p className="text-sm text-primary-700">
+                      {project.status === "queued"
+                        ? "Menunggu giliran diproses..."
+                        : project.progress != null && project.progress > 0
+                          ? `Processing ${project.progress}%`
+                          : "Menganalisis konten, memotong short, dan menambahkan caption..."}
+                    </p>
+                  </>
+                )}
               </div>
             </div>
             {project.progress != null && project.progress > 0 && (
@@ -382,11 +412,11 @@ export default function ProjectDetailPage({
                       )}
                     </div>
                   ) : (
-                    <div className="aspect-video rounded-lg bg-surface-100 flex items-center justify-center text-surface-400 text-sm">
+                    <div className="aspect-video rounded-lg bg-surface-100 flex items-center justify-center text-surface-400 text-sm dark:bg-surface-800/50 dark:text-surface-500">
                       Video Preview
                     </div>
                   )}
-                  <p className="text-sm text-surface-600">
+                  <p className="text-sm text-surface-600 dark:text-surface-300">
                     {clip.description}
                   </p>
                   <div className="flex gap-2">
@@ -434,7 +464,7 @@ export default function ProjectDetailPage({
                       {Array.isArray(project.captions) && (
                         <button
                           onClick={() => generateSrtDownload(project.captions as CaptionSegment[], `${project.title.replace(/[^a-z0-9]/gi, "_")}_captions.srt`)}
-                          className="rounded-lg border border-surface-300 bg-white px-3 py-1.5 text-sm font-medium text-surface-700 hover:bg-surface-50 transition-colors"
+                          className="rounded-lg border border-surface-300 bg-white px-3 py-1.5 text-sm font-medium text-surface-700 hover:bg-surface-50 transition-colors dark:border-surface-700 dark:bg-surface-900 dark:text-surface-300 dark:hover:bg-surface-800"
                         >
                           Download SRT
                         </button>
@@ -447,20 +477,20 @@ export default function ProjectDetailPage({
                         {(project.captions as CaptionSegment[]).map((seg, i) => (
                           <div
                             key={i}
-                            className="rounded-lg bg-surface-50 px-3 py-2 text-sm"
+                            className="rounded-lg bg-surface-50 px-3 py-2 text-sm dark:bg-surface-800 text-surface-600 dark:text-surface-300"
                           >
-                            <span className="text-xs text-surface-400">
+                            <span className="text-xs text-surface-400 dark:text-surface-500">
                               {seg.start}s - {seg.end}s
                             </span>
-                            <p className="text-surface-700">{seg.text}</p>
-                            <span className="text-xs text-surface-400 capitalize">
+                            <p className="text-surface-700 dark:text-surface-300">{seg.text}</p>
+                            <span className="text-xs text-surface-400 capitalize dark:text-surface-500">
                               {seg.style}
                             </span>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <p className="text-sm text-surface-600 leading-relaxed">
+                      <p className="text-sm text-surface-600 leading-relaxed dark:text-surface-300">
                         {project.captions}
                       </p>
                     )}
@@ -478,7 +508,7 @@ export default function ProjectDetailPage({
 
       {project.status === "completed" && (!project.clips || project.clips.length === 0) && (
         <Card>
-          <CardContent className="p-6 text-center text-surface-400">
+          <CardContent className="p-6 text-center text-surface-400 dark:text-surface-500">
             Hasil akan muncul setelah selesai diproses.
           </CardContent>
         </Card>
@@ -488,10 +518,10 @@ export default function ProjectDetailPage({
         <Card>
           <CardContent className="p-6 text-center">
             <XCircle className="mx-auto mb-3 h-8 w-8 text-red-500" />
-            <p className="font-medium text-surface-900">
+            <p className="font-medium text-surface-900 dark:text-surface-100">
               Proses gagal
             </p>
-            <p className="mt-1 text-sm text-surface-500">
+            <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">
               Silakan coba lagi dengan video lain.
             </p>
             <Link href="/dashboard/new">

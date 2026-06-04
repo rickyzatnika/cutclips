@@ -41,7 +41,7 @@ export default function AdminPage() {
     <div className="p-6 lg:p-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-surface-900">Admin Overview</h1>
-        <p className="mt-1 text-sm text-surface-500">Pantau pertumbuhan platform ShortAI.</p>
+        <p className="mt-1 text-sm text-surface-500">Pantau pertumbuhan platform CutClips.</p>
       </div>
 
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

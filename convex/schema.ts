@@ -25,7 +25,8 @@ export default defineSchema({
   projects: defineTable({
     userId: v.id("users"),
     title: v.string(),
-    youtubeUrl: v.string(),
+    youtubeUrl: v.optional(v.string()),
+    type: v.optional(v.union(v.literal("youtube"), v.literal("script"))),
     status: v.union(
       v.literal("queued"),
       v.literal("processing"),
@@ -48,6 +49,22 @@ export default defineSchema({
     videoUrls: v.optional(v.array(v.string())),
     progress: v.optional(v.number()),
     error: v.optional(v.string()),
+    fontFamily: v.optional(v.string()),
+    outlineColor: v.optional(v.string()),
+    fontSize: v.optional(v.number()),
+    script: v.optional(
+      v.object({
+        topic: v.string(),
+        scenes: v.array(
+          v.object({
+            sceneDescription: v.string(),
+            visualKeyword: v.string(),
+            narration: v.string(),
+            duration: v.number(),
+          }),
+        ),
+      }),
+    ),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -57,11 +74,28 @@ export default defineSchema({
   processingJobs: defineTable({
     projectId: v.id("projects"),
     userId: v.id("users"),
-    youtubeUrl: v.string(),
+    youtubeUrl: v.optional(v.string()),
     title: v.string(),
+    type: v.optional(v.union(v.literal("youtube"), v.literal("script"))),
     provider: v.optional(v.string()),
     model: v.optional(v.string()),
     accessToken: v.optional(v.string()),
+    fontFamily: v.optional(v.string()),
+    outlineColor: v.optional(v.string()),
+    fontSize: v.optional(v.number()),
+    script: v.optional(
+      v.object({
+        topic: v.string(),
+        scenes: v.array(
+          v.object({
+            sceneDescription: v.string(),
+            visualKeyword: v.string(),
+            narration: v.string(),
+            duration: v.number(),
+          }),
+        ),
+      }),
+    ),
     status: v.union(
       v.literal("queued"),
       v.literal("processing"),
@@ -83,6 +117,15 @@ export default defineSchema({
     amount: v.number(),
     type: v.union(v.literal("granted"), v.literal("used"), v.literal("purchased"), v.literal("reset")),
     description: v.string(),
+    createdAt: v.number(),
+  }).index("by_userId", ["userId"]),
+
+  brandTemplates: defineTable({
+    userId: v.id("users"),
+    name: v.string(),
+    fontFamily: v.string(),
+    outlineColor: v.string(),
+    fontSize: v.number(),
     createdAt: v.number(),
   }).index("by_userId", ["userId"]),
 });

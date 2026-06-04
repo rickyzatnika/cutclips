@@ -12,15 +12,15 @@ export function Hero() {
             <Sparkles className="h-3.5 w-3.5" />
             AI-Powered Video Creation
           </div>
-          <h1 className="text-4xl font-bold tracking-tight text-surface-900 sm:text-5xl lg:text-6xl">
+          <h1 className="text-4xl font-bold tracking-tight text-surface-900 sm:text-5xl lg:text-6xl dark:text-white">
             Ubah Video YouTube Jadi{" "}
             <span className="bg-gradient-to-r from-primary-600 to-accent-500 bg-clip-text text-transparent">
               Short Viral
             </span>{" "}
             dengan AI
           </h1>
-          <p className="mt-6 text-lg leading-8 text-surface-500">
-            ShortAI secara otomatis meng-clip video panjang menjadi short video
+          <p className="mt-6 text-lg leading-8 text-surface-500 dark:text-surface-300">
+            CutClips secara otomatis meng-clip video panjang menjadi short video
             berdurasi 30 detik, menambahkan caption animasi, dan voice-over AI
             dalam 20+ bahasa.
           </p>
@@ -59,15 +59,15 @@ export function Hero() {
           ].map((item) => (
             <div
               key={item.title}
-              className="rounded-xl border border-surface-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
+              className="rounded-xl border border-surface-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md dark:border-surface-800 dark:bg-surface-900"
             >
-              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-primary-100 text-primary-600">
+              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-primary-100 text-primary-600 dark:bg-primary-900/50 dark:text-primary-300">
                 <item.icon className="h-5 w-5" />
               </div>
-              <h3 className="mb-2 font-semibold text-surface-900">
+              <h3 className="mb-2 font-semibold text-surface-900 dark:text-surface-100">
                 {item.title}
               </h3>
-              <p className="text-sm text-surface-500">{item.desc}</p>
+              <p className="text-sm text-surface-500 dark:text-surface-400">{item.desc}</p>
             </div>
           ))}
         </div>

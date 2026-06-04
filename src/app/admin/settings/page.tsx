@@ -17,7 +17,7 @@ export default function AdminSettingsPage() {
           Pengaturan Platform
         </h1>
         <p className="mt-1 text-sm text-surface-500">
-          Informasi dan statistik platform ShortAI.
+          Informasi dan statistik platform CutClips.
         </p>
       </div>
 
