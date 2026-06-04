@@ -476,7 +476,7 @@ async function cutClip(
     const srtContent = generateSrtForClip(captions, start, clipEnd);
     if (srtContent.trim()) {
       fs.writeFileSync(path.join(workDir, "captions.srt"), srtContent, "utf-8");
-      const style = "FontName=Poppins\\,FontSize=12\\,PrimaryColour=&H00FFFFFF\\,OutlineColour=&H0000FF00\\,Outline=1\\,BorderStyle=1";
+      const style = "FontName=Poppins\\,FontSize=8\\,PrimaryColour=&H00FFFFFF\\,OutlineColour=&H0000FF00\\,Outline=1\\,BorderStyle=1";
       vf += `,subtitles=captions.srt:force_style=${style}`;
     }
   }
