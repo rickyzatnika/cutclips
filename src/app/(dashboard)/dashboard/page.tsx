@@ -272,13 +272,6 @@ export default function DashboardPage() {
                   detail: `${credits?.totalUsed ?? "-"} credits`,
                   time: "Sepanjang waktu",
                 },
-                {
-                  action: "Reset berikutnya",
-                  detail: credits
-                    ? `${30 - Math.floor((Date.now() - credits.lastReset) / (1000 * 60 * 60 * 24))} hari lagi`
-                    : "Memuat...",
-                  time: "Periodik 30 hari",
-                },
               ].map((item, i) => (
                 <div key={i} className="flex items-start gap-3">
                   <div className="mt-1 h-2 w-2 rounded-full bg-primary-500" />

@@ -10,6 +10,8 @@ import {
   ChevronLeft,
   Menu,
   ArrowLeft,
+  CreditCard,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -24,6 +26,11 @@ const navItems = [
     label: "Users",
     href: "/admin/users",
     icon: Users,
+  },
+  {
+    label: "Invoices",
+    href: "/admin/invoices",
+    icon: FileText,
   },
   {
     label: "Pengaturan",

@@ -549,6 +549,7 @@ const idEnKeywords = {
   menulis: "writing", membaca: "reading", buku: "book",
   krisis: "abstract", masalah: "abstract", solusi: "business",
   dampak: "abstract", manfaat: "people", perubahan: "abstract",
+  
 };
 
 function extractKeywords(visualKeyword, sceneDescription) {

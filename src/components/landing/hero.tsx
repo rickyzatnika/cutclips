@@ -20,9 +20,7 @@ export function Hero() {
             dengan AI
           </h1>
           <p className="mt-6 text-lg leading-8 text-surface-500 dark:text-surface-300">
-            CutClips secara otomatis meng-clip video panjang menjadi short video
-            berdurasi 30 detik, menambahkan caption animasi, dan voice-over AI
-            dalam 20+ bahasa.
+            CutClips secara otomatis meng-clip video YouTube atau mengubah naskah menjadi short video vertikal dengan caption animasi dan voice-over AI.
           </p>
           <div className="mt-8 flex items-center justify-center gap-4">
             <Link href="/signup">

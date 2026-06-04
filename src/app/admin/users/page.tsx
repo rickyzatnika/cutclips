@@ -1,15 +1,28 @@
 "use client";
 
-import { useState } from "react";
-import { MoreHorizontal, Search, CreditCard, Shield } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { MoreHorizontal, Search, CreditCard, Shield, Wifi } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { useToast } from "@/components/ui/toast";
 
+const ONLINE_WINDOW = 2 * 60 * 1000;
+
+function isOnline(user: { lastActive?: number }) {
+  return user.lastActive && Date.now() - user.lastActive < ONLINE_WINDOW;
+}
+
 export default function AdminUsersPage() {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(id);
+  }, []);
+
   const allUsers = useQuery(api.users.list);
+  const onlineUsers = useMemo(() => allUsers?.filter(isOnline).length ?? 0, [allUsers, now]);
   const addCredits = useMutation(api.credits.addCredits);
   const updatePlan = useMutation(api.users.updatePlan);
   const { addToast } = useToast();
@@ -60,8 +73,17 @@ export default function AdminUsersPage() {
   return (
     <div className="p-6 lg:p-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-surface-900">Users</h1>
-        <p className="mt-1 text-sm text-surface-500">Kelola semua pengguna platform.</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-surface-900">Users</h1>
+            <p className="mt-1 text-sm text-surface-500">Kelola semua pengguna platform.</p>
+          </div>
+          <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
+            <Wifi className="h-4 w-4" />
+            <span className="font-medium">{onlineUsers}</span>
+            <span className="text-emerald-600 dark:text-emerald-500">online</span>
+          </div>
+        </div>
       </div>
 
       <Card>
@@ -75,24 +97,35 @@ export default function AdminUsersPage() {
                   <th className="px-6 py-4 font-medium text-surface-500">Paket</th>
                   <th className="px-6 py-4 font-medium text-surface-500">Credits</th>
                   <th className="px-6 py-4 font-medium text-surface-500">Status</th>
+                  <th className="px-6 py-4 font-medium text-surface-500">Langganan</th>
                   <th className="px-6 py-4 font-medium text-surface-500">Bergabung</th>
                   <th className="px-6 py-4 font-medium text-surface-500">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-100">
                 {!allUsers ? (
-                  <tr><td colSpan={7} className="px-6 py-12 text-center text-surface-400">Memuat...</td></tr>
+                  <tr><td colSpan={8} className="px-6 py-12 text-center text-surface-400">Memuat...</td></tr>
                 ) : allUsers.length === 0 ? (
-                  <tr><td colSpan={7} className="px-6 py-12 text-center text-surface-400">Belum ada user</td></tr>
+                  <tr><td colSpan={8} className="px-6 py-12 text-center text-surface-400">Belum ada user</td></tr>
                 ) : (
                   allUsers.map((user) => {
                     const joined = new Date(user.joinedAt).toLocaleDateString("id-ID", { dateStyle: "medium" });
                     return (
                       <tr key={user._id} className="hover:bg-surface-50 transition-colors">
                         <td className="px-6 py-4">
-                          <div>
-                            <p className="font-medium text-surface-900">{user.name}</p>
-                            <p className="text-xs text-surface-400">{user.email}</p>
+                          <div className="flex items-center gap-3">
+                            <div className="relative flex-shrink-0">
+                              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-100 text-primary-700 text-xs font-bold dark:bg-primary-950 dark:text-primary-300">
+                                {user.name?.charAt(0)?.toUpperCase() || "U"}
+                              </div>
+                              {isOnline(user) && (
+                                <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-500 dark:border-surface-900" />
+                              )}
+                            </div>
+                            <div>
+                              <p className="font-medium text-surface-900">{user.name}</p>
+                              <p className="text-xs text-surface-400">{user.email}</p>
+                            </div>
                           </div>
                         </td>
                         <td className="px-6 py-4">
@@ -117,6 +150,12 @@ export default function AdminUsersPage() {
                           </select>
                         </td>
                         <td className="px-6 py-4 text-surface-600">{user.credits.toLocaleString("id-ID")}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <span className={`inline-block h-2 w-2 rounded-full ${isOnline(user) ? "bg-emerald-500" : "bg-surface-300 dark:bg-surface-600"}`} />
+                            <span className="text-xs text-surface-500">{isOnline(user) ? "Online" : "Offline"}</span>
+                          </div>
+                        </td>
                         <td className="px-6 py-4">
                           <Badge variant={user.plan !== "free" ? "success" : "neutral"}>
                             {user.plan !== "free" ? "Active" : "Free"}

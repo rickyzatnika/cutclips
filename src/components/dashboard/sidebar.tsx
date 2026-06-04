@@ -13,11 +13,14 @@ import {
   Menu,
   FileText,
   Globe,
+  Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { useUser } from "@/providers/auth";
 import { signOut } from "next-auth/react";
+import { useQuery } from "convex/react";
+import { api } from "@convex/_generated/api";
 import { ThemeToggle } from "./theme-toggle";
 
 const navItems = [
@@ -57,6 +60,7 @@ export function DashboardSidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const { user } = useUser();
+  const isAdmin = useQuery(api.users.isAdmin);
 
   return (
     <aside
@@ -131,6 +135,25 @@ export function DashboardSidebar() {
             </Link>
           );
         })}
+
+        {isAdmin && (
+          <>
+            <div className={cn("border-t border-surface-200 pt-2 dark:border-surface-700", collapsed && "mx-2")} />
+            <Link
+              href="/admin"
+              className={cn(
+                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                pathname.startsWith("/admin")
+                  ? "bg-primary-50 text-primary-700 dark:bg-primary-950 dark:text-primary-300"
+                  : "text-surface-600 hover:bg-surface-100 hover:text-surface-900 dark:text-surface-400 dark:hover:bg-surface-800 dark:hover:text-surface-200",
+                collapsed && "justify-center px-2",
+              )}
+            >
+              <Shield className="h-5 w-5 flex-shrink-0" />
+              {!collapsed && <span>Admin</span>}
+            </Link>
+          </>
+        )}
       </nav>
 
       <div className="border-t border-surface-200 p-3 dark:border-surface-800">

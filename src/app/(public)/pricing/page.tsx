@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Check } from "lucide-react";
+import { Check, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Metadata } from "next";
 
@@ -9,65 +9,58 @@ export const metadata: Metadata = {
 
 const plans = [
   {
+    id: "starter",
     name: "Starter",
-    price: "Rp130.000",
-    period: "/bulan",
+    price: "Rp25.000",
+    period: "sekali",
     desc: "Untuk creative individu yang ingin memulai.",
-    credits: 150,
+    credits: 100,
     features: [
-      "150 credits per bulan",
-      "AI clipping dengan Virality Score",
-      "AI animated captions 20+ bahasa",
-      "Auto post ke YouTube Shorts, TikTok, IG Reels",
-      "Powerful editor",
+      "100 credits (20x proses video)",
+      "AI clipping YouTube + Script Generator",
+      "AI animated captions (slide-up + fade)",
+      "AI voice-over natural (Microsoft Edge Neural TTS)",
+      "Stock footage otomatis (Pexels)",
       "1 brand template",
-      "Filler & silence removal",
-      "Remove watermark",
+      "Virality Score",
     ],
-    cta: "Mulai Trial Gratis",
+    cta: "Beli Starter",
     popular: false,
   },
   {
+    id: "pro",
     name: "Pro",
-    price: "Rp250.000",
-    period: "/bulan",
+    price: "Rp75.000",
+    period: "sekali",
     desc: "Untuk professional creator & tim.",
-    credits: 500,
+    credits: 200,
     features: [
-      "500 credits per bulan",
+      "200 credits (40x proses video)",
       "Semua fitur Starter",
       "2 brand templates",
-      "6 social account connections",
-      "Input dari 10+ sumber",
-      "Export ke Premiere Pro & DaVinci Resolve",
-      "Multiple aspect ratios",
-      "Social media scheduler",
-      "Intercom chat support",
-      "Custom fonts",
-      "Speech enhancement",
-      "Limited API Access",
+      "Custom fonts & outline color",
+      "Export MP4 9:16",
+      "Prioritas proses worker",
     ],
-    cta: "Mulai Trial Gratis",
+    cta: "Beli Pro",
     popular: true,
   },
   {
+    id: "business",
     name: "Business",
-    price: "Custom",
-    period: "",
+    price: "Rp150.000",
+    period: "sekali",
     desc: "Untuk organisasi dengan kebutuhan khusus.",
-    credits: -1,
+    credits: 500,
     features: [
-      "Custom credits & seats",
+      "500 credits (100x proses video)",
       "Semua fitur Pro",
-      "Priority project processing",
-      "Tailored business assets",
-      "Dedicated storage",
-      "API & custom integrations",
-      "Master Service Agreement (MSA)",
-      "Priority support + Slack channel",
-      "Enterprise-level security",
+      "Unlimited brand templates",
+      "Custom credits & seats",
+      "Dedicated support",
+      "API access (coming soon)",
     ],
-    cta: "Hubungi Kami",
+    cta: "Beli Business",
     popular: false,
   },
 ];
@@ -81,7 +74,7 @@ export default function PricingPage() {
             Pilih Paket yang Tepat
           </h1>
           <p className="mt-4 text-lg text-surface-500">
-            Mulai dengan trial gratis, tidak perlu kartu kredit.
+            Pembelian satu kali, credit tidak pernah expired. Top-up kapan saja.
           </p>
         </div>
 
@@ -112,17 +105,11 @@ export default function PricingPage() {
                   <span className="text-4xl font-bold text-surface-900">
                     {plan.price}
                   </span>
-                  {plan.period && (
-                    <span className="text-sm text-surface-500">
-                      {plan.period}
-                    </span>
-                  )}
+                  <span className="text-sm text-surface-500">/{plan.period}</span>
                 </div>
-                {plan.credits > 0 && (
-                  <p className="mt-1 text-sm text-surface-500">
-                    {plan.credits.toLocaleString("id-ID")} credits per bulan
-                  </p>
-                )}
+                <p className="mt-1 text-sm text-surface-500">
+                  {plan.credits.toLocaleString("id-ID")} credits
+                </p>
               </div>
 
               <ul className="mb-8 flex-1 space-y-3">
@@ -134,14 +121,13 @@ export default function PricingPage() {
                 ))}
               </ul>
 
-              <Link
-                href={plan.name === "Business" ? "#" : "/signup"}
-              >
+              <Link href={`/checkout?package=${plan.id}`}>
                 <Button
                   variant={plan.popular ? "primary" : "outline"}
                   size="lg"
                   className="w-full"
                 >
+                  <CreditCard className="mr-2 h-4 w-4" />
                   {plan.cta}
                 </Button>
               </Link>

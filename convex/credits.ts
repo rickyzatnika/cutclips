@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { internalMutation, mutation, query } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 
 export const getBalance = query({
   args: {},
@@ -17,7 +17,6 @@ export const getBalance = query({
     return {
       credits: user.credits,
       totalUsed: user.totalCreditsUsed,
-      lastReset: user.lastCreditReset,
       plan: user.plan,
     };
   },
@@ -41,34 +40,6 @@ export const getHistory = query({
       .withIndex("by_userId", (q) => q.eq("userId", user._id))
       .order("desc")
       .collect();
-  },
-});
-
-export const resetAllMonthlyCredits = internalMutation({
-  args: {},
-  handler: async (ctx) => {
-    const users = await ctx.db.query("users").collect();
-    const now = Date.now();
-
-    for (const user of users) {
-      const daysSinceReset = (now - user.lastCreditReset) / (1000 * 60 * 60 * 24);
-      if (daysSinceReset < 30) continue;
-
-      const newCredits = user.plan === "starter" ? 150 : user.plan === "pro" ? 500 : 150;
-
-      await ctx.db.patch(user._id, {
-        credits: newCredits,
-        lastCreditReset: now,
-      });
-
-      await ctx.db.insert("credits", {
-        userId: user._id,
-        amount: newCredits,
-        type: "reset",
-        description: "Monthly credit reset",
-        createdAt: now,
-      });
-    }
   },
 });
 
@@ -102,41 +73,6 @@ export const addCredits = mutation({
       amount: args.amount,
       type: args.amount >= 0 ? "granted" : "used",
       description: args.description,
-      createdAt: now,
-    });
-  },
-});
-
-export const resetMonthlyCredits = mutation({
-  args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_auth0Id", (q) => q.eq("auth0Id", identity.subject))
-      .unique();
-
-    if (!user) throw new Error("User not found");
-
-    const now = Date.now();
-    const daysSinceReset = (now - user.lastCreditReset) / (1000 * 60 * 60 * 24);
-
-    if (daysSinceReset < 30) return;
-
-    const newCredits = user.plan === "starter" ? 150 : user.plan === "pro" ? 500 : 150;
-
-    await ctx.db.patch(user._id, {
-      credits: newCredits,
-      lastCreditReset: now,
-    });
-
-    await ctx.db.insert("credits", {
-      userId: user._id,
-      amount: newCredits,
-      type: "reset",
-      description: "Monthly credit reset",
       createdAt: now,
     });
   },

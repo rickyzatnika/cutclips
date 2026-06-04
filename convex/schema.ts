@@ -17,7 +17,8 @@ export default defineSchema({
     ),
     credits: v.number(),
     totalCreditsUsed: v.number(),
-    lastCreditReset: v.number(),
+    lastCreditReset: v.optional(v.number()),
+    lastActive: v.optional(v.number()),
     joinedAt: v.number(),
     role: v.optional(v.union(v.literal("user"), v.literal("admin"))),
   }).index("by_auth0Id", ["auth0Id"]).index("by_email", ["email"]),
@@ -119,6 +120,20 @@ export default defineSchema({
     description: v.string(),
     createdAt: v.number(),
   }).index("by_userId", ["userId"]),
+
+  invoices: defineTable({
+    userId: v.id("users"),
+    invoiceNumber: v.string(),
+    package: v.string(),
+    amount: v.number(),
+    price: v.number(),
+    credits: v.number(),
+    status: v.union(v.literal("pending"), v.literal("paid"), v.literal("cancelled")),
+    paidAt: v.optional(v.number()),
+    confirmedBy: v.optional(v.id("users")),
+    buktiTransfer: v.optional(v.string()),
+    createdAt: v.number(),
+  }).index("by_userId", ["userId"]).index("by_status", ["status"]),
 
   brandTemplates: defineTable({
     userId: v.id("users"),

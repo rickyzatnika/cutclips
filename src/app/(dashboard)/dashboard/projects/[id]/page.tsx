@@ -425,7 +425,25 @@ export default function ProjectDetailPage({
                         size="sm"
                         variant="outline"
                         className="w-full"
-                        onClick={() => window.open(project.videoUrls![i]!, "_blank")}
+                        onClick={async () => {
+                          const url = project.videoUrls![i]!;
+                          const name = `${project.title?.replace(/[^a-z0-9]/gi, "_") || `short-${i + 1}`}.mp4`;
+                          try {
+                            const res = await fetch(url);
+                            if (!res.ok) throw new Error("fetch failed");
+                            const blob = await res.blob();
+                            const blobUrl = URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = blobUrl;
+                            a.download = name;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(blobUrl);
+                          } catch {
+                            window.open(url, "_blank");
+                          }
+                        }}
                       >
                         Download
                       </Button>

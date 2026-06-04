@@ -11,6 +11,7 @@
 import type * as brandTemplates from "../brandTemplates.js";
 import type * as credits from "../credits.js";
 import type * as crons from "../crons.js";
+import type * as payments from "../payments.js";
 import type * as processVideo from "../processVideo.js";
 import type * as processingJobs from "../processingJobs.js";
 import type * as projects from "../projects.js";
@@ -28,6 +29,7 @@ declare const fullApi: ApiFromModules<{
   brandTemplates: typeof brandTemplates;
   credits: typeof credits;
   crons: typeof crons;
+  payments: typeof payments;
   processVideo: typeof processVideo;
   processingJobs: typeof processingJobs;
   projects: typeof projects;

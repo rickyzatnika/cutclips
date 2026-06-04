@@ -42,12 +42,31 @@ export const createOrUpdateUser = mutation({
     const now = Date.now();
 
     if (existing) {
-      await ctx.db.patch(existing._id, {
+      const patches: Record<string, unknown> = {
         name: args.name,
         email: args.email,
         image: args.image,
-      });
+      };
+      if (args.email === process.env.ADMIN_EMAIL) {
+        patches.role = "admin";
+      }
+      await ctx.db.patch(existing._id, patches);
       return existing._id;
+    }
+
+    // Check if user exists by email but missing auth0Id (e.g. registered via password)
+    const existingByEmail = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .unique();
+    if (existingByEmail && !existingByEmail.auth0Id) {
+      await ctx.db.patch(existingByEmail._id, {
+        auth0Id: identity.subject,
+        name: args.name,
+        image: args.image,
+        role: args.email === process.env.ADMIN_EMAIL ? "admin" : existingByEmail.role,
+      });
+      return existingByEmail._id;
     }
 
     const userId = await ctx.db.insert("users", {
@@ -59,7 +78,6 @@ export const createOrUpdateUser = mutation({
       plan: "free",
       credits: 150,
       totalCreditsUsed: 0,
-      lastCreditReset: now,
       joinedAt: now,
       role: args.email === process.env.ADMIN_EMAIL ? "admin" : "user",
     });
@@ -101,7 +119,6 @@ export const registerWithPassword = mutation({
       plan: "free",
       credits: 150,
       totalCreditsUsed: 0,
-      lastCreditReset: now,
       joinedAt: now,
       role: args.email === process.env.ADMIN_EMAIL ? "admin" : "user",
     });
@@ -193,6 +210,23 @@ export const updatePlan = mutation({
     if (admin?.role !== "admin") throw new Error("Not authorized");
 
     await ctx.db.patch(args.userId, { plan: args.plan });
+  },
+});
+
+export const heartbeat = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return;
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_auth0Id", (q) => q.eq("auth0Id", identity.subject))
+      .unique();
+
+    if (user) {
+      await ctx.db.patch(user._id, { lastActive: Date.now() });
+    }
   },
 });
 

@@ -3,25 +3,25 @@ import {
   Captions,
   Mic2,
   Sparkles,
-  Share2,
-  Download,
+  Palette,
+  FileText,
 } from "lucide-react";
 
 const features = [
   {
     icon: Scissors,
     title: "Smart AI Clipping",
-    desc: "AI menganalisis setiap frame video untuk menemukan momen terbaik dan secara otomatis memotongnya menjadi short 30 detik.",
+    desc: "AI menganalisis video YouTube dan otomatis memotong momen terbaik menjadi short video 30 detik (9:16).",
   },
   {
     icon: Captions,
     title: "Animated Captions",
-    desc: "Caption animasi yang menarik dalam 20+ bahasa, dengan skor virality untuk memastikan engagement maksimal.",
+    desc: "Caption animasi typewriter (slide-up + fade) dalam format ASS, siap pakai tanpa editing manual.",
   },
   {
     icon: Mic2,
-    title: "AI Voice-Over",
-    desc: "Pilih berbagai suara AI natural untuk narasi, dengan dukungan multi-bahasa dan penyesuaian kecepatan.",
+    title: "AI Voice-Over Natural",
+    desc: "Voice-over dengan Microsoft Edge Neural TTS - suara natural, bukan robot, support Bahasa Indonesia.",
   },
   {
     icon: Sparkles,
@@ -29,14 +29,14 @@ const features = [
     desc: "AI menilai potensi viral setiap clip dan memberi rekomendasi untuk meningkatkan engagement.",
   },
   {
-    icon: Share2,
-    title: "Auto Posting",
-    desc: "Post otomatis ke YouTube Shorts, TikTok, dan Instagram Reels langsung dari dashboard.",
+    icon: Palette,
+    title: "Brand Templates",
+    desc: "Simpan template brand (font, warna outline, ukuran) dan terapkan ke semua video secara konsisten.",
   },
   {
-    icon: Download,
-    title: "Export Multi-Format",
-    desc: "Download dalam berbagai format dan aspek rasio, atau ekspor ke Premiere Pro & DaVinci Resolve.",
+    icon: FileText,
+    title: "AI Script Generator",
+    desc: "Dari topik saja, AI generate naskah + visual keyword + narasi, lalu buat video pakai stock footage (Pexels).",
   },
 ];
 
