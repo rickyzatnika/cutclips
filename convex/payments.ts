@@ -20,7 +20,7 @@ function generateInvoiceNumber(): string {
   invoiceCounter++;
   const d = new Date();
   const dateStr = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
-  return `INV/CUT/${dateStr}/${String(invoiceCounter).slice(-6)}`;
+  return `INV-CUT-${dateStr}-${String(invoiceCounter).slice(-6)}`;
 }
 
 export const createInvoice = mutation({
