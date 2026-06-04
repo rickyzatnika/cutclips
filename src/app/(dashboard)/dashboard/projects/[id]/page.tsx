@@ -425,21 +425,7 @@ export default function ProjectDetailPage({
                         size="sm"
                         variant="outline"
                         className="w-full"
-                        onClick={async () => {
-                          try {
-                            const videoUrl = project.videoUrls![i]!;
-                            const res = await fetch(videoUrl);
-                            const blob = await res.blob();
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement("a");
-                            a.href = url;
-                            a.download = `short-${i + 1}.mp4`;
-                            document.body.appendChild(a);
-                            a.click();
-                            document.body.removeChild(a);
-                            URL.revokeObjectURL(url);
-                          } catch {}
-                        }}
+                        onClick={() => window.open(project.videoUrls![i]!, "_blank")}
                       >
                         Download
                       </Button>

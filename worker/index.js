@@ -512,12 +512,63 @@ async function tryPexelsSearch(query) {
   return null;
 }
 
-async function searchStockVideo(keyword) {
+const idEnKeywords = {
+  teknologi: "technology", kota: "city", alam: "nature", orang: "people",
+  manusia: "people", pekerja: "worker", karyawan: "office", staf: "office",
+  bisnis: "business", kantor: "office", rapat: "meeting", presentasi: "presentation",
+  makanan: "food", masak: "cooking", dapur: "kitchen", restoran: "restaurant",
+  sains: "science", laboratorium: "laboratory", penelitian: "research",
+  komputer: "computer", laptop: "laptop", robot: "robot", mesin: "machine",
+  kecerdasan: "robot", buatan: "technology", digital: "technology",
+  kesehatan: "healthcare", dokter: "doctor", rumahsakit: "hospital", pasien: "hospital",
+  pendidikan: "education", sekolah: "classroom", kelas: "classroom", siswa: "student",
+  mahasiswa: "student", guru: "teacher", belajar: "student", mengajar: "teacher",
+  industri: "industry", pabrik: "factory", manufaktur: "factory",
+  pertanian: "agriculture", sawah: "farming", petani: "farming",
+  perjalanan: "travel", transportasi: "transportation", mobil: "car",
+  motor: "motorcycle", pesawat: "airplane", kereta: "train",
+  olahraga: "sports", gym: "fitness", kebugaran: "fitness", lari: "running",
+  musik: "music", alatmusik: "music", seni: "art", lukisan: "art",
+  desain: "design", arsitektur: "architecture",
+  konstruksi: "construction", bangunan: "building",
+  luarangkasa: "space", planet: "space", bintang: "space",
+  laut: "ocean", pantai: "beach", gunung: "mountain", hutan: "forest",
+  sungai: "river", danau: "lake", pohon: "nature", bunga: "nature",
+  hewan: "animal", kucing: "cat", anjing: "dog", burung: "bird",
+  keluarga: "family", anak: "children", rumah: "home",
+  meeting: "meeting", komunikasi: "communication", internet: "internet",
+  data: "data", jaringan: "network", server: "technology",
+  masa: "future", depan: "future", inovasi: "innovation",
+  keuangan: "business", ekonomi: "business", pasar: "market",
+  medsos: "social media", sosial: "people", media: "technology",
+  ponsel: "smartphone", smartphone: "smartphone", aplikasi: "smartphone",
+  kendaraan: "vehicle", jalan: "city", tol: "highway",
+  listrik: "energy", energi: "energy", tenaga: "power",
+  udara: "sky", awan: "cloud", cuaca: "weather",
+  olahrag: "sports", sepakbola: "sports", basket: "sports",
+  menulis: "writing", membaca: "reading", buku: "book",
+  krisis: "abstract", masalah: "abstract", solusi: "business",
+  dampak: "abstract", manfaat: "people", perubahan: "abstract",
+};
+
+function extractKeywords(visualKeyword, sceneDescription) {
+  const keywords = [visualKeyword];
+  const desc = (sceneDescription || "").toLowerCase();
+  for (const [id, en] of Object.entries(idEnKeywords)) {
+    if (desc.includes(id) && !keywords.includes(en)) {
+      keywords.push(en);
+    }
+  }
+  return keywords;
+}
+
+async function searchStockVideo(keyword, sceneDescription) {
   if (!PEXELS_API_KEY) return null;
 
-  // Collect all keywords to try: original + broad fallbacks
+  // Extract keywords from visual keyword + scene description
+  const extracted = extractKeywords(keyword, sceneDescription);
   const keywordsToTry = [
-    keyword,
+    ...extracted,
     ...keyword.split(/\s+/).filter((k) => k.length > 3),
     "nature", "technology", "city", "people",
     "business", "office", "food", "background",
@@ -647,15 +698,44 @@ async function renderSceneWithNarration(ffmpegPath, workDir, sceneIndex, scene, 
       });
       return outputFinal;
     } catch {
-      // TTS failed, use video without audio
+      // TTS failed, add silent audio so all scenes have consistent streams
+      await new Promise((resolve, reject) => {
+        execFile(ffmpegPath, [
+          "-i", inputFile,
+          "-f", "lavfi",
+          "-i", "anullsrc=r=44100:cl=mono",
+          "-shortest",
+          "-c:v", "copy",
+          "-c:a", "aac",
+          "-y",
+          outputFinal,
+        ], { cwd: workDir }, (err) => {
+          if (err) return reject(err);
+          resolve();
+        });
+      });
+      return outputFinal;
     }
   }
 
-  // No TTS, just rename the raw output
-  if (inputFile !== outputFinal) {
-    await fsp.rename(inputFile, path.join(workDir, outputFinal));
-  }
-  return outputFinal;
+  // No TTS, add silent audio
+  const silentOutput = `scene_${sceneIndex}_silent.mp4`;
+  await new Promise((resolve, reject) => {
+    execFile(ffmpegPath, [
+      "-i", inputFile,
+      "-f", "lavfi",
+      "-i", "anullsrc=r=44100:cl=mono",
+      "-shortest",
+      "-c:v", "copy",
+      "-c:a", "aac",
+      "-y",
+      silentOutput,
+    ], { cwd: workDir }, (err) => {
+      if (err) return reject(err);
+      resolve();
+    });
+  });
+  return silentOutput;
 }
 
 function escapeFontPath(fontName) {
@@ -703,7 +783,7 @@ function formatAssTime(seconds) {
 
 function generateAssCaptions(scenes, opts, actualDurations) {
   const fontName = opts.fontFamily || "Arial";
-  const fontSize = opts.fontSize || 16;
+  const fontSize = Math.max(28, opts.fontSize || 36);
   const rawColor = opts.outlineColor || "&H0000FF00";
   const primaryColor = "&H00FFFFFF";
 
@@ -715,7 +795,7 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,${fontName},${fontSize},${primaryColor},&H0000FFFF,${rawColor},&H00000000,0,0,0,0,100,100,0,0,1,2,2,2,10,10,50,1
+Style: Default,${fontName},${fontSize},${primaryColor},&H0000FFFF,${rawColor},&H00000000,0,0,0,0,100,100,0,0,1,3,1,2,10,10,120,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -736,7 +816,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
       const start = currentTime + i * timePerWord;
       const end = Math.min(start + timePerWord * chunkSize, currentTime + dur);
 
-      ass += `Dialogue: 0,${formatAssTime(start)},${formatAssTime(end)},Default,,0,0,0,,{\\move(540,1970,540,1770,0,250)}{\\fad(80,150)}${chunk}\n`;
+      ass += `Dialogue: 0,${formatAssTime(start)},${formatAssTime(end)},Default,,0,0,0,,{\\move(540,1970,540,1720,0,250)}{\\fad(80,150)}${chunk}\n`;
     }
     currentTime += dur;
   }
@@ -754,7 +834,9 @@ function concatVideos(ffmpegPath, workDir, sceneFiles, outputName) {
       "-f", "concat",
       "-safe", "0",
       "-i", "concat.txt",
-      "-c", "copy",
+      "-c:v", "libx264",
+      "-c:a", "aac",
+      "-preset", "ultrafast",
       "-y",
       outputName,
     ], { cwd: workDir }, (err) => {
@@ -849,7 +931,7 @@ async function processScriptJob(job, tempDir) {
     const scene = script.scenes[i];
     console.log(`[Worker] Scene ${i + 1}/${script.scenes.length}: "${scene.visualKeyword}"`);
 
-    const stockVideo = await searchStockVideo(scene.visualKeyword);
+    const stockVideo = await searchStockVideo(scene.visualKeyword, scene.sceneDescription);
     if (stockVideo) {
       try {
         const outputPath = path.join(tempDir, `scene_${i}_input.mp4`);
