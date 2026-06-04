@@ -1,0 +1,14 @@
+{
+  "name": "saas-app-worker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Standalone video processing worker for SaaS App",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "cloudinary": "^2.10.0",
+    "dotenv": "^16.4.7"
+  }
+}

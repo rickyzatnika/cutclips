@@ -1,0 +1,131 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+  LayoutDashboard,
+  Video,
+  Settings,
+  Sparkles,
+  LogOut,
+  ChevronLeft,
+  Menu,
+  User,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useState } from "react";
+import { useUser } from "@/providers/auth";
+import { signOut } from "next-auth/react";
+
+const navItems = [
+  {
+    label: "Dashboard",
+    href: "/dashboard",
+    icon: LayoutDashboard,
+  },
+  {
+    label: "Proyek Saya",
+    href: "/dashboard/projects",
+    icon: Video,
+  },
+  {
+    label: "Pengaturan",
+    href: "/dashboard/settings",
+    icon: Settings,
+  },
+];
+
+export function DashboardSidebar() {
+  const pathname = usePathname();
+  const [collapsed, setCollapsed] = useState(false);
+  const { user } = useUser();
+
+  return (
+    <aside
+      className={cn(
+        "flex flex-col border-r border-surface-200 bg-white transition-all duration-300",
+        collapsed ? "w-16" : "w-64",
+      )}
+    >
+      <div className="flex h-16 items-center justify-between border-b border-surface-200 px-4">
+        {!collapsed && (
+          <Link href="/" className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary-600" />
+            <span className="text-sm font-bold text-surface-900">
+              ShortAI
+            </span>
+          </Link>
+        )}
+        {collapsed && (
+          <Link href="/" className="mx-auto">
+            <Sparkles className="h-5 w-5 text-primary-600" />
+          </Link>
+        )}
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className={cn(
+            "rounded-lg p-1.5 text-surface-400 hover:bg-surface-100 hover:text-surface-600 transition-colors",
+            collapsed && "mx-auto mt-4",
+          )}
+        >
+          {collapsed ? (
+            <Menu className="h-4 w-4" />
+          ) : (
+            <ChevronLeft className="h-4 w-4" />
+          )}
+        </button>
+      </div>
+
+      {!collapsed && user && (
+        <div className="flex items-center gap-3 border-b border-surface-100 px-4 py-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-100 text-primary-700 text-xs font-bold">
+            {user.name?.charAt(0)?.toUpperCase() || "U"}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium text-surface-900">
+              {user.name || "User"}
+            </p>
+            <p className="truncate text-xs text-surface-400">
+              {user.email}
+            </p>
+          </div>
+        </div>
+      )}
+
+      <nav className="flex-1 space-y-1 p-3">
+        {navItems.map((item) => {
+          const isActive = pathname === item.href;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                isActive
+                  ? "bg-primary-50 text-primary-700"
+                  : "text-surface-600 hover:bg-surface-100 hover:text-surface-900",
+                collapsed && "justify-center px-2",
+              )}
+            >
+              <item.icon className="h-5 w-5 flex-shrink-0" />
+              {!collapsed && <span>{item.label}</span>}
+            </Link>
+          );
+        })}
+      </nav>
+
+      <div className="border-t border-surface-200 p-3">
+        <button
+          onClick={() => signOut({ callbackUrl: "/" })}
+          className={cn(
+            "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-surface-600 transition-colors hover:bg-surface-100 hover:text-red-600",
+            collapsed && "justify-center",
+          )}
+        >
+          <LogOut className="h-5 w-5 flex-shrink-0" />
+          {!collapsed && <span>Keluar</span>}
+        </button>
+      </div>
+    </aside>
+  );
+}
