@@ -430,11 +430,23 @@ function generateSrtForClip(captions, clipStart, clipEnd) {
     const relStart = Math.max(0, cap.start - clipStart);
     const relEnd = Math.min(clipEnd, cap.end) - clipStart;
     if (relEnd <= relStart || relEnd < 0) continue;
-    srt += `${idx}\n`;
-    srt += `${srtTimeStr(relStart)} --> ${srtTimeStr(relEnd)}\n`;
+
     const cleanText = cap.text.replace(/\r?\n/g, " ").replace(/[<>&]/g, "");
-    srt += `${cleanText}\n\n`;
-    idx++;
+    const totalDur = relEnd - relStart;
+    const charsPerSec = 12;
+    const totalChars = Math.min(cleanText.length, Math.floor(totalDur * charsPerSec));
+    const timePerChar = totalDur / Math.max(totalChars, 1);
+
+    for (let i = 0; i < totalChars; i++) {
+      const tStart = relStart + i * timePerChar;
+      const tEnd = relStart + (i + 1.5) * timePerChar;
+      const end = Math.min(tEnd, relEnd);
+      if (end - tStart < 0.05) break;
+      srt += `${idx}\n`;
+      srt += `${srtTimeStr(tStart)} --> ${srtTimeStr(end)}\n`;
+      srt += `${cleanText.substring(0, i + 1)}\n\n`;
+      idx++;
+    }
   }
   return srt;
 }
@@ -447,7 +459,7 @@ function cutClip(ffmpegPath, workDir, videoName, outputName, start, duration, ca
     const srtContent = generateSrtForClip(captions, start, clipEnd);
     if (srtContent.trim()) {
       fs.writeFileSync(path.join(workDir, "captions.srt"), srtContent, "utf-8");
-      const style = "FontName=Arial\\,FontSize=18\\,PrimaryColour=&H00FFFFFF\\,OutlineColour=&H0000FF00\\,Outline=2\\,BorderStyle=1";
+      const style = "FontName=Arial\\,FontSize=13\\,PrimaryColour=&H00FFFFFF\\,OutlineColour=&H0000FF00\\,Outline=2\\,BorderStyle=1";
       vf += `,subtitles=captions.srt:force_style=${style}`;
     }
   }

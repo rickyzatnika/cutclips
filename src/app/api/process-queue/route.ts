@@ -24,11 +24,23 @@ function generateSrtForClip(
     const relStart = Math.max(0, cap.start - clipStart);
     const relEnd = Math.min(clipEnd, cap.end) - clipStart;
     if (relEnd <= relStart || relEnd < 0) continue;
-    srt += `${idx}\n`;
-    srt += `${srtTimeStr(relStart)} --> ${srtTimeStr(relEnd)}\n`;
+
     const cleanText = cap.text.replace(/\r?\n/g, " ").replace(/[<>&]/g, "");
-    srt += `${cleanText}\n\n`;
-    idx++;
+    const totalDur = relEnd - relStart;
+    const charsPerSec = 12;
+    const totalChars = Math.min(cleanText.length, Math.floor(totalDur * charsPerSec));
+    const timePerChar = totalDur / Math.max(totalChars, 1);
+
+    for (let i = 0; i < totalChars; i++) {
+      const tStart = relStart + i * timePerChar;
+      const tEnd = relStart + (i + 1.5) * timePerChar;
+      const end = Math.min(tEnd, relEnd);
+      if (end - tStart < 0.05) break;
+      srt += `${idx}\n`;
+      srt += `${srtTimeStr(tStart)} --> ${srtTimeStr(end)}\n`;
+      srt += `${cleanText.substring(0, i + 1)}\n\n`;
+      idx++;
+    }
   }
   return srt;
 }
@@ -238,11 +250,11 @@ async function analyzeVideo(context: {
       {
         role: "system",
         content:
-          "Anda adalah editor video AI. Analisis konten video dan pilih 2 segmen pendek (15-45 detik) yang PALING BERBEDA dan menarik. Prioritaskan potongan UTUH jangan sampai klimaks terpotong. Kembalikan JSON valid saja.",
+          "Anda adalah editor video AI professional. Analisis konten video dan pilih 2 segmen pendek (15-60 detik) momen PALING penting/berharga/terharu/terhibur/lucu/seksi/komedi. PRIORITASKAN potongan UTUH jangan sampai klimaks TERPOTONG. Kembalikan JSON valid saja.",
       },
       {
         role: "user",
-        content: `Analisis video YouTube ini dan pilih 2 momen PALING penting/berharga untuk dijadikan short clip viral.
+        content: `Analisis video YouTube ini dan pilih 2 momen PALING penting/berharga/terharu/terhibur/lucu/seksi/komedi untuk dijadikan short clip viral.
 
 Info video:
 ${contentSection}
@@ -250,17 +262,17 @@ ${contentSection}
 ATURAN:
 ${hasTranscript
   ? `- Gunakan transkrip untuk menemukan momen-momen TERPENTING dalam video
-- Cari: klimaks, fakta mengejutkan, poin kunci, kesimpulan penting, momen lucu/komedi, momen emosional, atau bagian paling informatif
+- Cari: klimaks, fakta mengejutkan, poin kunci, kesimpulan penting, momen lucu/komedi, momen emosional,pose seksi atau bagian paling informatif
 - JANGAN ambil bagian pembukaan/intro/ basa-basi — langsung ke inti`
   : `- Video ${Math.floor(context.duration / 60)} menit, bagi secara temporal
-- Clip 1 dari 25%-40% durasi video
-- Clip 2 dari 65%-85% durasi video`
+- Clip 1 dari 25%-60% durasi video
+- Clip 2 dari 60%-95% durasi video`
 }
 - 2 clip harus dari BAGIAN VIDEO YANG BERBEDA
 - Clip 1 dari bagian PERTAMA, Clip 2 dari bagian KEDUA/TERAKHIR
-- Durasi 15-45 detik, SESUAIKAN dengan momen biar klimaks UTUH (jangan dipotong tengah kalimat)
+- Durasi 15-60 detik, SESUAIKAN dengan momen biar klimaks UTUH (jangan DIPOTONG tengah kalimat)
 - JANGAN tumpang tindih antar clip
-- JANGAN default ke 0-30 atau 30-60
+- JANGAN DEFAULT dari 0-30 atau 30-60
 - Deskripsi clip dalam Bahasa Indonesia
 ${hasTranscript ? "- Buat caption segment yg sesuai dgn apa yg DIUCAPKAN" : ""}
 
@@ -464,7 +476,7 @@ async function cutClip(
     const srtContent = generateSrtForClip(captions, start, clipEnd);
     if (srtContent.trim()) {
       fs.writeFileSync(path.join(workDir, "captions.srt"), srtContent, "utf-8");
-      const style = "FontName=Arial\\,FontSize=18\\,PrimaryColour=&H00FFFFFF\\,OutlineColour=&H0000FF00\\,Outline=2\\,BorderStyle=1";
+      const style = "FontName=Poppins\\,FontSize=12\\,PrimaryColour=&H00FFFFFF\\,OutlineColour=&H0000FF00\\,Outline=1\\,BorderStyle=1";
       vf += `,subtitles=captions.srt:force_style=${style}`;
     }
   }
