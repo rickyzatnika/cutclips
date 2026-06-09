@@ -11,31 +11,136 @@ interface TranscriptSegment {
   text: string;
 }
 
+async function tryYoutubeTranscript(videoId: string): Promise<{
+  segments: TranscriptSegment[];
+  rawText: string;
+} | null> {
+  try {
+    const items = await YoutubeTranscript.fetchTranscript(videoId);
+    if (items && items.length > 0) {
+      const segments = items.map((s) => ({
+        start: s.offset,
+        end: s.offset + s.duration,
+        text: s.text,
+      }));
+      const rawText = segments.map((s) => s.text).join(" ");
+      return { segments, rawText };
+    }
+  } catch {
+    // fall through
+  }
+
+  // Try with lang param
+  for (const lang of ["en", "id", "ja", "ko", "zh-Hans", "es", "fr"]) {
+    try {
+      const items = await YoutubeTranscript.fetchTranscript(videoId, { lang });
+      if (items && items.length > 0) {
+        const segments = items.map((s) => ({
+          start: s.offset,
+          end: s.offset + s.duration,
+          text: s.text,
+        }));
+        const rawText = segments.map((s) => s.text).join(" ");
+        return { segments, rawText };
+      }
+    } catch {
+      // continue
+    }
+  }
+
+  return null;
+}
+
+async function tryYoutubetranscriptCom(videoId: string): Promise<{
+  segments: TranscriptSegment[];
+  rawText: string;
+} | null> {
+  try {
+    const res = await fetch(
+      `https://youtubetranscript.com/api?vid=${videoId}`,
+      { signal: AbortSignal.timeout(10000) },
+    );
+    if (res.ok) {
+      const data = await res.json();
+      if (data && Array.isArray(data.transcript)) {
+        const segments = data.transcript.map((s: any) => ({
+          start: Number(s.start) || 0,
+          end: (Number(s.start) || 0) + (Number(s.duration) || 5),
+          text: s.text || "",
+        }));
+        const rawText = segments.map((s: any) => s.text).join(" ");
+        return { segments, rawText };
+      }
+    }
+  } catch {
+    // fall through
+  }
+  return null;
+}
+
+async function tryYoutubeScrape(videoId: string): Promise<{
+  segments: TranscriptSegment[];
+  rawText: string;
+} | null> {
+  try {
+    const res = await fetch(
+      `https://youtube.com/watch?v=${videoId}`,
+      { signal: AbortSignal.timeout(10000) },
+    );
+    const html = await res.text();
+
+    const captionMatch = html.match(/"captionTracks":\s*(\[.*?\])/);
+    if (captionMatch) {
+      const tracks = JSON.parse(captionMatch[1]);
+      const track = tracks.find((t: any) => t.languageCode === "en")
+        || tracks.find((t: any) => t.languageCode === "id")
+        || tracks[0];
+      if (track?.baseUrl) {
+        const captionRes = await fetch(track.baseUrl);
+        const xml = await captionRes.text();
+
+        const segments: TranscriptSegment[] = [];
+        const regex = /<text start="([\d.]+)" dur="([\d.]*)">(.*?)<\/text>/g;
+        let match;
+        while ((match = regex.exec(xml)) !== null) {
+          const start = parseFloat(match[1]);
+          const dur = parseFloat(match[2]) || 3;
+          const text = match[3].replace(/<[^>]+>/g, "").trim();
+          if (text) {
+            segments.push({ start, end: start + dur, text });
+          }
+        }
+        if (segments.length > 0) {
+          const rawText = segments.map((s) => s.text).join(" ");
+          return { segments, rawText };
+        }
+      }
+    }
+  } catch {
+    // fall through
+  }
+  return null;
+}
+
 async function fetchTranscript(videoId: string): Promise<{
   segments: TranscriptSegment[];
   rawText: string;
 }> {
-  try {
-    const items = await YoutubeTranscript.fetchTranscript(videoId);
+  // Try multiple approaches in order
+  const methods = [
+    tryYoutubeTranscript,
+    tryYoutubetranscriptCom,
+    tryYoutubeScrape,
+  ];
 
-    if (!items || items.length === 0) {
-      throw new Error("No captions available");
-    }
-
-    const segments = items.map((s) => ({
-      start: s.offset,
-      end: s.offset + s.duration,
-      text: s.text,
-    }));
-
-    const rawText = segments.map((s) => s.text).join(" ");
-    return { segments, rawText };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "";
-    throw new Error(
-      message || "Could not fetch transcript. Make sure the video has captions available.",
-    );
+  for (const method of methods) {
+    const result = await method(videoId);
+    if (result) return result;
   }
+
+  throw new Error(
+    "Could not fetch transcript. Make sure the video has captions available.",
+  );
 }
 
 export async function POST(request: NextRequest) {
