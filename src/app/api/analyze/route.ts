@@ -232,8 +232,12 @@ async function fetchTranscript(videoId: string): Promise<{
 }
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  const step = (label: string) => console.log(`[analyze] ${label} (${Date.now() - startTime}ms)`);
+
   try {
     const { url, provider, model } = await request.json();
+    step("body parsed");
 
     if (!url) {
       return NextResponse.json({ error: "URL is required" }, { status: 400 });
@@ -246,10 +250,8 @@ export async function POST(request: NextRequest) {
 
     const videoId = match[1];
 
-    // Get video info
     const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
 
-    // Try to get video title (fallback if oembed fails)
     let title = "YouTube Video";
     try {
       const infoRes = await fetch(
@@ -260,32 +262,31 @@ export async function POST(request: NextRequest) {
         const infoData = await infoRes.json();
         title = infoData.title || title;
       }
-    } catch {
-      // fallback title
-    }
+    } catch { /* fallback */ }
+    step("title fetched");
 
-    // Fetch transcript
     const { segments, rawText } = await fetchTranscript(videoId);
+    step(`transcript fetched (${segments.length} segments)`);
     const duration = segments.length > 0
       ? Math.max(...segments.map((s) => s.end))
       : 600;
 
-    // Run AI analysis (Groq only)
     let highlights: Highlight[];
     try {
+      step("AI analysis starting...");
       const aiProvider = createProvider(provider, model);
       highlights = await aiProvider.analyzeTranscript({
         title, duration, segments, rawText,
       });
+      step(`AI analysis done (${highlights.length} highlights)`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Unknown error";
       const full = err instanceof Error ? err.stack || err.message : String(err);
-      console.error("AI analysis failed:", full);
-      console.error("AI analysis message:", msg);
-
+      console.error("[analyze] AI analysis failed:", full);
       throw new Error(`AI analysis failed: ${msg}`);
     }
 
+    step(`response sent`);
     return NextResponse.json({
       videoId,
       title,
@@ -297,6 +298,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Analysis failed";
+    console.error(`[analyze] FAILED at ${Date.now() - startTime}ms:`, message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

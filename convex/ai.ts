@@ -27,7 +27,11 @@ export interface AIProvider {
   analyzeTranscript(context: TranscriptContext): Promise<Highlight[]>;
 }
 
-const GROQ_API_KEY = process.env.GROQ_API_KEY;
+function getGroqKey(): string {
+  const key = process.env.GROQ_API_KEY;
+  if (!key) throw new Error("GROQ_API_KEY not set");
+  return key;
+}
 
 function buildSystemPrompt(): string {
   return `Kamu adalah pendeteksi momen highlight AI.
@@ -84,7 +88,7 @@ class GroqProvider implements AIProvider {
   }
 
   async analyzeTranscript(context: TranscriptContext): Promise<Highlight[]> {
-    if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY not set");
+    const apiKey = getGroqKey();
 
     let lastError: Error | null = null;
     for (let attempt = 1; attempt <= 3; attempt++) {
@@ -93,7 +97,7 @@ class GroqProvider implements AIProvider {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${GROQ_API_KEY}`,
+            Authorization: `Bearer ${apiKey}`,
           },
           body: JSON.stringify({
             model: this.model,
