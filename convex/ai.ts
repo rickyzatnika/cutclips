@@ -28,7 +28,6 @@ export interface AIProvider {
 }
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 function buildSystemPrompt(): string {
   return `You are an AI highlight moment detector.
@@ -60,7 +59,7 @@ Title: "${context.title}"
 Duration: ${Math.floor(context.duration / 60)}m ${Math.floor(context.duration % 60)}s
 
 Transcript:
-${context.rawText.slice(0, 20000)}
+${context.rawText.slice(0, 10000)}
 
 Return a JSON array of highlights:
 [
@@ -170,80 +169,6 @@ class GroqProvider implements AIProvider {
   }
 }
 
-class GeminiProvider implements AIProvider {
-  private model: string;
-
-  constructor(model = "gemini-2.0-flash") {
-    this.model = model;
-  }
-
-  async analyzeTranscript(context: TranscriptContext): Promise<Highlight[]> {
-    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not set");
-
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          system_instruction: { parts: [{ text: buildSystemPrompt() }] },
-          contents: [{ role: "user", parts: [{ text: buildUserPrompt(context) }] }],
-          generationConfig: {
-            response_mime_type: "application/json",
-            temperature: 0.7,
-            maxOutputTokens: 8192,
-          },
-        }),
-      },
-    );
-
-    if (!res.ok) {
-      const body = await res.text();
-      throw new Error(`Gemini API error ${res.status}: ${body.slice(0, 200)}`);
-    }
-
-    let data: any;
-    try {
-      data = await res.json();
-    } catch {
-      const raw = await res.text();
-      throw new Error(`Gemini returned non-JSON response: ${raw.slice(0, 200)}`);
-    }
-
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) throw new Error("Gemini returned empty response");
-
-    let parsed: any;
-    try {
-      parsed = JSON.parse(text);
-    } catch {
-      throw new Error(`Gemini returned invalid JSON: "${text.slice(0, 200)}"`);
-    }
-
-    const raw = parsed.highlights || parsed;
-    const highlights = Array.isArray(raw) ? raw : [raw];
-
-    return highlights
-      .filter((h: any) => h.startTime != null && h.endTime != null)
-      .slice(0, 12)
-      .map((h: any) => {
-        const { start, end } = clampDuration(
-          Math.max(0, h.startTime),
-          Math.min(context.duration, h.endTime),
-        );
-        return {
-          startTime: start,
-          endTime: end,
-          title: String(h.title || "Untitled"),
-          category: validateCategory(h.category),
-          confidenceScore: clampScore(h.confidenceScore),
-          viralityScore: clampScore(h.viralityScore),
-          reasoning: String(h.reasoning || ""),
-        };
-      });
-  }
-}
-
 function validateCategory(cat: string): HighlightCategory {
   const valid: HighlightCategory[] = [
     "funny", "emotional", "inspirational",
@@ -257,14 +182,12 @@ const MIN_DURATION = 8;
 
 function clampDuration(start: number, end: number): { start: number; end: number } {
   let duration = end - start;
-  // Enforce minimum
   if (duration < MIN_DURATION) {
     const mid = (start + end) / 2;
     start = Math.max(0, mid - MIN_DURATION / 2);
     end = start + MIN_DURATION;
     duration = end - start;
   }
-  // Enforce maximum (keep the end/climax)
   if (duration > MAX_DURATION) {
     start = Math.max(0, end - MAX_DURATION);
   }
@@ -278,11 +201,5 @@ function clampScore(n: unknown): number {
 }
 
 export function createProvider(provider?: string, model?: string): AIProvider {
-  switch (provider) {
-    case "gemini":
-      return new GeminiProvider(model);
-    case "groq":
-    default:
-      return new GroqProvider(model || "llama-3.1-8b-instant");
-  }
+  return new GroqProvider(model || "llama-3.1-8b-instant");
 }

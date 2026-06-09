@@ -270,7 +270,7 @@ export async function POST(request: NextRequest) {
       ? Math.max(...segments.map((s) => s.end))
       : 600;
 
-    // Run AI analysis (with fallback)
+    // Run AI analysis (Groq only)
     let highlights: Highlight[];
     try {
       const aiProvider = createProvider(provider, model);
@@ -278,16 +278,15 @@ export async function POST(request: NextRequest) {
         title, duration, segments, rawText,
       });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "";
-      if (msg.includes("429") || msg.includes("rate limit")) {
-        console.warn("Groq rate limited, falling back to Gemini 2.0 Flash");
-        const fallback = createProvider("gemini", "gemini-2.0-flash");
-        highlights = await fallback.analyzeTranscript({
-          title, duration, segments, rawText,
-        });
-      } else {
-        throw err;
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      console.error("AI analysis failed:", msg);
+
+      if (msg.includes("413") || msg.includes("too large")) {
+        throw new Error(
+          "Transcript is too long for analysis. Try a shorter video.",
+        );
       }
+      throw new Error(`AI analysis failed: ${msg}`);
     }
 
     return NextResponse.json({
