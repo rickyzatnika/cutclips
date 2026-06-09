@@ -14,7 +14,7 @@ interface TranscriptSegment {
 const WEB_USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
-async function parseTranscriptXml(xml: string, lang: string): Promise<TranscriptSegment[]> {
+async function parseTranscriptXml(xml: string, _lang: string): Promise<TranscriptSegment[]> {
   const segments: TranscriptSegment[] = [];
   const regex = /<text start="([\d.]+)" dur="([\d.]*)">(.*?)<\/text>/g;
   let match;
@@ -31,7 +31,7 @@ async function parseTranscriptXml(xml: string, lang: string): Promise<Transcript
 
 async function fetchTranscriptFromTracks(
   tracks: { languageCode: string; baseUrl: string }[],
-  videoId: string,
+  _videoId: string,
 ): Promise<{ segments: TranscriptSegment[]; rawText: string } | null> {
   const track =
     tracks.find((t) => t.languageCode === "en") ||
@@ -134,7 +134,45 @@ async function tryInnerTubeWeb(videoId: string): Promise<{
   }
 }
 
-// --- Method 3: youtubetranscript.com API ---
+// --- Method 3: YouTube public timedtext API (no auth needed) ---
+async function tryTimedtext(videoId: string): Promise<{
+  segments: TranscriptSegment[];
+  rawText: string;
+} | null> {
+  const langs = ["en", "id"];
+  for (const lang of langs) {
+    try {
+      const res = await fetch(
+        `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${lang}&fmt=json3`,
+        { signal: AbortSignal.timeout(10000) },
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const events = data?.events;
+        if (Array.isArray(events) && events.length > 0) {
+          const segments: TranscriptSegment[] = [];
+          for (const e of events) {
+            const start = (e.tStartMs || 0) / 1000;
+            const dur = (e.dDurationMs || 5000) / 1000;
+            const texts = e.segs?.map((s: any) => s.utf8 || "").join(" ") || "";
+            if (texts.trim()) {
+              segments.push({ start, end: start + dur, text: texts.trim() });
+            }
+          }
+          if (segments.length > 0) {
+            const rawText = segments.map((s) => s.text).join(" ");
+            return { segments, rawText };
+          }
+        }
+      }
+    } catch {
+      // fall through
+    }
+  }
+  return null;
+}
+
+// --- Method 4: youtubetranscript.com API ---
 async function tryYoutubetranscriptCom(videoId: string): Promise<{
   segments: TranscriptSegment[];
   rawText: string;
@@ -162,7 +200,7 @@ async function tryYoutubetranscriptCom(videoId: string): Promise<{
   return null;
 }
 
-// --- Method 4: YouTube HTML scrape (fallback) ---
+// --- Method 5: YouTube HTML scrape (fallback) ---
 async function tryYoutubeScrape(videoId: string): Promise<{
   segments: TranscriptSegment[];
   rawText: string;
@@ -214,6 +252,7 @@ async function fetchTranscript(videoId: string): Promise<{
   const methods = [
     { name: "library", fn: tryLibrary },
     { name: "innertube-web", fn: tryInnerTubeWeb },
+    { name: "timedtext", fn: tryTimedtext },
     { name: "youtubetranscript.com", fn: tryYoutubetranscriptCom },
     { name: "scrape", fn: tryYoutubeScrape },
   ];
