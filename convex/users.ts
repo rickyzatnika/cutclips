@@ -107,6 +107,20 @@ export const heartbeat = mutation({
   },
 });
 
+export const setOffline = mutation({
+  args: { email: v.string() },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .unique();
+
+    if (user) {
+      await ctx.db.patch(user._id, { lastActive: Date.now() - 600000 });
+    }
+  },
+});
+
 export const updateRole = mutation({
   args: {
     userId: v.id("users"),

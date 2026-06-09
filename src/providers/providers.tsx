@@ -10,19 +10,28 @@ import { api } from "@/convex/_generated/api";
 function Heartbeat() {
   const { data: session } = useSession();
   const heartbeat = useMutation(api.users.heartbeat);
-  const intervalRef = useRef<ReturnType<typeof setInterval>>();
+  const setOffline = useMutation(api.users.setOffline);
+  const emailRef = useRef<string | undefined>();
 
   useEffect(() => {
     const email = session?.user?.email;
-    if (!email) return;
+    if (!email) {
+      if (emailRef.current) {
+        setOffline({ email: emailRef.current });
+        emailRef.current = undefined;
+      }
+      return;
+    }
 
+    emailRef.current = email;
     heartbeat({ email });
-    intervalRef.current = setInterval(() => heartbeat({ email }), 60000);
+    const interval = setInterval(() => heartbeat({ email }), 60000);
 
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      clearInterval(interval);
+      setOffline({ email });
     };
-  }, [session?.user?.email, heartbeat]);
+  }, [session?.user?.email, heartbeat, setOffline]);
 
   return null;
 }
