@@ -109,3 +109,54 @@ export const heartbeat = mutation({
     }
   },
 });
+
+export const updateRole = mutation({
+  args: {
+    userId: v.id("users"),
+    role: v.union(v.literal("user"), v.literal("admin")),
+    adminEmail: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const admin = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", args.adminEmail))
+      .unique();
+    if (!admin || admin.role !== "admin") throw new Error("Not authorized");
+
+    await ctx.db.patch(args.userId, { role: args.role });
+  },
+});
+
+export const remove = mutation({
+  args: {
+    userId: v.id("users"),
+    adminEmail: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const admin = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", args.adminEmail))
+      .unique();
+    if (!admin || admin.role !== "admin") throw new Error("Not authorized");
+
+    await ctx.db.delete(args.userId);
+  },
+});
+
+export const bulkRemove = mutation({
+  args: {
+    userIds: v.array(v.id("users")),
+    adminEmail: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const admin = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", args.adminEmail))
+      .unique();
+    if (!admin || admin.role !== "admin") throw new Error("Not authorized");
+
+    for (const userId of args.userIds) {
+      await ctx.db.delete(userId);
+    }
+  },
+});

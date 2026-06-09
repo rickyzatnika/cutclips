@@ -41,14 +41,20 @@ export function Navbar() {
               </button>
             </nav>
           ) : (
-            <button className="py-2 px-4 rounded-xl cursor-pointer bg-emerald-400  text-sm text-zinc-900 transition-colors hover:text-white">
+            <nav className="flex items-center gap-6">
+              <Link
+                href="/pricing"
+                className="text-sm text-zinc-400 transition-colors hover:text-white"
+              >
+                Pricing
+              </Link>
               <Link
                 href="/login"
-                className="text-sm font-medium "
+                className="rounded-xl bg-emerald-400 px-4 py-2 text-sm font-semibold text-zinc-900 transition-colors hover:bg-emerald-300"
               >
                 Masuk
               </Link>
-            </button>
+            </nav>
           )}
         </div>
 
@@ -91,6 +97,13 @@ export function Navbar() {
               </>
             ) : (
               <>
+                <Link
+                  href="/pricing"
+                  onClick={() => setOpen(false)}
+                  className="block rounded-lg px-3 py-2 text-sm text-zinc-400 hover:bg-zinc-900 hover:text-white"
+                >
+                  Pricing
+                </Link>
                 <Link
                   href="/login"
                   onClick={() => setOpen(false)}

@@ -133,4 +133,23 @@ export default defineSchema({
     startedAt: v.optional(v.number()),
     completedAt: v.optional(v.number()),
   }).index("by_status", ["status"]),
+
+  payments: defineTable({
+    userId: v.id("users"),
+    email: v.string(),
+    packId: v.string(),
+    credits: v.number(),
+    amount: v.number(),
+    proofUrl: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("approved"),
+      v.literal("rejected"),
+    ),
+    adminNote: v.optional(v.string()),
+    createdAt: v.number(),
+    approvedAt: v.optional(v.number()),
+  })
+    .index("by_status", ["status"])
+    .index("by_userId", ["userId"]),
 });

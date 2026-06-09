@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { Scissors, CreditCard, LogOut, Menu, X } from "lucide-react";
+import { Scissors, CreditCard, LogOut, Menu, X, LayoutDashboard } from "lucide-react";
 
 const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL;
 
@@ -16,6 +16,7 @@ export default function AppLayout({
   const pathname = usePathname();
   const { data: session } = useSession();
   const [credits, setCredits] = useState<number | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -32,6 +33,7 @@ export default function AppLayout({
       .then((r) => r.json())
       .then((data) => {
         if (data.value?.credits != null) setCredits(data.value.credits);
+        if (data.value?.role === "admin") setIsAdmin(true);
       })
       .catch(() => {});
   }, [session]);
@@ -70,6 +72,19 @@ export default function AppLayout({
                   Billing
                 </span>
               </Link>
+              {isAdmin && (
+                <Link
+                  href="/dashboard"
+                  className={`flex items-center gap-1 text-sm ${
+                    pathname.startsWith("/dashboard")
+                      ? "text-emerald-400"
+                      : "text-zinc-500 hover:text-white"
+                  }`}
+                >
+                  <LayoutDashboard className="h-3.5 w-3.5" />
+                  Dashboard
+                </Link>
+              )}
             </nav>
           </div>
 
@@ -128,6 +143,19 @@ export default function AppLayout({
               >
                 Billing
               </Link>
+              {isAdmin && (
+                <Link
+                  href="/dashboard"
+                  onClick={() => setMenuOpen(false)}
+                  className={`block rounded-lg px-3 py-2 text-sm ${
+                    pathname.startsWith("/dashboard")
+                      ? "text-emerald-400"
+                      : "text-zinc-400 hover:bg-zinc-900 hover:text-white"
+                  }`}
+                >
+                  Dashboard
+                </Link>
+              )}
               <div className="border-t border-zinc-800 pt-2 mt-2">
                 <Link
                   href="/pricing"

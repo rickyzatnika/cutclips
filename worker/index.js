@@ -121,7 +121,7 @@ async function downloadYouTube(outputDir, filename, url, startTime, endTime) {
   // Download only the needed segment using --download-sections with ffmpeg location
   await execYtDlpAsync(
     [
-      "-f", "best[height<=720]",
+      "-f", "best[height<=1080]",
       "--download-sections", `*${startTime}-${endTime}`,
       "--force-keyframes-at-cuts",
       "--ffmpeg-location", path.dirname(FFMPEG),
@@ -178,7 +178,14 @@ function generateSrtForClip(captions, clipStart, clipEnd) {
 }
 
 function cutClip(ffmpegPath, workDir, videoName, outputName, start, duration, captions, opts) {
-  let vf = "crop='min(iw,ih*9/16)':'min(ih,iw*16/9)',scale=720:1280";
+  // Hybrid: fg fills full width (decrease) then zoom 1.35x, crop center 1080 to preserve most content
+  // bg: blur at original res (fast), then scale to fill + crop to 1080:1920
+  let vf = "[0:v]split[fg][blur_src];" +
+    "[blur_src]boxblur=10:3,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1[bg];" +
+    "[fg]scale=1080:1920:force_original_aspect_ratio=decrease," +
+    "scale=trunc(iw*1.35/2)*2:trunc(ih*1.35/2)*2," +
+    "crop='gt(iw\\,1080)*1080+lte(iw\\,1080)*trunc(iw/2)*2':'gt(ih\\,1920)*1920+lte(ih\\,1920)*trunc(ih/2)*2',setsar=1[fg];" +
+    "[bg][fg]overlay=(W-w)/2:(H-h)/2[out]";
 
   if (captions && captions.length > 0) {
     const clipEnd = start + duration;
@@ -189,28 +196,27 @@ function cutClip(ffmpegPath, workDir, videoName, outputName, start, duration, ca
       const fontSize = (opts && opts.fontSize) || 13;
       const outlineColor = (opts && opts.outlineColor) || "&H0000FF00";
       const style = `FontName=${fontFamily}\\,FontSize=${fontSize}\\,PrimaryColour=&H00FFFFFF\\,OutlineColour=${outlineColor}\\,Outline=2\\,BorderStyle=1`;
-      vf += `,subtitles=captions.srt:force_style=${style}`;
+      vf = vf.replace("[out]", "[tmp]") + `;[tmp]subtitles=captions.srt:force_style=${style}[out]`;
     }
   }
 
   return new Promise((resolve, reject) => {
-    const t = setTimeout(() => reject(new Error(`FFmpeg timeout at ${start}s`)), 120000);
+    const t = setTimeout(() => reject(new Error(`FFmpeg timeout at ${start}s`)), 300000);
     execFile(ffmpegPath, [
       "-ss", String(start),
       "-i", videoName,
       "-t", String(duration),
-      "-map", "0:v", "-map", "0:a?",
+      "-filter_complex", vf,
+      "-map", "[out]", "-map", "0:a",
       "-c:v", "libx264", "-c:a", "aac",
       "-preset", "ultrafast",
-      "-b:v", "1.5M", "-maxrate", "1.5M", "-bufsize", "3M",
-      "-vf", vf,
-      "-avoid_negative_ts", "make_zero",
+      "-b:v", "3M", "-maxrate", "3M", "-bufsize", "6M",
       "-y",
       outputName,
     ], { cwd: workDir }, (err, stdout, stderr) => {
       clearTimeout(t);
       if (err) {
-        const stderrStr = (stderr || "").slice(0, 1000);
+        const stderrStr = (stderr || "").slice(0, 3000);
         err.message = `FFmpeg: ${err.message}\nStderr: ${stderrStr}`;
         return reject(err);
       }
@@ -313,7 +319,7 @@ async function tryLibrary(videoId) {
   }
   if (!YoutubeTranscript) return null;
 
-  const langs = [undefined, "en", "id", "ja", "ko", "zh-Hans", "es", "fr"];
+  const langs = ["id", "en", "ja", "ko", "zh-Hans", "es", "fr"];
   for (const lang of langs) {
     try {
       const config = lang ? { lang } : {};
@@ -363,8 +369,8 @@ async function tryInnerTubeWeb(videoId) {
 }
 
 async function downloadFromTracks(tracks) {
-  const track = tracks.find((t) => t.languageCode === "en") ||
-    tracks.find((t) => t.languageCode === "id") || tracks[0];
+  const track = tracks.find((t) => t.languageCode === "id") ||
+    tracks.find((t) => t.languageCode === "en") || tracks[0];
   if (!track?.baseUrl) return null;
 
   try {
@@ -396,8 +402,8 @@ function parseTranscriptXml(xml) {
 
 async function tryTimedtext(videoId) {
   const urls = [
-    `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en&fmt=json3`,
     `https://www.youtube.com/api/timedtext?v=${videoId}&lang=id&fmt=json3`,
+    `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en&fmt=json3`,
     `https://www.youtube.com/api/timedtext?v=${videoId}&fmt=json3`,
   ];
   for (const url of urls) {
@@ -646,8 +652,12 @@ async function processJob(job) {
       const stderr = (error).stderr || "";
       console.error(`[Worker] ❌ Export ${job.exportId} failed`);
       console.error(`[Worker]    Error: ${msg}`);
-      console.error(`[Worker]    Stack: ${fullStack.slice(0, 500)}`);
-      if (stderr) console.error(`[Worker]    Stderr: ${stderr.slice(0, 500)}`);
+      console.error(`[Worker]    Stack: ${fullStack.slice(0, 3000)}`);
+      if (stderr) console.error(`[Worker]    Stderr: ${stderr.slice(0, 3000)}`);
+      // save only the actual error, not the full command
+      const errLines = stderr.split("\n").filter(l => /[Ee]rror|width not|Conversion failed/.test(l));
+      if (errLines.length > 0) msg = errLines.slice(0, 2).join(" | ").slice(0, 300);
+      else msg = msg.split("\n")[0].slice(0, 150);
     } else {
       console.error(`[Worker] ❌ Export ${job.exportId} failed:`, String(error));
     }

@@ -14,6 +14,7 @@ import type * as cleanup from "../cleanup.js";
 import type * as credits from "../credits.js";
 import type * as exports from "../exports.js";
 import type * as highlights from "../highlights.js";
+import type * as payments from "../payments.js";
 import type * as transcripts from "../transcripts.js";
 import type * as users from "../users.js";
 import type * as videos from "../videos.js";
@@ -31,6 +32,7 @@ declare const fullApi: ApiFromModules<{
   credits: typeof credits;
   exports: typeof exports;
   highlights: typeof highlights;
+  payments: typeof payments;
   transcripts: typeof transcripts;
   users: typeof users;
   videos: typeof videos;

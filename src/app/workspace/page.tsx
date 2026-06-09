@@ -77,16 +77,13 @@ function MenuButton({ clip, email, onDeleted }: { clip: Clip; email?: string | n
             onClick={async () => {
               setOpen(false);
               try {
-                const res = await fetch(`${CONVEX_URL}/api/mutation`, {
+                const res = await fetch("/api/delete-clip", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    path: "exports:remove",
-                    args: { exportId: clip.exportId, email },
-                  }),
+                  body: JSON.stringify({ exportId: clip.exportId, email }),
                 });
                 const data = await res.json();
-                if (data.error) throw new Error(data.error.message);
+                if (!res.ok) throw new Error(data.error || "Delete failed");
                 onDeleted();
               } catch {}
             }}
