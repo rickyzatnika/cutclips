@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
-import { Scissors, CreditCard, LogOut, Menu, X } from "lucide-react";
+import { Scissors, CreditCard, Menu, X } from "lucide-react";
 
 export function Navbar() {
   const { data: session } = useSession();

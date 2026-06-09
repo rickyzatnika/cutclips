@@ -1,4 +1,3 @@
-// @ts-ignore: CSS side-effect import type declarations are handled by Next.js app router
 import "./globals.css";
 import { Inter } from "next/font/google";
 import type { Metadata } from "next";
