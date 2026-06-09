@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { api } from "@convex/_generated/api";
 import { Scissors, CreditCard, LogOut, Menu, X, LayoutDashboard } from "lucide-react";
 
 const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL;

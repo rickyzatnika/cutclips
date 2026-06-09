@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import { SessionProvider } from "next-auth/react";
 import { ConvexProvider, useMutation } from "convex/react";
 import { convex } from "@/lib/convex-client";
-import { api } from "@/convex/_generated/api";
+import { api } from "@convex/_generated/api";
 
 function Heartbeat() {
   const { data: session } = useSession();
