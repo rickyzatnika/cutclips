@@ -116,7 +116,7 @@ export const setOffline = mutation({
       .unique();
 
     if (user) {
-      await ctx.db.patch(user._id, { lastActive: Date.now() - 600000 });
+      await ctx.db.patch(user._id, { lastActive: 0 });
     }
   },
 });
