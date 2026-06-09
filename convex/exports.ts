@@ -110,6 +110,30 @@ export const remove = mutation({
   },
 });
 
+export const getQueueInfo = query({
+  args: {},
+  handler: async (ctx) => {
+    const queued = await ctx.db
+      .query("exports")
+      .withIndex("by_status", (q) => q.eq("status", "queued"))
+      .collect();
+
+    const processing = await ctx.db
+      .query("exports")
+      .withIndex("by_status", (q) => q.eq("status", "processing"))
+      .collect();
+
+    const totalAhead = queued.length + processing.length;
+
+    return {
+      queueLength: totalAhead,
+      estimatedSeconds: totalAhead * 60,
+      queuedCount: queued.length,
+      processingCount: processing.length,
+    };
+  },
+});
+
 export const fail = mutation({
   args: {
     exportId: v.id("exports"),

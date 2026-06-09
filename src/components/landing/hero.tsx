@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Sparkles } from "lucide-react";
 
 const trustItems = [
-  "No Perlu Skill Editing",
   "Didukung AI",
   "Ramah Kreator",
   "Analisis Cepat",
@@ -26,7 +25,7 @@ export function Hero() {
       <div className="mx-auto w-full max-w-2xl text-center">
         <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl">
           Ubah Video Panjang Jadi{" "}
-          <span className="bg-gradient-to-r from-emerald-400 to-emerald-300 bg-clip-text text-transparent">
+          <span className="bg-linear-to-r from-emerald-400 to-emerald-300 bg-clip-text text-transparent">
             Shorts Viral
           </span>
         </h1>

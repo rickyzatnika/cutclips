@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import { Scissors, CreditCard, LogOut, Menu, X } from "lucide-react";
 
 export function Navbar() {
@@ -10,11 +10,11 @@ export function Navbar() {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/10 bg-black/80 backdrop-blur-lg">
+    <header className="sticky top-0 z-50  bg-black/10 backdrop-blur-lg py-4">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
-        <Link href={session ? "/app" : "/"} className="flex items-center gap-2">
-          <Scissors className="h-5 w-5 text-emerald-400" />
-          <span className="text-sm font-bold text-white">CutClips</span>
+        <Link href={session ? "/workspace" : "/"} className="flex items-center gap-2">
+          <Scissors className="h-7 w-7 text-emerald-400" />
+          <span className="text-lg font-bold text-white">CutClips</span>
         </Link>
 
         {/* Desktop nav */}
@@ -22,13 +22,13 @@ export function Navbar() {
           {session ? (
             <nav className="flex items-center gap-4">
               <Link
-                href="/app"
+                href="/workspace"
                 className="text-sm text-zinc-400 transition-colors hover:text-white"
               >
                 Workspace
               </Link>
               <Link
-                href="/app/billing"
+                href="/workspace/billing"
                 className="text-sm text-zinc-400 transition-colors hover:text-white"
               >
                 <span className="flex items-center gap-1">
@@ -36,22 +36,19 @@ export function Navbar() {
                   Billing
                 </span>
               </Link>
-              <Link
-                href="/api/auth/signout"
-                className="text-sm text-zinc-500 hover:text-white"
-              >
-                <LogOut className="h-4 w-4" />
-              </Link>
+              <button onClick={() => signOut()} className="py-2 px-4 rounded-xl cursor-pointer bg-emerald-400  text-sm text-zinc-900 transition-colors hover:text-white">
+                Logout
+              </button>
             </nav>
           ) : (
-            <nav className="flex items-center gap-6">
+            <button className="py-2 px-4 rounded-xl cursor-pointer bg-emerald-400  text-sm text-zinc-900 transition-colors hover:text-white">
               <Link
                 href="/login"
-                className="text-sm font-medium text-white transition-colors hover:text-zinc-300"
+                className="text-sm font-medium "
               >
                 Masuk
               </Link>
-            </nav>
+            </button>
           )}
         </div>
 
@@ -71,14 +68,14 @@ export function Navbar() {
             {session ? (
               <>
                 <Link
-                  href="/app"
+                  href="/workspace"
                   onClick={() => setOpen(false)}
                   className="block rounded-lg px-3 py-2 text-sm text-zinc-400 hover:bg-zinc-900 hover:text-white"
                 >
                   Workspace
                 </Link>
                 <Link
-                  href="/app/billing"
+                  href="/workspace/billing"
                   onClick={() => setOpen(false)}
                   className="block rounded-lg px-3 py-2 text-sm text-zinc-400 hover:bg-zinc-900 hover:text-white"
                 >

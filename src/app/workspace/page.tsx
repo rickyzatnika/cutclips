@@ -59,7 +59,7 @@ function MenuButton({ clip, email, onDeleted }: { clip: Clip; email?: string | n
     <div ref={ref} className="relative">
       <button
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
-        className="rounded-lg bg-black/60 p-1.5 cursor-pointer text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-zinc-700"
+        className="rounded-lg bg-black/60 p-1.5 cursor-pointer text-white opacity-100 sm:opacity-0 transition-opacity group-hover:opacity-100 hover:bg-zinc-700"
       >
         <MoreVertical className="h-4 w-4" />
       </button>

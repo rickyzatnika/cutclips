@@ -139,29 +139,57 @@ async function tryTimedtext(videoId: string): Promise<{
   segments: TranscriptSegment[];
   rawText: string;
 } | null> {
-  const langs = ["en", "id"];
-  for (const lang of langs) {
+  const urls = [
+    `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en&fmt=json3`,
+    `https://www.youtube.com/api/timedtext?v=${videoId}&lang=id&fmt=json3`,
+    `https://www.youtube.com/api/timedtext?v=${videoId}&fmt=json3`,
+    `https://youtubetranscript.com/?v=${videoId}`,
+  ];
+  for (const url of urls) {
     try {
-      const res = await fetch(
-        `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${lang}&fmt=json3`,
-        { signal: AbortSignal.timeout(10000) },
-      );
-      if (res.ok) {
-        const data = await res.json();
-        const events = data?.events;
-        if (Array.isArray(events) && events.length > 0) {
-          const segments: TranscriptSegment[] = [];
-          for (const e of events) {
-            const start = (e.tStartMs || 0) / 1000;
-            const dur = (e.dDurationMs || 5000) / 1000;
-            const texts = e.segs?.map((s: any) => s.utf8 || "").join(" ") || "";
-            if (texts.trim()) {
-              segments.push({ start, end: start + dur, text: texts.trim() });
+      const res = await fetch(url, {
+        headers: { "User-Agent": WEB_USER_AGENT },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!res.ok) continue;
+      const text = await res.text();
+      if (!text || text.length < 50) continue;
+
+      // Try JSON format (timedtext)
+      if (url.includes("fmt=json3")) {
+        try {
+          const data = JSON.parse(text);
+          const events = data?.events;
+          if (Array.isArray(events) && events.length > 0) {
+            const segments: TranscriptSegment[] = [];
+            for (const e of events) {
+              const start = (e.tStartMs || 0) / 1000;
+              const dur = (e.dDurationMs || 5000) / 1000;
+              const texts = e.segs?.map((s: any) => s.utf8 || "").join(" ") || "";
+              if (texts.trim()) segments.push({ start, end: start + dur, text: texts.trim() });
+            }
+            if (segments.length > 0) {
+              return { segments, rawText: segments.map((s) => s.text).join(" ") };
             }
           }
-          if (segments.length > 0) {
-            const rawText = segments.map((s) => s.text).join(" ");
-            return { segments, rawText };
+        } catch { /* not json */ }
+      }
+
+      // Try youtubetranscript.com HTML format
+      if (url.includes("youtubetranscript.com")) {
+        const htmlMatch = text.match(/<p[^>]*>([\s\S]*?)<\/p>/gi);
+        if (htmlMatch && htmlMatch.length > 0) {
+          const segments: TranscriptSegment[] = [];
+          let time = 0;
+          for (const p of htmlMatch) {
+            const content = p.replace(/<[^>]+>/g, "").trim();
+            if (content) {
+              segments.push({ start: time, end: time + 5, text: content });
+              time += 5;
+            }
+          }
+          if (segments.length > 3) {
+            return { segments, rawText: segments.map((s) => s.text).join(" ") };
           }
         }
       }

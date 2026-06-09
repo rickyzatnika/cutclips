@@ -122,7 +122,7 @@ export default function PricingPage() {
 
         <div className="mt-8 text-center">
           <Link
-            href="/app"
+            href="/workspace"
             className="text-sm text-zinc-500 hover:text-white"
           >
             ← Kembali ke Workspace

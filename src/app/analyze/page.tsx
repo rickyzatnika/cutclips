@@ -185,7 +185,7 @@ function AnalyzeContent() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Batch generation failed");
-      router.push("/app");
+      router.push("/workspace");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed";
       setError(msg);

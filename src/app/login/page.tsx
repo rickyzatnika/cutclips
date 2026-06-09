@@ -11,7 +11,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (session) {
-      const callbackUrl = new URLSearchParams(window.location.search).get("callbackUrl") || "/app";
+      const callbackUrl = new URLSearchParams(window.location.search).get("callbackUrl") || "/workspace";
       router.replace(callbackUrl);
     }
   }, [session, router]);

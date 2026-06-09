@@ -1,4 +1,33 @@
 import { mutation } from "./_generated/server";
+import { v } from "convex/values";
+
+export const clearStuckExports = mutation({
+  args: { email: v.string() },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .unique();
+    if (!user) throw new Error("User not found");
+
+    const exports = await ctx.db
+      .query("exports")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .filter((q) =>
+        q.or(
+          q.eq(q.field("status"), "queued"),
+          q.eq(q.field("status"), "failed"),
+        ),
+      )
+      .collect();
+
+    for (const exp of exports) {
+      await ctx.db.delete(exp._id);
+    }
+
+    return `Cleared ${exports.length} stuck exports`;
+  },
+});
 
 export const purgeAll = mutation({
   args: {},

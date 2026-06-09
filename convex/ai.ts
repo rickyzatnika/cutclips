@@ -27,10 +27,20 @@ export interface AIProvider {
   analyzeTranscript(context: TranscriptContext): Promise<Highlight[]>;
 }
 
-function getGroqKey(): string {
-  const key = process.env.GROQ_API_KEY;
-  if (!key) throw new Error("GROQ_API_KEY not set");
-  return key;
+const MODELS = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
+
+function getApiKeys(): string[] {
+  const keys: string[] = [];
+  for (let i = 1; i <= 10; i++) {
+    const key = process.env[`GROQ_API_KEY_${i}`] as string | undefined;
+    if (key) keys.push(key);
+  }
+  if (keys.length === 0) {
+    const fallback = process.env.GROQ_API_KEY as string | undefined;
+    if (fallback) keys.push(fallback);
+  }
+  if (keys.length === 0) throw new Error("No GROQ_API_KEY set");
+  return keys;
 }
 
 function buildSystemPrompt(): string {
@@ -80,106 +90,105 @@ Kembalikan JSON array of highlights. SEMUA teks harus Bahasa Indonesia:
 ]`;
 }
 
-class GroqProvider implements AIProvider {
-  private model: string;
+async function callGroq(apiKey: string, model: string, context: TranscriptContext): Promise<Highlight[]> {
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: buildSystemPrompt() },
+        { role: "user", content: buildUserPrompt(context) },
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.7,
+      max_tokens: 2048,
+    }),
+    signal: AbortSignal.timeout(30000),
+  });
 
-  constructor(model = "llama-3.3-70b-versatile") {
-    this.model = model;
+  if (res.status === 429 || res.status === 413) {
+    throw new RateLimitError(`Rate limited on ${model}`);
   }
 
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Groq API error ${res.status}: ${body.slice(0, 200)}`);
+  }
+
+  let data: any;
+  try {
+    data = await res.json();
+  } catch {
+    const raw = await res.text();
+    throw new Error(`Groq returned non-JSON response: ${raw.slice(0, 200)}`);
+  }
+
+  const content = data.choices?.[0]?.message?.content;
+  if (!content) throw new Error("Groq returned empty response");
+
+  console.log(`Groq ${model} response:`, content.slice(0, 300));
+
+  let parsed: any;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    throw new Error(`Groq returned invalid JSON: "${content.slice(0, 200)}"`);
+  }
+
+  const raw = parsed.highlights || parsed.highlight || parsed;
+  const highlights = Array.isArray(raw) ? raw : [raw];
+
+  return highlights
+    .filter((h: any) => h.startTime != null && h.endTime != null)
+    .slice(0, 12)
+    .map((h: any) => {
+      const { start, end } = clampDuration(
+        Math.max(0, h.startTime),
+        Math.min(context.duration, h.endTime),
+      );
+      return {
+        startTime: start,
+        endTime: end,
+        title: String(h.title || "Untitled"),
+        category: validateCategory(h.category),
+        confidenceScore: clampScore(h.confidenceScore),
+        viralityScore: clampScore(h.viralityScore),
+        reasoning: String(h.reasoning || ""),
+      };
+    });
+}
+
+class RateLimitError extends Error {
+  constructor(msg: string) {
+    super(msg);
+    this.name = "RateLimitError";
+  }
+}
+
+class GroqProvider implements AIProvider {
   async analyzeTranscript(context: TranscriptContext): Promise<Highlight[]> {
-    const apiKey = getGroqKey();
+    const keys = getApiKeys();
 
-    let lastError: Error | null = null;
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      try {
-        const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify({
-            model: this.model,
-            messages: [
-              { role: "system", content: buildSystemPrompt() },
-              { role: "user", content: buildUserPrompt(context) },
-            ],
-            response_format: { type: "json_object" },
-            temperature: 0.7,
-            max_tokens: 2048,
-          }),
-          signal: AbortSignal.timeout(30000),
-        });
-
-        if (res.status === 429 || res.status === 413) {
-          const wait = Math.min(2000 * Math.pow(2, attempt - 1), 10000);
-          await new Promise((r) => setTimeout(r, wait));
-          continue;
-        }
-
-        if (!res.ok) {
-          const body = await res.text();
-          throw new Error(`Groq API error ${res.status}: ${body.slice(0, 200)}`);
-        }
-
-        let data: any;
+    for (const key of keys) {
+      for (const model of MODELS) {
         try {
-          data = await res.json();
-        } catch {
-          const raw = await res.text();
-          throw new Error(`Groq returned non-JSON response: ${raw.slice(0, 200)}`);
-        }
-
-        const content = data.choices?.[0]?.message?.content;
-        if (!content) throw new Error("Groq returned empty response");
-
-        console.log("Groq raw response:", content.slice(0, 500));
-
-        let parsed: any;
-        try {
-          parsed = JSON.parse(content);
-        } catch {
-          throw new Error(`Groq returned invalid JSON in content: "${content.slice(0, 200)}"`);
-        }
-
-        const raw = parsed.highlights || parsed;
-        const highlights = Array.isArray(raw) ? raw : [raw];
-
-        console.log(`Groq parsed ${highlights.length} highlights`);
-
-        return highlights
-          .filter((h: any) => h.startTime != null && h.endTime != null)
-          .slice(0, 12)
-          .map((h: any) => {
-            const { start, end } = clampDuration(
-              Math.max(0, h.startTime),
-              Math.min(context.duration, h.endTime),
-            );
-            return {
-              startTime: start,
-              endTime: end,
-              title: String(h.title || "Untitled"),
-              category: validateCategory(h.category),
-              confidenceScore: clampScore(h.confidenceScore),
-              viralityScore: clampScore(h.viralityScore),
-              reasoning: String(h.reasoning || ""),
-            };
-          });
-      } catch (err) {
-        lastError = err instanceof Error ? err : new Error(String(err));
-        console.error(`Groq attempt ${attempt}/3 failed:`, lastError.message);
-        // Don't retry on client errors (except 429/413 which are handled above)
-        if (lastError.message.includes("Groq API error 4") && !lastError.message.includes("429") && !lastError.message.includes("413")) {
-          throw lastError;
-        }
-        if (attempt < 3) {
-          const wait = Math.min(2000 * Math.pow(2, attempt - 1), 10000);
-          await new Promise((r) => setTimeout(r, wait));
+          console.log(`Groq trying key=${key.slice(0, 8)}... model=${model}`);
+          return await callGroq(key, model, context);
+        } catch (err) {
+          const isRateLimit = err instanceof RateLimitError;
+          console.error(`Groq key=${key.slice(0, 8)}... model=${model} ${isRateLimit ? "RATE_LIMITED" : "FAILED"}:`, (err as Error).message);
+          if (!isRateLimit) {
+            throw err;
+          }
         }
       }
     }
-    throw lastError || new Error("Groq analysis failed after 3 retries");
+
+    throw new Error("All Groq API keys and models exhausted due to rate limiting");
   }
 }
 
@@ -215,5 +224,5 @@ function clampScore(n: unknown): number {
 }
 
 export function createProvider(provider?: string, model?: string): AIProvider {
-  return new GroqProvider(model || "llama-3.3-70b-versatile");
+  return new GroqProvider();
 }

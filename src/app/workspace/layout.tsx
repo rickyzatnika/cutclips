@@ -37,20 +37,20 @@ export default function AppLayout({
   }, [session]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-black">
-      <header className="border-b border-zinc-800">
+    <div className="flex min-h-screen flex-col bg-[#050505]">
+      <header className="py-4">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-6">
-            <Link href="/app" className="flex items-center gap-2">
-              <Scissors className="h-5 w-5 text-emerald-400" />
-              <span className="text-sm font-bold text-white">CutClips</span>
+            <Link href="/workspace" className="flex items-center gap-2">
+              <Scissors className="h-7 w-7 text-emerald-400" />
+              <span className="text-lg font-bold text-white">CutClips</span>
             </Link>
             {/* Desktop nav */}
             <nav className="hidden sm:flex items-center gap-4">
               <Link
-                href="/app"
+                href="/workspace"
                 className={`text-sm ${
-                  pathname === "/app"
+                  pathname === "/workspace"
                     ? "text-white"
                     : "text-zinc-500 hover:text-white"
                 }`}
@@ -58,9 +58,9 @@ export default function AppLayout({
                 Workspace
               </Link>
               <Link
-                href="/app/billing"
+                href="/workspace/billing"
                 className={`text-sm ${
-                  pathname === "/app/billing"
+                  pathname === "/workspace/billing"
                     ? "text-white"
                     : "text-zinc-500 hover:text-white"
                 }`}
@@ -79,17 +79,17 @@ export default function AppLayout({
               href="/pricing"
               className="text-sm text-zinc-400 hover:text-white"
             >
-              ✨ Kredit:{" "}
+              ✨ Credits:{" "}
               <strong className="text-white">
                 {credits != null ? credits : "..."}
               </strong>
-              <span className="ml-1 text-emerald-400 hover:text-emerald-300">Topup</span>
+              
             </Link>
             <Link
               href="/api/auth/signout"
               className="text-sm text-zinc-500 hover:text-white"
             >
-              <LogOut className="h-4 w-4" />
+              <LogOut className="h-5 w-5" />
             </Link>
           </div>
 
@@ -104,13 +104,13 @@ export default function AppLayout({
 
         {/* Mobile menu */}
         {menuOpen && (
-          <div className="border-t border-zinc-800 bg-black sm:hidden">
+          <div className="border-t border-zinc-800 bg-[#050505] sm:hidden">
             <div className="space-y-1 px-4 py-3">
               <Link
-                href="/app"
+                href="/workspace"
                 onClick={() => setMenuOpen(false)}
                 className={`block rounded-lg px-3 py-2 text-sm ${
-                  pathname === "/app"
+                  pathname === "/workspace"
                     ? "text-white"
                     : "text-zinc-400 hover:bg-zinc-900 hover:text-white"
                 }`}
@@ -118,10 +118,10 @@ export default function AppLayout({
                 Workspace
               </Link>
               <Link
-                href="/app/billing"
+                href="/workspace/billing"
                 onClick={() => setMenuOpen(false)}
                 className={`block rounded-lg px-3 py-2 text-sm ${
-                  pathname === "/app/billing"
+                  pathname === "/workspace/billing"
                     ? "text-white"
                     : "text-zinc-400 hover:bg-zinc-900 hover:text-white"
                 }`}
@@ -134,15 +134,14 @@ export default function AppLayout({
                   onClick={() => setMenuOpen(false)}
                   className="block rounded-lg px-3 py-2 text-sm text-zinc-400 hover:bg-zinc-900 hover:text-white"
                 >
-                  ✨ Kredit: <strong className="text-white">{credits != null ? credits : "..."}</strong>
-                  <span className="ml-1 text-emerald-400">Topup</span>
+                  ✨ Credits: <strong className="text-white">{credits != null ? credits : "..."}</strong>
                 </Link>
                 <Link
                   href="/api/auth/signout"
                   onClick={() => setMenuOpen(false)}
                   className="block rounded-lg px-3 py-2 text-sm text-zinc-400 hover:bg-zinc-900 hover:text-white"
                 >
-                  Keluar
+                  Logout
                 </Link>
               </div>
             </div>

@@ -33,6 +33,7 @@ function GenerateContent() {
   const [exportId, setExportId] = useState<string | null>(null);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
+  const [queueInfo, setQueueInfo] = useState<{ ahead: number; estimatedSeconds: number } | null>(null);
 
   // Auto-save highlight on mount when logged in
   useEffect(() => {
@@ -108,6 +109,7 @@ function GenerateContent() {
         if (cancelled) return;
 
         setStatus(data.status);
+        if (data.queue) setQueueInfo(data.queue);
 
         if (data.status === "completed") {
           setDownloadUrl(data.downloadUrl);
@@ -198,7 +200,7 @@ function GenerateContent() {
     <div className="min-h-screen bg-black">
       <div className="mx-auto max-w-lg px-4 py-12">
         <Link
-          href="/app"
+          href="/workspace"
           className="mb-8 inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-white"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -246,7 +248,15 @@ function GenerateContent() {
                 : status === "queued" ? "Clip dalam antrian..."
                 : "Memproses clip..."}
             </h2>
-            <p className="text-sm text-zinc-500">Biasanya memakan waktu 30-60 detik.</p>
+            {status === "queued" && queueInfo ? (
+              <p className="text-sm text-zinc-500">
+                {queueInfo.ahead > 0
+                  ? `${queueInfo.ahead} antrian di depan. Estimasi ${Math.ceil(queueInfo.estimatedSeconds / 60)} menit.`
+                  : "Kamu berikutnya! Sebentar lagi..."}
+              </p>
+            ) : (
+              <p className="text-sm text-zinc-500">Biasanya memakan waktu 30-60 detik.</p>
+            )}
           </div>
         )}
 

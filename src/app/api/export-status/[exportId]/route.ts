@@ -8,7 +8,10 @@ export async function GET(
   try {
     const { exportId } = await params;
 
-    const exportDoc = await convexQuery("exports:getById", { exportId });
+    const [exportDoc, queueInfo] = await Promise.all([
+      convexQuery("exports:getById", { exportId }),
+      convexQuery("exports:getQueueInfo", {}),
+    ]);
 
     if (!exportDoc) {
       return NextResponse.json({ error: "Export not found" }, { status: 404 });
@@ -21,6 +24,10 @@ export async function GET(
       error: exportDoc.error,
       createdAt: exportDoc.createdAt,
       completedAt: exportDoc.completedAt,
+      queue: exportDoc.status === "queued" ? {
+        ahead: Math.max(0, (queueInfo?.queueLength || 1) - 1),
+        estimatedSeconds: Math.max(30, (queueInfo?.queueLength || 1) * 60),
+      } : null,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to get export status";
