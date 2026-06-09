@@ -3,11 +3,21 @@
 import { useState } from "react";
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
+import { useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { Scissors, CreditCard, Menu, X } from "lucide-react";
 
 export function Navbar() {
   const { data: session } = useSession();
   const [open, setOpen] = useState(false);
+  const setOffline = useMutation(api.users.setOffline);
+
+  const handleSignOut = async () => {
+    if (session?.user?.email) {
+      await setOffline({ email: session.user.email });
+    }
+    signOut({ callbackUrl: "/login" });
+  };
 
   return (
     <header className="sticky top-0 z-50  bg-black/10 backdrop-blur-lg py-4">
@@ -36,7 +46,7 @@ export function Navbar() {
                   Billing
                 </span>
               </Link>
-              <button onClick={() => signOut()} className="py-2 px-4 rounded-xl cursor-pointer bg-emerald-400  text-sm text-zinc-900 transition-colors hover:text-white">
+              <button onClick={handleSignOut} className="py-2 px-4 rounded-xl cursor-pointer bg-emerald-400 text-sm text-zinc-900 transition-colors hover:text-white">
                 Logout
               </button>
             </nav>
@@ -50,9 +60,9 @@ export function Navbar() {
               </Link>
               <Link
                 href="/login"
-                className="rounded-xl bg-emerald-400 px-4 py-2 text-sm font-semibold text-zinc-900 transition-colors hover:bg-emerald-300"
+                className="rounded-xl bg-emerald-400 px-4 py-2 text-sm font-medium text-zinc-900 transition-colors hover:bg-emerald-300"
               >
-                Masuk
+                Sign In
               </Link>
             </nav>
           )}
@@ -63,57 +73,58 @@ export function Navbar() {
           onClick={() => setOpen(!open)}
           className="flex sm:hidden cursor-pointer text-zinc-400 hover:text-white"
         >
-          {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
         </button>
       </div>
 
       {/* Mobile menu */}
       {open && (
-        <div className="border-t border-white/10 bg-black sm:hidden">
-          <div className="space-y-1 px-4 py-3">
-            {session ? (
-              <>
-                <Link
-                  href="/workspace"
-                  onClick={() => setOpen(false)}
-                  className="block rounded-lg px-3 py-2 text-sm text-zinc-400 hover:bg-zinc-900 hover:text-white"
-                >
-                  Workspace
-                </Link>
-                <Link
-                  href="/workspace/billing"
-                  onClick={() => setOpen(false)}
-                  className="block rounded-lg px-3 py-2 text-sm text-zinc-400 hover:bg-zinc-900 hover:text-white"
-                >
-                  Billing
-                </Link>
-                <Link
-                  href="/api/auth/signout"
-                  onClick={() => setOpen(false)}
-                  className="block rounded-lg px-3 py-2 text-sm text-zinc-400 hover:bg-zinc-900 hover:text-white"
-                >
-                  Keluar
-                </Link>
-              </>
-            ) : (
-              <>
-                <Link
-                  href="/pricing"
-                  onClick={() => setOpen(false)}
-                  className="block rounded-lg px-3 py-2 text-sm text-zinc-400 hover:bg-zinc-900 hover:text-white"
-                >
-                  Pricing
-                </Link>
-                <Link
-                  href="/login"
-                  onClick={() => setOpen(false)}
-                  className="block rounded-lg px-3 py-2 text-sm text-white hover:bg-zinc-900"
-                >
-                  Masuk
-                </Link>
-              </>
-            )}
-          </div>
+        <div className="border-t border-zinc-800 sm:hidden">
+          {session ? (
+            <nav className="flex flex-col gap-2 px-4 py-4">
+              <Link
+                href="/workspace"
+                className="rounded-xl px-4 py-2 text-sm text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
+                onClick={() => setOpen(false)}
+              >
+                Workspace
+              </Link>
+              <Link
+                href="/workspace/billing"
+                className="rounded-xl px-4 py-2 text-sm text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
+                onClick={() => setOpen(false)}
+              >
+                Billing
+              </Link>
+              <Link
+                href="/pricing"
+                className="rounded-xl px-4 py-2 text-sm text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
+                onClick={() => setOpen(false)}
+              >
+                Pricing
+              </Link>
+              <button onClick={handleSignOut} className="cursor-pointer rounded-xl px-4 py-2 text-left text-sm text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white">
+                Logout
+              </button>
+            </nav>
+          ) : (
+            <nav className="flex flex-col gap-2 px-4 py-4">
+              <Link
+                href="/pricing"
+                className="rounded-xl px-4 py-2 text-sm text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
+                onClick={() => setOpen(false)}
+              >
+                Pricing
+              </Link>
+              <Link
+                href="/login"
+                className="rounded-xl px-4 py-2 text-sm text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
+                onClick={() => setOpen(false)}
+              >
+                Sign In
+              </Link>
+            </nav>
+          )}
         </div>
       )}
     </header>

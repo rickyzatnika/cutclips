@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
+import { useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { Scissors, CreditCard, LogOut, Menu, X, LayoutDashboard } from "lucide-react";
 
 const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL;
@@ -18,6 +20,14 @@ export default function AppLayout({
   const [credits, setCredits] = useState<number | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const setOffline = useMutation(api.users.setOffline);
+
+  const handleSignOut = async () => {
+    if (session?.user?.email) {
+      await setOffline({ email: session.user.email });
+    }
+    signOut({ callbackUrl: "/login" });
+  };
 
   useEffect(() => {
     if (!session?.user?.email || !CONVEX_URL) return;
@@ -100,12 +110,12 @@ export default function AppLayout({
               </strong>
               
             </Link>
-            <Link
-              href="/api/auth/signout"
-              className="text-sm text-zinc-500 hover:text-white"
+            <button
+              onClick={handleSignOut}
+              className="cursor-pointer text-sm text-zinc-500 hover:text-white"
             >
               <LogOut className="h-5 w-5" />
-            </Link>
+            </button>
           </div>
 
           {/* Mobile hamburger */}
@@ -164,13 +174,12 @@ export default function AppLayout({
                 >
                   ✨ Credits: <strong className="text-white">{credits != null ? credits : "..."}</strong>
                 </Link>
-                <Link
-                  href="/api/auth/signout"
-                  onClick={() => setMenuOpen(false)}
-                  className="block rounded-lg px-3 py-2 text-sm text-zinc-400 hover:bg-zinc-900 hover:text-white"
+                <button
+                  onClick={() => { setMenuOpen(false); handleSignOut(); }}
+                  className="block w-full text-left rounded-lg px-3 py-2 text-sm text-zinc-400 hover:bg-zinc-900 hover:text-white"
                 >
                   Logout
-                </Link>
+                </button>
               </div>
             </div>
           </div>
