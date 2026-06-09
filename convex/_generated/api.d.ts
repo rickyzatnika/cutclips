@@ -9,6 +9,7 @@
  */
 
 import type * as ai from "../ai.js";
+import type * as analyzeJobs from "../analyzeJobs.js";
 import type * as cleanup from "../cleanup.js";
 import type * as credits from "../credits.js";
 import type * as exports from "../exports.js";
@@ -25,6 +26,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   ai: typeof ai;
+  analyzeJobs: typeof analyzeJobs;
   cleanup: typeof cleanup;
   credits: typeof credits;
   exports: typeof exports;

@@ -101,4 +101,36 @@ export default defineSchema({
     description: v.string(),
     createdAt: v.number(),
   }).index("by_userId", ["userId"]),
+
+  analyzeJobs: defineTable({
+    videoId: v.string(),
+    youtubeUrl: v.string(),
+    status: v.union(
+      v.literal("queued"),
+      v.literal("processing"),
+      v.literal("completed"),
+      v.literal("failed"),
+    ),
+    title: v.optional(v.string()),
+    duration: v.optional(v.number()),
+    transcriptSegments: v.optional(v.array(
+      v.object({ start: v.number(), end: v.number(), text: v.string() }),
+    )),
+    rawText: v.optional(v.string()),
+    highlights: v.optional(v.array(
+      v.object({
+        startTime: v.number(),
+        endTime: v.number(),
+        title: v.string(),
+        category: v.string(),
+        confidenceScore: v.number(),
+        viralityScore: v.number(),
+        reasoning: v.string(),
+      }),
+    )),
+    error: v.optional(v.string()),
+    createdAt: v.number(),
+    startedAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+  }).index("by_status", ["status"]),
 });

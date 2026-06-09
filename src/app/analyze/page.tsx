@@ -1,23 +1,16 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import {
-  CheckCircle2,
   Loader2,
   AlertCircle,
   ArrowLeft,
   Flame,
   Sparkles,
 } from "lucide-react";
-
-type ProgressStep = {
-  id: string;
-  label: string;
-  status: "waiting" | "processing" | "done" | "error";
-};
 
 const CATEGORY_EMOJIS: Record<string, string> = {
   funny: "😂",
@@ -48,21 +41,16 @@ interface Highlight {
   reasoning: string;
 }
 
+type PollStatus = "loading" | "processing" | "done" | "error";
+
 function AnalyzeContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { data: session } = useSession();
   const url = searchParams.get("url");
 
-  const [steps, setSteps] = useState<ProgressStep[]>([
-    { id: "transcript", label: "Mengambil Transkrip", status: "waiting" },
-    { id: "funny", label: "Mencari Momen Lucu", status: "waiting" },
-    { id: "emotional", label: "Mencari Momen Emosional", status: "waiting" },
-    { id: "shocking", label: "Mencari Momen Mengejutkan", status: "waiting" },
-    { id: "educational", label: "Mencari Insight Edukatif", status: "waiting" },
-    { id: "ranking", label: "Meranking Highlight", status: "waiting" },
-  ]);
-
+  const [pollStatus, setPollStatus] = useState<PollStatus>("loading");
+  const [statusMessage, setStatusMessage] = useState("Menyiapkan analisis...");
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [videoInfo, setVideoInfo] = useState<{
     title: string;
@@ -70,22 +58,21 @@ function AnalyzeContent() {
     thumbnailUrl?: string;
   } | null>(null);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (!url) {
       setError("No URL provided");
-      setLoading(false);
+      setPollStatus("error");
       return;
     }
 
     let cancelled = false;
 
-    const analyze = async () => {
+    const startAnalysis = async () => {
       try {
-        updateStep("transcript", "processing");
-        await delay(800);
+        setStatusMessage("Mengirim video untuk dianalisis...");
 
         const res = await fetch("/api/analyze", {
           method: "POST",
@@ -95,66 +82,81 @@ function AnalyzeContent() {
 
         if (!res.ok) {
           const data = await res.json();
-          throw new Error(data.error || "Analysis failed");
+          throw new Error(data.error || "Gagal memulai analisis");
         }
 
-        const data = await res.json();
+        const { jobId } = await res.json();
         if (cancelled) return;
 
-        updateStep("transcript", "done");
-        setVideoInfo({
-          title: data.title,
-          duration: data.duration,
-          thumbnailUrl: data.thumbnailUrl,
-        });
+        setStatusMessage("Menunggu antrian analisis...");
 
-        const detectSteps = ["funny", "emotional", "shocking", "educational"];
-        for (const stepId of detectSteps) {
-          if (cancelled) return;
-          updateStep(stepId, "processing");
-          await delay(600);
-          updateStep(stepId, "done");
-        }
+        intervalRef.current = setInterval(async () => {
+          try {
+            const pollRes = await fetch(`/api/analyze-status/${jobId}`);
+            if (!pollRes.ok) {
+              const data = await pollRes.json();
+              throw new Error(data.error || "Gagal mendapat status");
+            }
 
-        updateStep("ranking", "processing");
-        await delay(500);
+            const job = await pollRes.json();
+            if (cancelled) return;
 
-        const detectedHighlights: Highlight[] = (data.highlights || []).map(
-          (h: Record<string, unknown>) => ({
-            _id: `h-${Math.random().toString(36).slice(2)}`,
-            startTime: h.startTime as number,
-            endTime: h.endTime as number,
-            title: String(h.title || ""),
-            category: String(h.category || "hook"),
-            confidenceScore: Number(h.confidenceScore) || 0,
-            viralityScore: Number(h.viralityScore) || 0,
-            reasoning: String(h.reasoning || ""),
-          }),
-        );
+            if (job.status === "processing") {
+              setPollStatus("processing");
+              setStatusMessage("Menganalisis video...");
+            } else if (job.status === "completed") {
+              if (intervalRef.current) clearInterval(intervalRef.current);
 
-        setHighlights(detectedHighlights);
-        updateStep("ranking", "done");
+              setVideoInfo({
+                title: job.title || "YouTube Video",
+                duration: job.duration || 600,
+              });
+
+              const detectedHighlights: Highlight[] = (job.highlights || []).map(
+                (h: Record<string, unknown>) => ({
+                  _id: `h-${Math.random().toString(36).slice(2)}`,
+                  startTime: h.startTime as number,
+                  endTime: h.endTime as number,
+                  title: String(h.title || ""),
+                  category: String(h.category || "hook"),
+                  confidenceScore: Number(h.confidenceScore) || 0,
+                  viralityScore: Number(h.viralityScore) || 0,
+                  reasoning: String(h.reasoning || ""),
+                }),
+              );
+
+              setHighlights(detectedHighlights);
+              setPollStatus("done");
+            } else if (job.status === "failed") {
+              if (intervalRef.current) clearInterval(intervalRef.current);
+              throw new Error(job.error || "Analisis gagal");
+            }
+          } catch (pollErr) {
+            if (intervalRef.current) clearInterval(intervalRef.current);
+            if (!cancelled) {
+              const msg = pollErr instanceof Error ? pollErr.message : "Gagal memeriksa status";
+              setError(msg);
+              setPollStatus("error");
+            }
+          }
+        }, 2000);
+
       } catch (err) {
         if (!cancelled) {
           const msg = err instanceof Error ? err.message : "Analysis failed";
           setError(msg);
+          setPollStatus("error");
         }
-      } finally {
-        if (!cancelled) setLoading(false);
       }
     };
 
-    analyze();
-    return () => { cancelled = true; };
+    startAnalysis();
+
+    return () => {
+      cancelled = true;
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
   }, [url]);
-
-  const updateStep = (id: string, status: ProgressStep["status"]) => {
-    setSteps((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, status } : s)),
-    );
-  };
-
-  const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -207,7 +209,7 @@ function AnalyzeContent() {
     return `/generate?${params.toString()}`;
   };
 
-  if (error && !loading) {
+  if (error && pollStatus === "error") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black px-4">
         <div className="w-full max-w-md text-center">
@@ -221,6 +223,18 @@ function AnalyzeContent() {
             <ArrowLeft className="h-4 w-4" />
             Coba URL Lain
           </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (pollStatus === "loading" || pollStatus === "processing") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-black px-4">
+        <div className="w-full max-w-md text-center">
+          <Loader2 className="mx-auto h-10 w-10 animate-spin text-emerald-400" />
+          <p className="mt-4 text-sm text-zinc-400">{statusMessage}</p>
+          <p className="mt-2 text-xs text-zinc-600">Proses ini biasanya memakan waktu 30-60 detik</p>
         </div>
       </div>
     );
@@ -246,37 +260,7 @@ function AnalyzeContent() {
           </div>
         )}
 
-        {loading && (
-          <div className="mb-8 space-y-3">
-            {steps.map((step) => (
-              <div
-                key={step.id}
-                className="flex items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3"
-              >
-                {step.status === "done" ? (
-                  <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-emerald-400" />
-                ) : step.status === "processing" ? (
-                  <Loader2 className="h-5 w-5 flex-shrink-0 animate-spin text-emerald-400" />
-                ) : (
-                  <div className="h-5 w-5 flex-shrink-0 rounded-full border-2 border-zinc-700" />
-                )}
-                <span
-                  className={`text-sm ${
-                    step.status === "done"
-                      ? "text-zinc-300"
-                      : step.status === "processing"
-                        ? "text-white"
-                        : "text-zinc-600"
-                  }`}
-                >
-                  {step.label}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {!loading && highlights.length > 0 && (
+        {highlights.length > 0 && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-white">
@@ -361,7 +345,7 @@ function AnalyzeContent() {
           </div>
         )}
 
-        {!loading && highlights.length === 0 && !error && (
+        {highlights.length === 0 && pollStatus === "done" && (
           <div className="text-center text-zinc-500">
             Tidak ada highlight ditemukan. Coba video lain.
           </div>

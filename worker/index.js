@@ -268,6 +268,367 @@ async function processExportJob(job, tempDir) {
   console.log(`[Worker] ✅ Export ${job.exportId} completed!`);
 }
 
+// ─── Transcript fetching (for analyze jobs) ──────────────
+
+const YOUTUBE_REGEX = /(?:youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+const WEB_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
+function extractVideoId(url) {
+  const m = String(url).match(YOUTUBE_REGEX);
+  return m ? m[1] : null;
+}
+
+async function fetchTranscript(videoId) {
+  const methods = [
+    { name: "innertube-web", fn: tryInnerTubeWeb },
+    { name: "library", fn: tryLibrary },
+    { name: "timedtext", fn: tryTimedtext },
+    { name: "scrape", fn: tryYoutubeScrape },
+  ];
+
+  for (const { name, fn } of methods) {
+    console.log(`[Worker/analyze] trying transcript method: ${name}`);
+    try {
+      const result = await fn(videoId);
+      if (result) {
+        console.log(`[Worker/analyze] transcript method ${name} succeeded (${result.segments.length} segments)`);
+        return result;
+      }
+    } catch (e) {
+      console.log(`[Worker/analyze] transcript method ${name} threw: ${e.message}`);
+    }
+  }
+
+  throw new Error("Could not fetch transcript. Make sure the video has captions available.");
+}
+
+async function tryLibrary(videoId) {
+  // youtube-transcript lib — try InnerTube ANDROID + HTML scrape fallback
+  let YoutubeTranscript;
+  try {
+    YoutubeTranscript = require("youtube-transcript").YoutubeTranscript;
+  } catch {
+    // fallback: try from root node_modules
+    YoutubeTranscript = require("../node_modules/youtube-transcript").YoutubeTranscript;
+  }
+  if (!YoutubeTranscript) return null;
+
+  const langs = [undefined, "en", "id", "ja", "ko", "zh-Hans", "es", "fr"];
+  for (const lang of langs) {
+    try {
+      const config = lang ? { lang } : {};
+      const items = await YoutubeTranscript.fetchTranscript(videoId, config);
+      if (items && items.length > 0) {
+        const segments = items.map((s) => ({
+          start: s.offset / 1000,
+          end: (s.offset + s.duration) / 1000,
+          text: s.text,
+        }));
+        const rawText = segments.map((s) => s.text).join(" ");
+        return { segments, rawText };
+      }
+    } catch { /* fall through */ }
+  }
+  return null;
+}
+
+async function tryInnerTubeWeb(videoId) {
+  try {
+    const body = {
+      context: {
+        client: { clientName: "WEB", clientVersion: "2.20240101", hl: "en", gl: "US" },
+      },
+      videoId,
+    };
+    const headers = {
+      "Content-Type": "application/json",
+      "User-Agent": WEB_UA,
+      Origin: "https://www.youtube.com",
+      "X-YouTube-Client-Name": "1",
+      "X-YouTube-Client-Version": "2.20240101",
+    };
+    const apiKey = process.env.YOUTUBE_API_KEY;
+    if (apiKey) headers["X-Goog-Api-Key"] = apiKey;
+
+    const res = await fetch("https://www.youtube.com/youtubei/v1/player?prettyPrint=false", {
+      method: "POST", headers, body: JSON.stringify(body),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const tracks = data?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+    if (!Array.isArray(tracks) || tracks.length === 0) return null;
+    return downloadFromTracks(tracks);
+  } catch { return null; }
+}
+
+async function downloadFromTracks(tracks) {
+  const track = tracks.find((t) => t.languageCode === "en") ||
+    tracks.find((t) => t.languageCode === "id") || tracks[0];
+  if (!track?.baseUrl) return null;
+
+  try {
+    const captionRes = await fetch(track.baseUrl, {
+      headers: { "User-Agent": WEB_UA },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!captionRes.ok) return null;
+    const xml = await captionRes.text();
+    const segments = parseTranscriptXml(xml);
+    if (segments.length === 0) return null;
+    const rawText = segments.map((s) => s.text).join(" ");
+    return { segments, rawText };
+  } catch { return null; }
+}
+
+function parseTranscriptXml(xml) {
+  const segments = [];
+  const regex = /<text start="([\d.]+)" dur="([\d.]*)">(.*?)<\/text>/g;
+  let match;
+  while ((match = regex.exec(xml)) !== null) {
+    const start = parseFloat(match[1]);
+    const dur = parseFloat(match[2]) || 3;
+    const text = match[3].replace(/<[^>]+>/g, "").trim();
+    if (text) segments.push({ start, end: start + dur, text });
+  }
+  return segments;
+}
+
+async function tryTimedtext(videoId) {
+  const urls = [
+    `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en&fmt=json3`,
+    `https://www.youtube.com/api/timedtext?v=${videoId}&lang=id&fmt=json3`,
+    `https://www.youtube.com/api/timedtext?v=${videoId}&fmt=json3`,
+  ];
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, {
+        headers: { "User-Agent": WEB_UA },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!res.ok) continue;
+      const text = await res.text();
+      if (!text || text.length < 50) continue;
+      const data = JSON.parse(text);
+      const events = data?.events;
+      if (Array.isArray(events) && events.length > 0) {
+        const segments = [];
+        for (const e of events) {
+          const start = (e.tStartMs || 0) / 1000;
+          const dur = (e.dDurationMs || 5000) / 1000;
+          const texts = e.segs?.map((s) => s.utf8 || "").join(" ") || "";
+          if (texts.trim()) segments.push({ start, end: start + dur, text: texts.trim() });
+        }
+        if (segments.length > 0) {
+          return { segments, rawText: segments.map((s) => s.text).join(" ") };
+        }
+      }
+    } catch { /* fall through */ }
+  }
+  return null;
+}
+
+async function tryYoutubeScrape(videoId) {
+  try {
+    const res = await fetch(`https://youtube.com/watch?v=${videoId}`, {
+      headers: { "User-Agent": WEB_UA },
+      signal: AbortSignal.timeout(10000),
+    });
+    const html = await res.text();
+    const jsonMatch = html.match(/ytInitialPlayerResponse\s*=\s*({.+?});/);
+    if (jsonMatch) {
+      try {
+        const playerResponse = JSON.parse(jsonMatch[1]);
+        const tracks = playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+        if (Array.isArray(tracks) && tracks.length > 0) {
+          return downloadFromTracks(tracks);
+        }
+      } catch { /* fall through */ }
+    }
+  } catch { /* fall through */ }
+  return null;
+}
+
+// ─── Groq AI (for analyze jobs) ──────────────────────────
+
+function getGroqApiKeys() {
+  const keys = [];
+  for (let i = 1; i <= 10; i++) {
+    const key = process.env[`GROQ_API_KEY_${i}`];
+    if (key) keys.push(key);
+  }
+  if (keys.length === 0 && process.env.GROQ_API_KEY) keys.push(process.env.GROQ_API_KEY);
+  return keys;
+}
+
+function buildAnalyzePrompt(title, duration, rawText) {
+  const system = `Kamu adalah pendeteksi momen highlight AI.
+Tugasmu menganalisis transkrip video dan menemukan momen paling menarik.
+Setiap momen harus terasa lengkap — jangan memotong di tengah kalimat atau tawa.
+
+Untuk setiap momen, berikan:
+- startTime dan endTime dalam detik (sesuaikan dengan timestamp transkrip)
+- Judul pendek yang menarik dalam Bahasa Indonesia
+- Kategori: funny, emotional, inspirational, shocking, educational, atau hook
+- confidenceScore (0-100): seberapa yakin kamu ini adalah highlight asli
+- viralityScore (0-100): seberapa besar kemungkinan momen ini viral sebagai Short/Reel/TikTok
+- reasoning: 1 kalimat dalam Bahasa Indonesia menjelaskan KENAPA momen ini bagus
+
+Aturan:
+- Kembalikan 5-12 momen
+- Setiap momen harus 20-60 detik
+- Sesuaikan start/end dengan jeda alami di transkrip (akhir kalimat, jeda, perpindahan topik)
+- JANGAN tumpang tindih momen
+- Hindari 15 detik pertama (intro/pemanasan)
+- Urutkan berdasarkan viralityScore descending
+- SEMUA teks output harus dalam Bahasa Indonesia
+- Kembalikan ONLY JSON array of objects, tanpa markdown. Contoh: [{"startTime":15,"endTime":45,"title":"Reaksi lucu","category":"funny","confidenceScore":85,"viralityScore":90,"reasoning":"Penjelasan dalam bahasa Indonesia..."}]`;
+
+  const user = `Analisis transkrip video ini dan temukan momen highlight terbaik.
+
+Judul: "${title}"
+Durasi: ${Math.floor(duration / 60)}m ${Math.floor(duration % 60)}s
+
+Transkrip:
+${rawText.slice(0, 5000)}
+
+Kembalikan JSON array of highlights. SEMUA teks harus Bahasa Indonesia:
+[
+  {
+    "startTime": <number>,
+    "endTime": <number>,
+    "title": "<judul catchy bahasa Indonesia>",
+    "category": "<category>",
+    "confidenceScore": <0-100>,
+    "viralityScore": <0-100>,
+    "reasoning": "<penjelasan bahasa Indonesia>"
+  }
+]`;
+
+  return { system, user };
+}
+
+async function callGroq(apiKey, model, system, user) {
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.7,
+      max_tokens: 2048,
+    }),
+    signal: AbortSignal.timeout(30000),
+  });
+
+  if (res.status === 429 || res.status === 413) {
+    throw new Error(`Rate limited on ${model}`);
+  }
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Groq API error ${res.status}: ${body.slice(0, 200)}`);
+  }
+
+  const data = await res.json();
+  const content = data.choices?.[0]?.message?.content;
+  if (!content) throw new Error("Groq returned empty response");
+
+  let parsed;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    throw new Error(`Groq returned invalid JSON: "${content.slice(0, 200)}"`);
+  }
+
+  const raw = parsed.highlights || parsed.highlight || parsed;
+  const highlights = Array.isArray(raw) ? raw : [raw];
+
+  return highlights
+    .filter((h) => h.startTime != null && h.endTime != null)
+    .slice(0, 12);
+}
+
+async function analyzeWithGroq(title, duration, rawText) {
+  const keys = getGroqApiKeys();
+  const models = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
+  const { system, user } = buildAnalyzePrompt(title, duration, rawText);
+
+  for (const key of keys) {
+    for (const model of models) {
+      try {
+        console.log(`[Worker/analyze] Groq trying key=${key.slice(0, 8)}... model=${model}`);
+        return await callGroq(key, model, system, user);
+      } catch (err) {
+        const isRateLimit = err.message.includes("Rate limited");
+        console.error(`[Worker/analyze] Groq key=${key.slice(0, 8)}... model=${model} ${isRateLimit ? "RATE_LIMITED" : "FAILED"}: ${err.message}`);
+        if (!isRateLimit) throw err;
+      }
+    }
+  }
+  throw new Error("All Groq API keys and models exhausted due to rate limiting");
+}
+
+// ─── Analyze job processing ──────────────────────────────
+
+async function processAnalyzeJob(job) {
+  console.log(`\n[Worker/analyze] Processing analyze job: ${job.jobId}`);
+  console.log(`[Worker/analyze] Video: ${job.youtubeUrl}`);
+
+  const videoId = extractVideoId(job.youtubeUrl) || job.videoId;
+  if (!videoId) {
+    throw new Error("Could not extract video ID from URL");
+  }
+
+  // Step 1: Fetch transcript
+  console.log(`[Worker/analyze] Fetching transcript...`);
+  const { segments, rawText } = await fetchTranscript(videoId);
+  console.log(`[Worker/analyze] Transcript fetched: ${segments.length} segments`);
+
+  const duration = segments.length > 0
+    ? Math.max(...segments.map((s) => s.end))
+    : 600;
+
+  // Step 2: Get title (from job or fetch)
+  let title = job.title || "YouTube Video";
+  if (!job.title) {
+    try {
+      const infoRes = await fetch(
+        `https://www.youtube.com/oembed?url=${encodeURIComponent(job.youtubeUrl)}&format=json`,
+        { headers: { "User-Agent": WEB_UA }, signal: AbortSignal.timeout(5000) },
+      );
+      if (infoRes.ok) {
+        const infoData = await infoRes.json();
+        title = infoData.title || title;
+      }
+    } catch { /* fallback */ }
+  }
+
+  // Step 3: AI analysis
+  console.log(`[Worker/analyze] AI analysis with Groq...`);
+  const highlights = await analyzeWithGroq(title, duration, rawText);
+  console.log(`[Worker/analyze] AI analysis done: ${highlights.length} highlights`);
+
+  // Step 4: Save results to Convex
+  console.log(`[Worker/analyze] Saving results...`);
+  await convexCall("analyzeJobs:complete", {
+    jobId: job.jobId,
+    title,
+    duration,
+    transcriptSegments: segments,
+    rawText,
+    highlights,
+  });
+
+  console.log(`[Worker/analyze] ✅ Analyze job ${job.jobId} completed!`);
+}
+
 // ─── Main job processing ───────────────────────────────────
 
 async function processJob(job) {
@@ -322,15 +683,34 @@ async function pollLoop() {
 
   while (true) {
     try {
-      const job = await convexCall("exports:claimQueued", {
+      // Try export (clip) jobs first
+      const exportJob = await convexCall("exports:claimQueued", {
         workerSecret: WORKER_SECRET,
       });
 
-      if (job) {
-        await processJob(job);
-      } else {
-        await new Promise((r) => setTimeout(r, POLL_INTERVAL));
+      if (exportJob) {
+        await processJob(exportJob);
+        continue;
       }
+
+      // Then try analyze jobs
+      const analyzeJob = await convexCall("analyzeJobs:claimQueued", {
+        workerSecret: WORKER_SECRET,
+      });
+
+      if (analyzeJob) {
+        processAnalyzeJob(analyzeJob).catch((err) => {
+          const msg = err instanceof Error ? err.message : "Unknown error";
+          console.error(`[Worker/analyze] ❌ Analyze job ${analyzeJob.jobId} failed: ${msg}`);
+          convexCall("analyzeJobs:fail", {
+            jobId: analyzeJob.jobId,
+            error: msg,
+          }).catch(() => {});
+        });
+        continue;
+      }
+
+      await new Promise((r) => setTimeout(r, POLL_INTERVAL));
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Unknown error";
       if (msg.includes("Invalid worker secret")) {
