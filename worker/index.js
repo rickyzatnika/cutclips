@@ -114,11 +114,22 @@ function execYtDlpAsync(args, timeout, onProgress) {
   });
 }
 
-async function downloadYouTube(outputDir, filename, url) {
+async function downloadYouTube(outputDir, filename, url, startTime, endTime) {
   const outputPath = path.join(outputDir, filename);
+  const duration = Math.max(5, endTime - startTime);
+
+  // Download only the needed segment using --download-sections with ffmpeg location
   await execYtDlpAsync(
-    ["-f", "best[height<=720]", "-o", outputPath, "--merge-output-format", "mp4", url],
-    600000,
+    [
+      "-f", "best[height<=720]",
+      "--download-sections", `*${startTime}-${endTime}`,
+      "--force-keyframes-at-cuts",
+      "--ffmpeg-location", path.dirname(FFMPEG),
+      "-o", outputPath,
+      "--merge-output-format", "mp4",
+      url,
+    ],
+    300000,
   );
 
   const actual = fs.existsSync(outputPath)
@@ -129,6 +140,12 @@ async function downloadYouTube(outputDir, filename, url) {
 
   if (!actual) throw new Error(`Downloaded file not found in ${outputDir}`);
   if (actual !== outputPath) fs.renameSync(actual, outputPath);
+
+  const stats = fs.statSync(outputPath);
+  if (stats.size < 10000) {
+    throw new Error(`Downloaded file too small (${stats.size} bytes) — possible failed download`);
+  }
+  console.log(`[Worker]   Downloaded ${(stats.size / 1024 / 1024).toFixed(1)}MB (${duration}s segment)`);
   return outputPath;
 }
 
@@ -161,7 +178,7 @@ function generateSrtForClip(captions, clipStart, clipEnd) {
 }
 
 function cutClip(ffmpegPath, workDir, videoName, outputName, start, duration, captions, opts) {
-  let vf = "crop='min(iw,ih*9/16)':'min(ih,iw*16/9)',scale=1080:1920";
+  let vf = "crop='min(iw,ih*9/16)':'min(ih,iw*16/9)',scale=720:1280";
 
   if (captions && captions.length > 0) {
     const clipEnd = start + duration;
@@ -185,13 +202,18 @@ function cutClip(ffmpegPath, workDir, videoName, outputName, start, duration, ca
       "-map", "0:v", "-map", "0:a?",
       "-c:v", "libx264", "-c:a", "aac",
       "-preset", "ultrafast",
+      "-b:v", "1.5M", "-maxrate", "1.5M", "-bufsize", "3M",
       "-vf", vf,
       "-avoid_negative_ts", "make_zero",
       "-y",
       outputName,
-    ], { cwd: workDir }, (err) => {
+    ], { cwd: workDir }, (err, stdout, stderr) => {
       clearTimeout(t);
-      if (err) return reject(err);
+      if (err) {
+        const stderrStr = (stderr || "").slice(0, 1000);
+        err.message = `FFmpeg: ${err.message}\nStderr: ${stderrStr}`;
+        return reject(err);
+      }
       resolve();
     });
   });
@@ -212,21 +234,28 @@ async function processExportJob(job, tempDir) {
 
   const duration = Math.max(5, job.endTime - job.startTime);
 
-  console.log(`[Worker] Downloading video...`);
+  console.log(`[Worker] Downloading video segment (${job.startTime}s → ${job.endTime}s)...`);
   await reportProgress(job.exportId, "downloading");
-  await downloadYouTube(tempDir, "video.mp4", job.youtubeUrl);
+  await downloadYouTube(tempDir, "video.mp4", job.youtubeUrl, job.startTime, job.endTime);
 
   console.log(`[Worker] Cutting clip (${duration}s)...`);
   await reportProgress(job.exportId, "cutting");
   const clipName = "clip.mp4";
-  await cutClip(FFMPEG, tempDir, "video.mp4", clipName, job.startTime, duration, []);
+  await cutClip(FFMPEG, tempDir, "video.mp4", clipName, 0, duration, []);
 
   console.log(`[Worker] Uploading to Cloudinary...`);
   await reportProgress(job.exportId, "uploading");
-  const result = await cloudinary.uploader.upload(path.join(tempDir, clipName), {
+  const clipPath = path.join(tempDir, clipName);
+  console.log(`[Worker]   Clip path: ${clipPath}`);
+  console.log(`[Worker]   File exists: ${fs.existsSync(clipPath)}`);
+  if (fs.existsSync(clipPath)) {
+    console.log(`[Worker]   File size: ${fs.statSync(clipPath).size} bytes`);
+  }
+  const result = await cloudinary.uploader.upload(clipPath, {
     resource_type: "video",
     folder: "cutclips",
     public_id: `export-${job.exportId}`,
+    timeout: 120000,
   });
 
   console.log(`[Worker] Completing export...`);
@@ -249,8 +278,18 @@ async function processJob(job) {
   try {
     await processExportJob(job, tempDir);
   } catch (error) {
-    const msg = error instanceof Error ? error.message : "Worker error";
-    console.error(`[Worker] ❌ Export ${job.exportId} failed:`, msg);
+    let msg = "Worker error";
+    if (error instanceof Error) {
+      msg = error.message;
+      const fullStack = error.stack || "";
+      const stderr = (error).stderr || "";
+      console.error(`[Worker] ❌ Export ${job.exportId} failed`);
+      console.error(`[Worker]    Error: ${msg}`);
+      console.error(`[Worker]    Stack: ${fullStack.slice(0, 500)}`);
+      if (stderr) console.error(`[Worker]    Stderr: ${stderr.slice(0, 500)}`);
+    } else {
+      console.error(`[Worker] ❌ Export ${job.exportId} failed:`, String(error));
+    }
     try {
       await convexCall("exports:fail", {
         exportId: job.exportId,

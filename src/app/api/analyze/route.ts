@@ -279,13 +279,10 @@ export async function POST(request: NextRequest) {
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Unknown error";
-      console.error("AI analysis failed:", msg);
+      const full = err instanceof Error ? err.stack || err.message : String(err);
+      console.error("AI analysis failed:", full);
+      console.error("AI analysis message:", msg);
 
-      if (msg.includes("413") || msg.includes("too large")) {
-        throw new Error(
-          "Transcript is too long for analysis. Try a shorter video.",
-        );
-      }
       throw new Error(`AI analysis failed: ${msg}`);
     }
 

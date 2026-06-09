@@ -30,47 +30,48 @@ export interface AIProvider {
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
 function buildSystemPrompt(): string {
-  return `You are an AI highlight moment detector.
-Your job is to analyze video transcripts and find the most engaging moments.
-Each moment must feel complete — don't cut mid-sentence or mid-laugh.
+  return `Kamu adalah pendeteksi momen highlight AI.
+Tugasmu menganalisis transkrip video dan menemukan momen paling menarik.
+Setiap momen harus terasa lengkap — jangan memotong di tengah kalimat atau tawa.
 
-For each moment, provide:
-- startTime and endTime in seconds (align with transcript timestamps)
-- A short, clickable title
-- Category: funny, emotional, inspirational, shocking, educational, or hook
-- confidenceScore (0-100): how sure you are this is a genuine highlight
-- viralityScore (0-100): how likely this moment is to perform well as a Short/Reel/TikTok
-- reasoning: 1 sentence explaining WHY this moment works
+Untuk setiap momen, berikan:
+- startTime dan endTime dalam detik (sesuaikan dengan timestamp transkrip)
+- Judul pendek yang menarik dalam Bahasa Indonesia
+- Kategori: funny, emotional, horror, seram, inspirational, shocking, educational, atau hook
+- confidenceScore (0-100): seberapa yakin kamu ini adalah highlight asli
+- viralityScore (0-100): seberapa besar kemungkinan momen ini viral sebagai Short/Reel/TikTok
+- reasoning: 1 kalimat dalam Bahasa Indonesia menjelaskan KENAPA momen ini bagus
 
-Rules:
-- Return 5-12 moments
-- Each moment should be 20-60 seconds long
-- Align start/end with natural breaks in the transcript (end of sentence, pause, topic shift)
-- Do NOT overlap moments
-- Avoid the first 15 seconds (intro/warm-up)
-- Sort by viralityScore descending
-- Return ONLY a JSON array of objects, no markdown. Example: [{"startTime":15,"endTime":45,"title":"Funny reaction","category":"funny","confidenceScore":85,"viralityScore":90,"reasoning":"..."}]`;
+Aturan:
+- Kembalikan 5-12 momen
+- Setiap momen harus 20-60 detik
+- Sesuaikan start/end dengan jeda alami di transkrip (akhir kalimat, jeda, perpindahan topik)
+- JANGAN tumpang tindih momen
+- Hindari 15 detik pertama (intro/pemanasan)
+- Urutkan berdasarkan viralityScore descending
+- SEMUA teks output harus dalam Bahasa Indonesia
+- Kembalikan ONLY JSON array of objects, tanpa markdown. Contoh: [{"startTime":15,"endTime":45,"title":"Reaksi lucu","category":"funny","confidenceScore":85,"viralityScore":90,"reasoning":"Penjelasan dalam bahasa Indonesia..."}]`;
 }
 
 function buildUserPrompt(context: TranscriptContext): string {
-  return `Analyze this video transcript and find the best highlight moments.
+  return `Analisis transkrip video ini dan temukan momen highlight terbaik.
 
-Title: "${context.title}"
-Duration: ${Math.floor(context.duration / 60)}m ${Math.floor(context.duration % 60)}s
+Judul: "${context.title}"
+Durasi: ${Math.floor(context.duration / 60)}m ${Math.floor(context.duration % 60)}s
 
-Transcript:
-${context.rawText.slice(0, 10000)}
+Transkrip:
+${context.rawText.slice(0, 5000)}
 
-Return a JSON array of highlights:
+Kembalikan JSON array of highlights. SEMUA teks harus Bahasa Indonesia:
 [
   {
     "startTime": <number>,
     "endTime": <number>,
-    "title": "<short catchy title>",
+    "title": "<judul catchy bahasa Indonesia>",
     "category": "<category>",
     "confidenceScore": <0-100>,
     "viralityScore": <0-100>,
-    "reasoning": "<why this works>"
+    "reasoning": "<penjelasan bahasa Indonesia>"
   }
 ]`;
 }
@@ -78,7 +79,7 @@ Return a JSON array of highlights:
 class GroqProvider implements AIProvider {
   private model: string;
 
-  constructor(model = "llama-3.1-8b-instant") {
+  constructor(model = "llama-3.3-70b-versatile") {
     this.model = model;
   }
 
@@ -102,12 +103,12 @@ class GroqProvider implements AIProvider {
             ],
             response_format: { type: "json_object" },
             temperature: 0.7,
-            max_tokens: 4096,
+            max_tokens: 2048,
           }),
           signal: AbortSignal.timeout(30000),
         });
 
-        if (res.status === 429) {
+        if (res.status === 429 || res.status === 413) {
           const wait = Math.min(2000 * Math.pow(2, attempt - 1), 10000);
           await new Promise((r) => setTimeout(r, wait));
           continue;
@@ -129,6 +130,8 @@ class GroqProvider implements AIProvider {
         const content = data.choices?.[0]?.message?.content;
         if (!content) throw new Error("Groq returned empty response");
 
+        console.log("Groq raw response:", content.slice(0, 500));
+
         let parsed: any;
         try {
           parsed = JSON.parse(content);
@@ -138,6 +141,8 @@ class GroqProvider implements AIProvider {
 
         const raw = parsed.highlights || parsed;
         const highlights = Array.isArray(raw) ? raw : [raw];
+
+        console.log(`Groq parsed ${highlights.length} highlights`);
 
         return highlights
           .filter((h: any) => h.startTime != null && h.endTime != null)
@@ -159,6 +164,11 @@ class GroqProvider implements AIProvider {
           });
       } catch (err) {
         lastError = err instanceof Error ? err : new Error(String(err));
+        console.error(`Groq attempt ${attempt}/3 failed:`, lastError.message);
+        // Don't retry on client errors (except 429/413 which are handled above)
+        if (lastError.message.includes("Groq API error 4") && !lastError.message.includes("429") && !lastError.message.includes("413")) {
+          throw lastError;
+        }
         if (attempt < 3) {
           const wait = Math.min(2000 * Math.pow(2, attempt - 1), 10000);
           await new Promise((r) => setTimeout(r, wait));
@@ -201,5 +211,5 @@ function clampScore(n: unknown): number {
 }
 
 export function createProvider(provider?: string, model?: string): AIProvider {
-  return new GroqProvider(model || "llama-3.1-8b-instant");
+  return new GroqProvider(model || "llama-3.3-70b-versatile");
 }

@@ -1,52 +1,75 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
+import { Loader2 } from "lucide-react";
 
 const plans = [
   {
-    name: "Free",
-    credits: "5 analyses",
+    name: "Gratis",
+    credits: "5 analisis",
     price: "Rp0",
     features: [
-      "5 video analyses",
-      "AI highlight detection",
-      "Transcript view",
+      "5 analisis video",
+      "Deteksi highlight AI",
+      "Tampilan transkrip",
     ],
   },
   {
     name: "Starter",
-    credits: "100 Credits",
+    credits: "100 Kredit",
     price: "Rp25.000",
     features: [
-      "Analyze 100 videos",
-      "Generate 50 clips",
-      "All highlight categories",
-      "Download MP4 clips",
+      "Analisis 100 video",
+      "Generate 50 clip",
+      "Semua kategori highlight",
+      "Unduh clip MP4",
     ],
     popular: true,
   },
   {
-    name: "Creator",
-    credits: "500 Credits",
+    name: "Kreator",
+    credits: "500 Kredit",
     price: "Rp100.000",
     features: [
-      "Analyze 500 videos",
-      "Generate 250 clips",
-      "All highlight categories",
-      "Download MP4 clips",
-      "Priority processing",
+      "Analisis 500 video",
+      "Generate 250 clip",
+      "Semua kategori highlight",
+      "Unduh clip MP4",
+      "Prioritas pemrosesan",
     ],
   },
 ];
 
 export default function PricingPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.replace("/login");
+    }
+  }, [status, router]);
+
+  if (status === "loading" || !session) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-black">
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
+      </div>
+    );
+  }
+
   return (
     <div className="px-4 py-16">
       <div className="mx-auto max-w-7xl">
         <div className="mx-auto max-w-2xl text-center">
           <h1 className="text-4xl font-bold text-white">
-            Simple Credit Pricing
+            Harga Kredit Sederhana
           </h1>
           <p className="mt-4 text-lg text-zinc-400">
-            Buy credits once, use them anytime. No subscriptions.
+            Beli kredit sekali, pakai kapan saja. Tanpa langganan.
           </p>
         </div>
 
@@ -63,7 +86,7 @@ export default function PricingPage() {
               {plan.popular && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                   <span className="rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-black">
-                    Most Popular
+                    Terpopuler
                   </span>
                 </div>
               )}
@@ -84,17 +107,26 @@ export default function PricingPage() {
               </ul>
 
               <Link
-                href={plan.name === "Free" ? "/" : "/login"}
+                href={plan.name === "Gratis" ? "/" : "#"}
                 className={`mt-6 block rounded-xl px-4 py-3 text-center text-sm font-semibold transition-colors ${
                   plan.popular
                     ? "bg-emerald-500 text-black hover:bg-emerald-400"
                     : "border border-zinc-700 text-white hover:bg-zinc-800"
                 }`}
               >
-                {plan.name === "Free" ? "Try Free" : "Buy Now"}
+                {plan.name === "Gratis" ? "Coba Gratis" : "Hubungi Kami"}
               </Link>
             </div>
           ))}
+        </div>
+
+        <div className="mt-8 text-center">
+          <Link
+            href="/app"
+            className="text-sm text-zinc-500 hover:text-white"
+          >
+            ← Kembali ke Workspace
+          </Link>
         </div>
       </div>
     </div>

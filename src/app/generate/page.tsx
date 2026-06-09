@@ -139,11 +139,11 @@ function GenerateContent() {
       <div className="flex min-h-screen items-center justify-center bg-black px-4">
         <div className="w-full max-w-md text-center">
           <AlertCircle className="mx-auto h-12 w-12 text-zinc-500" />
-          <h2 className="mt-4 text-xl font-semibold text-white">No Clip Selected</h2>
-          <p className="mt-2 text-sm text-zinc-400">Go back and select a highlight to generate.</p>
+          <h2 className="mt-4 text-xl font-semibold text-white">Tidak Ada Clip Dipilih</h2>
+          <p className="mt-2 text-sm text-zinc-400">Kembali dan pilih highlight untuk dibuat.</p>
           <Link href="/" className="mt-6 inline-flex items-center gap-2 text-sm text-emerald-400 hover:text-emerald-300">
             <ArrowLeft className="h-4 w-4" />
-            Go Home
+            Beranda
           </Link>
         </div>
       </div>
@@ -155,20 +155,20 @@ function GenerateContent() {
       <div className="flex min-h-screen items-center justify-center bg-black px-4">
         <div className="w-full max-w-md text-center">
           <LogIn className="mx-auto h-12 w-12 text-emerald-400" />
-          <h2 className="mt-4 text-xl font-semibold text-white">Sign in to Generate Clips</h2>
+          <h2 className="mt-4 text-xl font-semibold text-white">Masuk untuk Membuat Clip</h2>
           <p className="mt-2 text-sm text-zinc-400">
-            You need to sign in to generate and download clips. Signing up gives you 100 free credits.
+            Kamu perlu masuk untuk membuat dan mengunduh clip. Daftar dapat 100 kredit gratis.
           </p>
           <div className="mt-6 space-y-3">
             <button
               onClick={() => signIn("google", { callbackUrl: window.location.href })}
               className="w-full cursor-pointer rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-black transition-colors hover:bg-emerald-400"
             >
-              Sign in with Google
+              Masuk dengan Google
             </button>
             <Link href={`/?url=${encodeURIComponent(videoUrl)}`} className="block text-sm text-zinc-500 hover:text-white">
               <ArrowLeft className="mr-1 inline h-4 w-4" />
-              Try another video
+              Coba video lain
             </Link>
           </div>
         </div>
@@ -181,13 +181,13 @@ function GenerateContent() {
       <div className="flex min-h-screen items-center justify-center bg-black px-4">
         <div className="w-full max-w-md text-center">
           <XCircle className="mx-auto h-12 w-12 text-red-400" />
-          <h2 className="mt-4 text-xl font-semibold text-white">Failed</h2>
+          <h2 className="mt-4 text-xl font-semibold text-white">Gagal</h2>
           <p className="mt-2 text-sm text-zinc-400">{error}</p>
           <button
             onClick={startExport}
             className="mt-6 inline-flex cursor-pointer items-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-black transition-colors hover:bg-emerald-400"
           >
-            Try Again
+            Coba Lagi
           </button>
         </div>
       </div>
@@ -202,7 +202,7 @@ function GenerateContent() {
           className="mb-8 inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-white"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to workspace
+          Kembali ke workspace
         </Link>
 
         <div className="mb-6">
@@ -215,23 +215,23 @@ function GenerateContent() {
         {status === "saving" && (
           <div className="flex items-center justify-center gap-2 py-8 text-sm text-zinc-400">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Saving highlight...
+            Menyimpan highlight...
           </div>
         )}
 
         {status === "saved" && (
           <div className="text-center">
             <p className="mb-2 text-sm text-zinc-400">
-              Highlight saved! Generate the clip for <strong className="text-white">20 credits</strong>.
+              Highlight tersimpan! Buat clip seharga <strong className="text-white">20 kredit</strong>.
             </p>
             <p className="mb-4 text-xs text-zinc-600">
-              You have enough credits to do this.
+              Kredit kamu cukup untuk ini.
             </p>
             <button
               onClick={startExport}
               className="cursor-pointer rounded-xl bg-emerald-500 px-6 py-3 text-sm font-semibold text-black transition-colors hover:bg-emerald-400"
             >
-              Generate Clip
+              Buat Clip
             </button>
           </div>
         )}
@@ -242,11 +242,11 @@ function GenerateContent() {
               <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
             </div>
             <h2 className="text-lg font-semibold text-white">
-              {status === "exporting" ? "Creating clip..."
-                : status === "queued" ? "Clip queued..."
-                : "Processing clip..."}
+              {status === "exporting" ? "Membuat clip..."
+                : status === "queued" ? "Clip dalam antrian..."
+                : "Memproses clip..."}
             </h2>
-            <p className="text-sm text-zinc-500">This usually takes 30-60 seconds.</p>
+            <p className="text-sm text-zinc-500">Biasanya memakan waktu 30-60 detik.</p>
           </div>
         )}
 
@@ -267,11 +267,11 @@ function GenerateContent() {
                 className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-6 py-3 text-sm font-semibold text-black transition-colors hover:bg-emerald-400"
               >
                 <Download className="h-4 w-4" />
-                Download Clip
+                Unduh Clip
               </a>
             </div>
             <p className="text-center text-xs text-zinc-600">
-              Clip saved to your workspace.
+              Clip tersimpan ke workspace kamu.
             </p>
           </div>
         )}

@@ -10,11 +10,11 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "CutClips — AI Highlight Discovery",
+    default: "CutClips — Temukan Highlight AI",
     template: "%s | CutClips",
   },
   description:
-    "AI finds the most engaging moments from your YouTube videos automatically. Turn long videos into viral Shorts, Reels, and TikToks.",
+    "AI menemukan momen paling menarik dari video YouTube kamu secara otomatis. Ubah video panjang jadi Shorts, Reels, dan TikTok viral.",
 };
 
 export default function RootLayout({
@@ -23,7 +23,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} dark`} suppressHydrationWarning>
+    <html lang="id" className={`${inter.variable} dark`} suppressHydrationWarning>
       <body className="font-sans antialiased bg-black text-white">
         <Providers>{children}</Providers>
       </body>

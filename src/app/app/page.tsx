@@ -8,11 +8,11 @@ import { Film, MoreVertical, Download, Trash2, Loader2, CheckCircle2, Cloud, Fil
 const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL;
 
 const PROGRESS_STEPS: Record<string, { label: string; icon: any }> = {
-  queued: { label: "Waiting in queue", icon: Timer },
-  downloading: { label: "Downloading video", icon: Video },
-  cutting: { label: "Cutting clip", icon: FilmIcon },
-  uploading: { label: "Uploading to Cloudinary", icon: Cloud },
-  completing: { label: "Finalizing", icon: CheckCircle2 },
+  queued: { label: "Menunggu antrian", icon: Timer },
+  downloading: { label: "Mengunduh video", icon: Video },
+  cutting: { label: "Memotong clip", icon: FilmIcon },
+  uploading: { label: "Mengunggah ke Cloudinary", icon: Cloud },
+  completing: { label: "Finalisasi", icon: CheckCircle2 },
 };
 
 interface Clip {
@@ -71,7 +71,7 @@ function MenuButton({ clip, email, onDeleted }: { clip: Clip; email?: string | n
             className="flex items-center gap-2 px-4 py-2.5 text-sm text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-white"
           >
             <Download className="h-4 w-4" />
-            Download
+            Unduh
           </a>
           <button
             onClick={async () => {
@@ -93,7 +93,7 @@ function MenuButton({ clip, email, onDeleted }: { clip: Clip; email?: string | n
             className="flex w-full cursor-pointer items-center gap-2 px-4 py-2.5 text-sm text-red-400 transition-colors hover:bg-zinc-800 hover:text-red-300"
           >
             <Trash2 className="h-4 w-4" />
-            Delete
+            Hapus
           </button>
         </div>
       )}
@@ -167,14 +167,14 @@ export default function WorkspacePage() {
             type="url"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            placeholder="Paste YouTube URL to find highlights..."
+            placeholder="Tempel URL YouTube untuk cari highlight..."
             className="flex-1 rounded-xl border border-zinc-800 bg-zinc-900 px-5 py-4 text-base text-white placeholder-zinc-600 outline-none transition-colors focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
           />
           <button
             type="submit"
             className="cursor-pointer rounded-xl bg-emerald-500 px-6 py-4 text-base font-semibold text-black transition-colors hover:bg-emerald-400"
           >
-            Analyze
+            Analisis
           </button>
         </div>
       </form>
@@ -188,7 +188,7 @@ export default function WorkspacePage() {
             <div className="mb-4 flex items-center gap-2">
               <Loader2 className="h-4 w-4 animate-spin text-emerald-400" />
               <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
-                Generating Clips ({processing.length})
+                Membuat Clip ({processing.length})
               </h2>
             </div>
             <div className="space-y-3">
@@ -228,7 +228,7 @@ export default function WorkspacePage() {
       {/* Completed clips */}
       <div>
         <h2 className="mb-4 text-lg font-semibold text-white">
-          Recent Clips
+          Clip Terbaru
           {clips.filter((c) => c.status === "completed").length > 0 && (
             <span className="ml-2 text-sm font-normal text-zinc-500">
               ({clips.filter((c) => c.status === "completed").length})
@@ -238,13 +238,13 @@ export default function WorkspacePage() {
 
         {loading ? (
           <div className="rounded-2xl border border-zinc-800 p-12 text-center">
-            <p className="text-sm text-zinc-500">Loading...</p>
+            <p className="text-sm text-zinc-500">Memuat...</p>
           </div>
         ) : clips.filter((c) => c.status === "completed").length === 0 ? (
           <div className="rounded-2xl border border-zinc-800 p-12 text-center">
             <Film className="mx-auto mb-3 h-8 w-8 text-zinc-600" />
             <p className="text-sm text-zinc-500">
-              No clips yet. Paste a YouTube URL above to get started.
+              Belum ada clip. Tempel URL YouTube di atas untuk memulai.
             </p>
           </div>
         ) : (
@@ -271,7 +271,7 @@ export default function WorkspacePage() {
                         email={session?.user?.email}
                         onDeleted={() => {
                           setClips((prev) => prev.filter((c) => c.exportId !== clip.exportId));
-                          setToast("Clip deleted");
+                          setToast("Clip dihapus");
                         }}
                       />
                     </div>

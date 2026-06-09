@@ -29,12 +29,12 @@ const CATEGORY_EMOJIS: Record<string, string> = {
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
-  funny: "Funny",
-  emotional: "Emotional",
-  inspirational: "Inspirational",
-  shocking: "Shocking",
-  educational: "Educational",
-  hook: "Strong Hook",
+  funny: "Lucu",
+  emotional: "Emosional",
+  inspirational: "Inspiratif",
+  shocking: "Mengejutkan",
+  educational: "Edukatif",
+  hook: "Hook Kuat",
 };
 
 interface Highlight {
@@ -55,12 +55,12 @@ function AnalyzeContent() {
   const url = searchParams.get("url");
 
   const [steps, setSteps] = useState<ProgressStep[]>([
-    { id: "transcript", label: "Retrieving Transcript", status: "waiting" },
-    { id: "funny", label: "Finding Funny Moments", status: "waiting" },
-    { id: "emotional", label: "Finding Emotional Moments", status: "waiting" },
-    { id: "shocking", label: "Finding Shocking Moments", status: "waiting" },
-    { id: "educational", label: "Finding Educational Insights", status: "waiting" },
-    { id: "ranking", label: "Ranking Highlights", status: "waiting" },
+    { id: "transcript", label: "Mengambil Transkrip", status: "waiting" },
+    { id: "funny", label: "Mencari Momen Lucu", status: "waiting" },
+    { id: "emotional", label: "Mencari Momen Emosional", status: "waiting" },
+    { id: "shocking", label: "Mencari Momen Mengejutkan", status: "waiting" },
+    { id: "educational", label: "Mencari Insight Edukatif", status: "waiting" },
+    { id: "ranking", label: "Meranking Highlight", status: "waiting" },
   ]);
 
   const [highlights, setHighlights] = useState<Highlight[]>([]);
@@ -212,14 +212,14 @@ function AnalyzeContent() {
       <div className="flex min-h-screen items-center justify-center bg-black px-4">
         <div className="w-full max-w-md text-center">
           <AlertCircle className="mx-auto h-12 w-12 text-red-400" />
-          <h2 className="mt-4 text-xl font-semibold text-white">Analysis Failed</h2>
+          <h2 className="mt-4 text-xl font-semibold text-white">Analisis Gagal</h2>
           <p className="mt-2 text-sm text-zinc-400">{error}</p>
           <Link
             href="/"
             className="mt-6 inline-flex items-center gap-2 text-sm text-emerald-400 hover:text-emerald-300"
           >
             <ArrowLeft className="h-4 w-4" />
-            Try another URL
+            Coba URL Lain
           </Link>
         </div>
       </div>
@@ -234,7 +234,7 @@ function AnalyzeContent() {
           className="mb-6 inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-white"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back
+          Kembali
         </Link>
 
         {videoInfo && (
@@ -280,10 +280,10 @@ function AnalyzeContent() {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-white">
-                {highlights.length} Highlights Found
+                {highlights.length} Highlight Ditemukan
               </h2>
               <span className="text-xs text-zinc-500">
-                Sorted by Virality Score
+                Diurutkan berdasarkan Skor Viral
               </span>
             </div>
 
@@ -299,8 +299,8 @@ function AnalyzeContent() {
                   <Sparkles className="h-4 w-4" />
                 )}
                 {generating
-                  ? `Generating ${highlights.length} clips...`
-                  : `Generate All ${highlights.length} Clips (${highlights.length * 20} credits)`}
+                  ? `Membuat ${highlights.length} clip...`
+                  : `Generate Semua ${highlights.length} Clip (${highlights.length * 20} kredit)`}
               </button>
             )}
 
@@ -343,7 +343,7 @@ function AnalyzeContent() {
                     className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-black transition-colors hover:bg-emerald-400"
                   >
                     <Flame className="h-4 w-4" />
-                    Generate Clip
+                    Buat Clip
                   </Link>
                 </div>
               ))}
@@ -351,10 +351,10 @@ function AnalyzeContent() {
 
             {!session && (
               <p className="text-center text-xs text-zinc-600">
-                Sign in to generate all {highlights.length} clips at once (just{" "}
-                <span className="text-emerald-400">{highlights.length * 20} credits</span>).{" "}
+                Masuk untuk generate semua {highlights.length} clip sekaligus (hanya{" "}
+                <span className="text-emerald-400">{highlights.length * 20} kredit</span>).{" "}
                 <Link href="/login" className="text-emerald-400 hover:underline">
-                  Sign in
+                  Masuk
                 </Link>
               </p>
             )}
@@ -363,7 +363,7 @@ function AnalyzeContent() {
 
         {!loading && highlights.length === 0 && !error && (
           <div className="text-center text-zinc-500">
-            No highlights were found. Try a different video.
+            Tidak ada highlight ditemukan. Coba video lain.
           </div>
         )}
       </div>
