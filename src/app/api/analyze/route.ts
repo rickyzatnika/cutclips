@@ -134,7 +134,60 @@ async function tryInnerTubeWeb(videoId: string): Promise<{
   }
 }
 
-// --- Method 3: YouTube public timedtext API (no auth needed) ---
+// --- Method 3: Google-hosted InnerTube API (uses API key, works from Vercel) ---
+async function tryGoogleInnerTube(videoId: string): Promise<{
+  segments: TranscriptSegment[];
+  rawText: string;
+} | null> {
+  const apiKey = process.env.YOUTUBE_API_KEY;
+  if (!apiKey) return null;
+
+  try {
+    const clients = [
+      { clientName: "ANDROID", clientVersion: "19.09.37" },
+      { clientName: "WEB", clientVersion: "2.20240101" },
+      { clientName: "ANDROID_MUSIC", clientVersion: "5.22.1" },
+    ];
+
+    for (const client of clients) {
+      try {
+        const res = await fetch(
+          `https://youtubei.googleapis.com/youtubei/v1/player?key=${apiKey}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "User-Agent": WEB_USER_AGENT,
+            },
+            body: JSON.stringify({
+              context: {
+                client: {
+                  clientName: client.clientName,
+                  clientVersion: client.clientVersion,
+                  hl: "en",
+                  gl: "US",
+                },
+              },
+              videoId,
+            }),
+            signal: AbortSignal.timeout(15000),
+          },
+        );
+        if (!res.ok) continue;
+        const data = await res.json();
+        const tracks =
+          data?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+        if (Array.isArray(tracks) && tracks.length > 0) {
+          const result = await fetchTranscriptFromTracks(tracks, videoId);
+          if (result) return result;
+        }
+      } catch { /* fall through */ }
+    }
+  } catch { /* fall through */ }
+  return null;
+}
+
+// --- Method 4: YouTube public timedtext API (no auth needed) ---
 async function tryTimedtext(videoId: string): Promise<{
   segments: TranscriptSegment[];
   rawText: string;
@@ -143,7 +196,6 @@ async function tryTimedtext(videoId: string): Promise<{
     `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en&fmt=json3`,
     `https://www.youtube.com/api/timedtext?v=${videoId}&lang=id&fmt=json3`,
     `https://www.youtube.com/api/timedtext?v=${videoId}&fmt=json3`,
-    `https://youtubetranscript.com/?v=${videoId}`,
   ];
   for (const url of urls) {
     try {
@@ -155,75 +207,25 @@ async function tryTimedtext(videoId: string): Promise<{
       const text = await res.text();
       if (!text || text.length < 50) continue;
 
-      // Try JSON format (timedtext)
-      if (url.includes("fmt=json3")) {
-        try {
-          const data = JSON.parse(text);
-          const events = data?.events;
-          if (Array.isArray(events) && events.length > 0) {
-            const segments: TranscriptSegment[] = [];
-            for (const e of events) {
-              const start = (e.tStartMs || 0) / 1000;
-              const dur = (e.dDurationMs || 5000) / 1000;
-              const texts = e.segs?.map((s: any) => s.utf8 || "").join(" ") || "";
-              if (texts.trim()) segments.push({ start, end: start + dur, text: texts.trim() });
-            }
-            if (segments.length > 0) {
-              return { segments, rawText: segments.map((s) => s.text).join(" ") };
-            }
-          }
-        } catch { /* not json */ }
-      }
-
-      // Try youtubetranscript.com HTML format
-      if (url.includes("youtubetranscript.com")) {
-        const htmlMatch = text.match(/<p[^>]*>([\s\S]*?)<\/p>/gi);
-        if (htmlMatch && htmlMatch.length > 0) {
+      try {
+        const data = JSON.parse(text);
+        const events = data?.events;
+        if (Array.isArray(events) && events.length > 0) {
           const segments: TranscriptSegment[] = [];
-          let time = 0;
-          for (const p of htmlMatch) {
-            const content = p.replace(/<[^>]+>/g, "").trim();
-            if (content) {
-              segments.push({ start: time, end: time + 5, text: content });
-              time += 5;
-            }
+          for (const e of events) {
+            const start = (e.tStartMs || 0) / 1000;
+            const dur = (e.dDurationMs || 5000) / 1000;
+            const texts = e.segs?.map((s: any) => s.utf8 || "").join(" ") || "";
+            if (texts.trim()) segments.push({ start, end: start + dur, text: texts.trim() });
           }
-          if (segments.length > 3) {
+          if (segments.length > 0) {
             return { segments, rawText: segments.map((s) => s.text).join(" ") };
           }
         }
-      }
+      } catch { /* not json */ }
     } catch {
       // fall through
     }
-  }
-  return null;
-}
-
-// --- Method 4: youtubetranscript.com API ---
-async function tryYoutubetranscriptCom(videoId: string): Promise<{
-  segments: TranscriptSegment[];
-  rawText: string;
-} | null> {
-  try {
-    const res = await fetch(
-      `https://youtubetranscript.com/api?vid=${videoId}`,
-      { signal: AbortSignal.timeout(10000) },
-    );
-    if (res.ok) {
-      const data = await res.json();
-      if (data && Array.isArray(data.transcript)) {
-        const segments = data.transcript.map((s: any) => ({
-          start: Number(s.start) || 0,
-          end: (Number(s.start) || 0) + (Number(s.duration) || 5),
-          text: s.text || "",
-        }));
-        const rawText = segments.map((s: any) => s.text).join(" ");
-        return { segments, rawText };
-      }
-    }
-  } catch {
-    // fall through
   }
   return null;
 }
@@ -278,18 +280,24 @@ async function fetchTranscript(videoId: string): Promise<{
   rawText: string;
 }> {
   const methods = [
+    { name: "google-innertube", fn: tryGoogleInnerTube },
     { name: "library", fn: tryLibrary },
     { name: "innertube-web", fn: tryInnerTubeWeb },
     { name: "timedtext", fn: tryTimedtext },
-    { name: "youtubetranscript.com", fn: tryYoutubetranscriptCom },
     { name: "scrape", fn: tryYoutubeScrape },
   ];
 
   for (const { name, fn } of methods) {
-    const result = await fn(videoId);
-    if (result) {
-      console.log(`fetchTranscript: ${name} succeeded for ${videoId}`);
-      return result;
+    console.log(`[analyze] trying method: ${name}`);
+    try {
+      const result = await fn(videoId);
+      if (result) {
+        console.log(`[analyze] method ${name} succeeded`);
+        return result;
+      }
+      console.log(`[analyze] method ${name} returned null`);
+    } catch (e) {
+      console.log(`[analyze] method ${name} threw:`, e instanceof Error ? e.message : String(e));
     }
   }
 
