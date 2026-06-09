@@ -8,16 +8,14 @@
  * @module
  */
 
-import type * as brandTemplates from "../brandTemplates.js";
+import type * as ai from "../ai.js";
+import type * as cleanup from "../cleanup.js";
 import type * as credits from "../credits.js";
-import type * as crons from "../crons.js";
-import type * as payments from "../payments.js";
-import type * as processVideo from "../processVideo.js";
-import type * as processingJobs from "../processingJobs.js";
-import type * as projects from "../projects.js";
-import type * as scriptGenerator from "../scriptGenerator.js";
+import type * as exports from "../exports.js";
+import type * as highlights from "../highlights.js";
+import type * as transcripts from "../transcripts.js";
 import type * as users from "../users.js";
-import type * as workerMutations from "../workerMutations.js";
+import type * as videos from "../videos.js";
 
 import type {
   ApiFromModules,
@@ -26,16 +24,14 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  brandTemplates: typeof brandTemplates;
+  ai: typeof ai;
+  cleanup: typeof cleanup;
   credits: typeof credits;
-  crons: typeof crons;
-  payments: typeof payments;
-  processVideo: typeof processVideo;
-  processingJobs: typeof processingJobs;
-  projects: typeof projects;
-  scriptGenerator: typeof scriptGenerator;
+  exports: typeof exports;
+  highlights: typeof highlights;
+  transcripts: typeof transcripts;
   users: typeof users;
-  workerMutations: typeof workerMutations;
+  videos: typeof videos;
 }>;
 
 /**

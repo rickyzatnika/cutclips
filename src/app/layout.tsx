@@ -1,6 +1,7 @@
 import "./globals.css";
 import { Inter } from "next/font/google";
 import type { Metadata } from "next";
+import { Providers } from "@/providers/providers";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -9,14 +10,12 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "CutClips - AI Short Video Generator",
+    default: "CutClips — AI Highlight Discovery",
     template: "%s | CutClips",
   },
   description:
-    "Ubah video YouTube panjang menjadi short video viral dengan AI. AI clipping, AI captioning, AI voice-over.",
+    "AI finds the most engaging moments from your YouTube videos automatically. Turn long videos into viral Shorts, Reels, and TikToks.",
 };
-
-import { Providers } from "@/providers/providers";
 
 export default function RootLayout({
   children,
@@ -24,8 +23,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html  lang="id" className={inter.variable} suppressHydrationWarning>
-      <body className="font-sans antialiased">
+    <html lang="en" className={`${inter.variable} dark`} suppressHydrationWarning>
+      <body className="font-sans antialiased bg-black text-white">
         <Providers>{children}</Providers>
       </body>
     </html>

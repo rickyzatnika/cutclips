@@ -1,4 +1,3 @@
-import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import type { NextAuthOptions } from "next-auth";
@@ -47,24 +46,30 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, account, user }) {
+    async signIn({ user }) {
+      if (user?.email) {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_CONVEX_URL}/api/mutation`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            path: "users:createOrUpdateUser",
+            args: { email: user.email, name: user.name || "", image: user.image || undefined },
+          }),
+        }).catch((e) => {
+          console.error("[auth] fetch error:", e);
+          return null;
+        });
+        if (res) {
+          const data = await res.json();
+          if (data.error) console.error("[auth] mutation error:", data.error);
+          else console.log("[auth] user created/updated:", data.value);
+        }
+      }
+      return true;
+    },
+    async jwt({ token, account }) {
       if (account?.id_token) {
         token.idToken = account.id_token;
-      }
-      if (user?.email) {
-        try {
-          const res = await fetch(`${process.env.NEXT_PUBLIC_CONVEX_URL}/api/query`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ path: "users:getRoleByEmail", args: { email: user.email } }),
-          });
-          if (res.ok) {
-            const data = await res.json();
-            token.role = data?.value || "user";
-          }
-        } catch {
-          token.role = "user";
-        }
       }
       return token;
     },
