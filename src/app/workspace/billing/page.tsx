@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-
-const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL;
+import { useQuery } from "convex/react";
+import { api } from "@convex/_generated/api";
 
 const creditPacks = [
   { id: "starter", credits: 100, price: 25000, label: "Rp25.000" },
@@ -14,25 +13,8 @@ const creditPacks = [
 export default function BillingPage() {
   const { data: session } = useSession();
   const router = useRouter();
-  const [credits, setCredits] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (!session?.user?.email || !CONVEX_URL) return;
-
-    fetch(`${CONVEX_URL}/api/query`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        path: "users:getByEmail",
-        args: { email: session.user.email },
-      }),
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.value?.credits != null) setCredits(data.value.credits);
-      })
-      .catch(() => {});
-  }, [session]);
+  const user = useQuery(api.users.getByEmail, session?.user?.email ? { email: session.user.email } : "skip");
+  const credits = user?.credits ?? null;
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">

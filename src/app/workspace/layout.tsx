@@ -1,14 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import { useMutation } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { Scissors, CreditCard, LogOut, Menu, X, LayoutDashboard } from "lucide-react";
-
-const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL;
 
 export default function AppLayout({
   children,
@@ -17,10 +15,12 @@ export default function AppLayout({
 }) {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const [credits, setCredits] = useState<number | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const setOffline = useMutation(api.users.setOffline);
+  const user = useQuery(api.users.getByEmail, session?.user?.email ? { email: session.user.email } : "skip");
+
+  const credits = user?.credits ?? null;
+  const isAdmin = user?.role === "admin";
 
   const handleSignOut = async () => {
     if (session?.user?.email) {
@@ -28,25 +28,6 @@ export default function AppLayout({
     }
     signOut({ callbackUrl: "/login" });
   };
-
-  useEffect(() => {
-    if (!session?.user?.email || !CONVEX_URL) return;
-
-    fetch(`${CONVEX_URL}/api/query`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        path: "users:getByEmail",
-        args: { email: session.user.email },
-      }),
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.value?.credits != null) setCredits(data.value.credits);
-        if (data.value?.role === "admin") setIsAdmin(true);
-      })
-      .catch(() => {});
-  }, [session]);
 
   return (
     <div className="flex min-h-screen flex-col bg-[#050505]">
