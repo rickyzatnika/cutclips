@@ -75,7 +75,7 @@ function GenerateContent() {
       const res = await fetch("/api/genclip", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ highlightId, title, includeCaptions: false }),
+        body: JSON.stringify({ highlightId, title }),
       });
 
       const data = await res.json();

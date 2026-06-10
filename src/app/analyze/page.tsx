@@ -174,7 +174,6 @@ function AnalyzeContent() {
         body: JSON.stringify({
           youtubeUrl: url,
           videoTitle: videoInfo?.title,
-          includeCaptions: false,
           highlights: highlights.map((h) => ({
             startTime: h.startTime,
             endTime: h.endTime,
