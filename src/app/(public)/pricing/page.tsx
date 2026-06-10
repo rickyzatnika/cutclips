@@ -9,9 +9,9 @@ const plans = [
     credits: "100 Kredit",
     price: "Rp0",
     features: [
-      "Analisis video gratis & tak terbatas",
       "100 kredit gratis saat daftar",
-      "Setara 5 clip MP4",
+      "Bebas Watermark",
+      "5 clip",
       "Deteksi highlight AI",
       "Unduh clip MP4",
     ],
@@ -22,7 +22,7 @@ const plans = [
     price: "Rp25.000",
     features: [
       "100 kredit tambahan",
-      "Setara 5 clip lagi",
+      "Bebas Watermark",
       "Analisis gratis & tak terbatas",
       "Semua kategori highlight",
       "Kredit tidak pernah kedaluwarsa",
@@ -32,10 +32,10 @@ const plans = [
   {
     name: "Kreator",
     credits: "+500 Kredit",
-    price: "Rp100.000",
+    price: "Rp75.000",
     features: [
       "500 kredit tambahan",
-      "Setara 25 clip lagi",
+      "Bebas Watermark",
       "Analisis gratis & tak terbatas",
       "Semua kategori highlight",
       "Prioritas pemrosesan",

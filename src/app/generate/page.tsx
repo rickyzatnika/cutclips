@@ -34,8 +34,6 @@ function GenerateContent() {
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [queueInfo, setQueueInfo] = useState<{ ahead: number; estimatedSeconds: number } | null>(null);
-  const [includeCaptions, setIncludeCaptions] = useState(true);
-
   // Auto-save highlight on mount when logged in
   useEffect(() => {
     if (!session || !videoUrl || !startTime || !endTime) return;
@@ -77,7 +75,7 @@ function GenerateContent() {
       const res = await fetch("/api/genclip", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ highlightId, title, includeCaptions }),
+        body: JSON.stringify({ highlightId, title, includeCaptions: false }),
       });
 
       const data = await res.json();
@@ -230,23 +228,6 @@ function GenerateContent() {
             <p className="mb-4 text-xs text-zinc-600">
               Kredit kamu cukup untuk ini.
             </p>
-
-            {/* Caption toggle */}
-            <label className="mb-6 inline-flex cursor-pointer items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-2.5">
-              <div className="relative">
-                <input
-                  type="checkbox"
-                  checked={includeCaptions}
-                  onChange={(e) => setIncludeCaptions(e.target.checked)}
-                  className="peer sr-only"
-                />
-                <div className="h-5 w-9 rounded-full bg-zinc-700 transition-colors peer-checked:bg-emerald-500" />
-                <div className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white transition-transform peer-checked:translate-x-4" />
-              </div>
-              <span className="text-sm text-zinc-300">
-                Caption <span className="text-zinc-500">(TikTok style)</span>
-              </span>
-            </label>
 
             <button
               onClick={startExport}

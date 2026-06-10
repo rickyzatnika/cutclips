@@ -7,6 +7,7 @@ import { Sparkles } from "lucide-react";
 const trustItems = [
   "Didukung AI",
   "Ramah Kreator",
+  "Bebas Watermark",
   "Analisis Cepat",
 ];
 
