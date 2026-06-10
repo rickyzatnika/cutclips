@@ -49,6 +49,7 @@ export const claimQueued = mutation({
       type: notification.type,
       userEmail: notification.userEmail,
       userName: notification.userName,
+      data: notification.data,
       createdAt: notification.createdAt,
     };
   },
