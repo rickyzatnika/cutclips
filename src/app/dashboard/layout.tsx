@@ -5,11 +5,12 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { convexQuery } from "@/lib/convex-rest";
-import { Loader2, LayoutDashboard, Users } from "lucide-react";
+import { Loader2, LayoutDashboard, Users, Banknote } from "lucide-react";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/users", label: "Users", icon: Users },
+  { href: "/dashboard/payments", label: "Pembayaran", icon: Banknote },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
