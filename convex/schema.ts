@@ -134,6 +134,15 @@ export default defineSchema({
     completedAt: v.optional(v.number()),
   }).index("by_status", ["status"]),
 
+  notifications: defineTable({
+    type: v.union(v.literal("login"), v.literal("logout"), v.literal("payment")),
+    userEmail: v.string(),
+    userName: v.optional(v.string()),
+    data: v.optional(v.string()),
+    sent: v.boolean(),
+    createdAt: v.number(),
+  }).index("by_sent", ["sent"]),
+
   payments: defineTable({
     userId: v.id("users"),
     email: v.string(),

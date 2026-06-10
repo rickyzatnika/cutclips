@@ -120,6 +120,52 @@ export const listByUserWithClips = query({
   },
 });
 
+export const listByUserWithStats = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return [];
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", identity.email ?? ""))
+      .unique();
+    if (!user) return [];
+
+    const videos = await ctx.db
+      .query("videos")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .order("desc")
+      .collect();
+
+    const result = [];
+    for (const video of videos) {
+      const highlights = await ctx.db
+        .query("highlights")
+        .withIndex("by_videoId", (q) => q.eq("videoId", video._id as any))
+        .collect();
+
+      const clipExports = await ctx.db
+        .query("exports")
+        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .collect();
+
+      const clipCount = clipExports.filter((e) => {
+        const h = highlights.find((h) => h._id === e.highlightId);
+        return h && h.videoId === (video._id as any);
+      }).length;
+
+      result.push({
+        ...video,
+        highlightCount: highlights.length,
+        clipCount,
+      });
+    }
+
+    return result;
+  },
+});
+
 export const remove = mutation({
   args: { videoId: v.id("videos") },
   handler: async (ctx, args) => {

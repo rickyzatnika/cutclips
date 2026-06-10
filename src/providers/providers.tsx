@@ -6,6 +6,7 @@ import { SessionProvider } from "next-auth/react";
 import { ConvexProvider, useMutation } from "convex/react";
 import { convex } from "@/lib/convex-client";
 import { api } from "@convex/_generated/api";
+import { ToastProvider } from "@/components/ui/toast";
 
 function Heartbeat() {
   const { data: session } = useSession();
@@ -27,8 +28,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ConvexProvider client={convex}>
       <SessionProvider>
-        <Heartbeat />
-        {children}
+        <ToastProvider>
+          <Heartbeat />
+          {children}
+        </ToastProvider>
       </SessionProvider>
     </ConvexProvider>
   );

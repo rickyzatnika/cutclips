@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
@@ -167,6 +167,7 @@ function DonutChart({
 
 export default function DashboardPage() {
   const { data: session } = useSession();
+  const [period, setPeriod] = useState<string>("all");
 
   const queryUsers = useQuery(api.users.list);
   const queryPayments = useQuery(api.payments.listAll);
@@ -174,27 +175,32 @@ export default function DashboardPage() {
   const users = queryUsers;
   const payments = queryPayments;
 
+  const periodCutoff = period === "7d" ? Date.now() - 7 * 86400000
+    : period === "30d" ? Date.now() - 30 * 86400000
+    : 0;
+
   const stats = useMemo(() => {
     const u = users ?? [];
     const p = payments ?? [];
+    const filteredPayments = periodCutoff ? p.filter((x: Doc<"payments">) => x.createdAt >= periodCutoff) : p;
     const online = u.filter(
       (x: Doc<"users">) => x.lastActive && Date.now() - x.lastActive < 60 * 1000,
     ).length;
-    const totalRevenue = p
+    const totalRevenue = filteredPayments
       .filter((x: Doc<"payments">) => x.status === "approved")
       .reduce((s: number, x: Doc<"payments">) => s + x.amount, 0);
-    const pendingCount = p.filter((x: Doc<"payments">) => x.status === "pending").length;
-    const approvedCount = p.filter((x: Doc<"payments">) => x.status === "approved").length;
-    const rejectedCount = p.filter((x: Doc<"payments">) => x.status === "rejected").length;
+    const pendingCount = filteredPayments.filter((x: Doc<"payments">) => x.status === "pending").length;
+    const approvedCount = filteredPayments.filter((x: Doc<"payments">) => x.status === "approved").length;
+    const rejectedCount = filteredPayments.filter((x: Doc<"payments">) => x.status === "rejected").length;
     const totalClipCredits = u.reduce((s: number, x: Doc<"users">) => s + x.totalCreditsUsed, 0);
     return { online, totalRevenue, pendingCount, approvedCount, rejectedCount, totalClipCredits };
-  }, [users, payments]);
+  }, [users, payments, periodCutoff]);
 
   const revenueByMonth = useMemo(() => {
     const p = payments ?? [];
     const map = new Map<string, number>();
     (p as Doc<"payments">[])
-      .filter((x) => x.status === "approved")
+      .filter((x) => x.status === "approved" && (!periodCutoff || x.createdAt >= periodCutoff))
       .forEach((x) => {
         const key = getMonthKey(x.createdAt);
         map.set(key, (map.get(key) || 0) + x.amount);
@@ -206,12 +212,12 @@ export default function DashboardPage() {
         label: MONTHS[+key.split("-")[1]],
         value,
       }));
-  }, [payments]);
+  }, [payments, periodCutoff]);
 
   const usersByMonth = useMemo(() => {
     const u = users ?? [];
     const map = new Map<string, number>();
-    (u as Doc<"users">[]).forEach((x) => {
+    (u as Doc<"users">[]).filter((x) => !periodCutoff || x.joinedAt >= periodCutoff).forEach((x) => {
       const key = getMonthKey(x.joinedAt);
       map.set(key, (map.get(key) || 0) + 1);
     });
@@ -222,7 +228,7 @@ export default function DashboardPage() {
         label: MONTHS[+key.split("-")[1]],
         value,
       }));
-  }, [users]);
+  }, [users, periodCutoff]);
 
   return (
     <div className="space-y-8">
@@ -232,6 +238,25 @@ export default function DashboardPage() {
         <p className="mt-1 text-sm text-zinc-500">
           Welcome back, {session?.user?.name}
         </p>
+      </div>
+
+      {/* period filter */}
+      <div className="flex items-center gap-2">
+        {[
+          { key: "7d", label: "7 Hari" },
+          { key: "30d", label: "30 Hari" },
+          { key: "all", label: "Semua" },
+        ].map((opt) => (
+          <button
+            key={opt.key}
+            onClick={() => setPeriod(opt.key)}
+            className={`cursor-pointer rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+              period === opt.key ? "bg-emerald-500/20 text-emerald-400" : "text-zinc-500 hover:text-zinc-300"
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
       </div>
 
       {/* stats cards */}

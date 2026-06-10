@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useQuery } from "convex/react";
+import { useToast } from "@/components/ui/toast";
 import { api } from "@convex/_generated/api";
 import type { Doc } from "@convex/_generated/dataModel";
 import { convexMutation } from "@/lib/convex-rest";
@@ -64,6 +65,7 @@ function Modal({
 
 export default function UsersPage() {
   const { data: session } = useSession();
+  const { toast } = useToast();
   const queryUsers = useQuery(api.users.list);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -112,8 +114,8 @@ export default function UsersPage() {
         adminEmail: session!.user!.email,
       });
       setRoleModal(null);
-    } catch {
-      alert("Failed to update role");
+    } catch (err) {
+      toast({ title: "Gagal update role", description: err instanceof Error ? err.message : String(err), variant: "error" });
     } finally {
       setBusy(null);
     }
@@ -128,8 +130,8 @@ export default function UsersPage() {
         adminEmail: session!.user!.email,
       });
       setDeleteModal(null);
-    } catch {
-      alert("Failed to delete user");
+    } catch (err) {
+      toast({ title: "Gagal hapus user", description: err instanceof Error ? err.message : String(err), variant: "error" });
     } finally {
       setBusy(null);
     }
@@ -144,8 +146,8 @@ export default function UsersPage() {
       });
       setSelected(new Set());
       setBulkDeleteModal(false);
-    } catch {
-      alert("Failed to delete users");
+    } catch (err) {
+      toast({ title: "Gagal hapus users", description: err instanceof Error ? err.message : String(err), variant: "error" });
     } finally {
       setBusy(null);
     }

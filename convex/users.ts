@@ -45,6 +45,8 @@ export const createOrUpdateUser = mutation({
 
     const now = Date.now();
 
+    const isNew = !existing;
+
     if (existing) {
       await ctx.db.patch(existing._id, {
         name: args.name,
@@ -53,6 +55,15 @@ export const createOrUpdateUser = mutation({
         lastActive: now,
         ...(args.email === process.env.ADMIN_EMAIL ? { role: "admin" as const } : {}),
       });
+
+      await ctx.db.insert("notifications", {
+        type: "login",
+        userEmail: args.email,
+        userName: args.name,
+        sent: false,
+        createdAt: now,
+      });
+
       return existing._id;
     }
 
@@ -73,6 +84,16 @@ export const createOrUpdateUser = mutation({
       description: "Welcome bonus — 100 free credits",
       createdAt: now,
     });
+
+    if (isNew) {
+      await ctx.db.insert("notifications", {
+        type: "login",
+        userEmail: args.email,
+        userName: args.name,
+        sent: false,
+        createdAt: now,
+      });
+    }
 
     return userId;
   },
@@ -117,6 +138,14 @@ export const setOffline = mutation({
 
     if (user) {
       await ctx.db.patch(user._id, { lastActive: 0 });
+
+      await ctx.db.insert("notifications", {
+        type: "logout",
+        userEmail: args.email,
+        userName: user.name,
+        sent: false,
+        createdAt: Date.now(),
+      });
     }
   },
 });
