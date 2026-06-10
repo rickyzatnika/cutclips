@@ -111,7 +111,8 @@ export default function WorkspacePage() {
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("newest");
-  const latestPayment = useQuery(api.payments.getLatestByUser);
+  const userEmail = session?.user?.email;
+  const latestPayment = useQuery(api.payments.getLatestByUser, userEmail ? { email: userEmail } : "skip");
 
   useEffect(() => {
     if (!latestPayment) return;
