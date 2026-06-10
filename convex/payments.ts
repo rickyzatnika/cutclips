@@ -223,3 +223,35 @@ export const rejectByWorker = mutation({
     });
   },
 });
+
+export const remove = mutation({
+  args: {
+    paymentId: v.id("payments"),
+    adminEmail: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const admin = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", args.adminEmail))
+      .unique();
+    if (!admin || admin.role !== "admin") throw new Error("Not authorized");
+    await ctx.db.delete(args.paymentId);
+  },
+});
+
+export const removeBulk = mutation({
+  args: {
+    paymentIds: v.array(v.id("payments")),
+    adminEmail: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const admin = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", args.adminEmail))
+      .unique();
+    if (!admin || admin.role !== "admin") throw new Error("Not authorized");
+    for (const id of args.paymentIds) {
+      await ctx.db.delete(id);
+    }
+  },
+});
