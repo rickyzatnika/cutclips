@@ -113,9 +113,13 @@ export default function WorkspacePage() {
   const [sortBy, setSortBy] = useState<string>("newest");
   const userEmail = session?.user?.email;
   const latestPayment = useQuery(api.payments.getLatestByUser, userEmail ? { email: userEmail } : "skip");
+  const shownPaymentId = useRef<string | null>(null);
 
   useEffect(() => {
     if (!latestPayment) return;
+    if (latestPayment.status === "pending") return;
+    if (shownPaymentId.current === latestPayment._id) return;
+    shownPaymentId.current = latestPayment._id;
     if (latestPayment.status === "approved") {
       toast({ title: "Pembayaran disetujui! 🎉", description: `${latestPayment.credits} kredit sudah ditambahkan.`, variant: "success" });
     } else if (latestPayment.status === "rejected") {
