@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const body = await req.json();
-    const { highlightId, title } = body;
+    const { highlightId, title, includeCaptions } = body;
 
     if (!highlightId) {
       return Response.json({ error: "Missing highlightId" }, { status: 400 });
@@ -78,7 +78,7 @@ export async function PUT(req: NextRequest) {
     if (user.credits < 20) return Response.json({ error: "Need 20 credits" }, { status: 403 });
 
     const exportId = await convexMutation("exports:create", {
-      highlightId, userId: user._id, creditCost: 20,
+      highlightId, userId: user._id, creditCost: 20, includeCaptions: includeCaptions !== false,
     });
 
     await convexMutation("credits:spendCredits", {

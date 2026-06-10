@@ -87,6 +87,7 @@ export default defineSchema({
     )),
     error: v.optional(v.string()),
     creditCost: v.number(),
+    includeCaptions: v.optional(v.boolean()),
     createdAt: v.number(),
     completedAt: v.optional(v.number()),
   })
@@ -132,7 +133,7 @@ export default defineSchema({
     createdAt: v.number(),
     startedAt: v.optional(v.number()),
     completedAt: v.optional(v.number()),
-  }).index("by_status", ["status"]),
+  }).index("by_status", ["status"]).index("by_youtubeUrl", ["youtubeUrl"]),
 
   notifications: defineTable({
     type: v.union(v.literal("login"), v.literal("logout"), v.literal("payment")),

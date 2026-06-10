@@ -59,6 +59,7 @@ function AnalyzeContent() {
   } | null>(null);
   const [error, setError] = useState("");
   const [generating, setGenerating] = useState(false);
+  const [includeCaptions, setIncludeCaptions] = useState(true);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -174,6 +175,7 @@ function AnalyzeContent() {
         body: JSON.stringify({
           youtubeUrl: url,
           videoTitle: videoInfo?.title,
+          includeCaptions,
           highlights: highlights.map((h) => ({
             startTime: h.startTime,
             endTime: h.endTime,
@@ -272,20 +274,38 @@ function AnalyzeContent() {
             </div>
 
             {session && (
-              <button
-                onClick={generateAll}
-                disabled={generating}
-                className="mb-6 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-5 py-4 text-sm font-semibold text-black transition-colors hover:bg-emerald-400 disabled:opacity-50"
-              >
-                {generating ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Sparkles className="h-4 w-4" />
-                )}
-                {generating
-                  ? `Membuat ${highlights.length} clip...`
-                  : `Generate Semua ${highlights.length} Clip (${highlights.length * 20} kredit)`}
-              </button>
+              <>
+                <label className="mb-4 inline-flex cursor-pointer items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-2.5">
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      checked={includeCaptions}
+                      onChange={(e) => setIncludeCaptions(e.target.checked)}
+                      className="peer sr-only"
+                    />
+                    <div className="h-5 w-9 rounded-full bg-zinc-700 transition-colors peer-checked:bg-emerald-500" />
+                    <div className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white transition-transform peer-checked:translate-x-4" />
+                  </div>
+                  <span className="text-sm text-zinc-300">
+                    Caption <span className="text-zinc-500">(TikTok style)</span>
+                  </span>
+                </label>
+
+                <button
+                  onClick={generateAll}
+                  disabled={generating}
+                  className="mb-6 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-5 py-4 text-sm font-semibold text-black transition-colors hover:bg-emerald-400 disabled:opacity-50"
+                >
+                  {generating ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-4 w-4" />
+                  )}
+                  {generating
+                    ? `Membuat ${highlights.length} clip...`
+                    : `Generate Semua ${highlights.length} Clip (${highlights.length * 20} kredit)`}
+                </button>
+              </>
             )}
 
             <div className="space-y-4">

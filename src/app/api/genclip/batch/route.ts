@@ -29,7 +29,7 @@ async function convexMutation(path: string, args: Record<string, unknown>) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { youtubeUrl, videoTitle, highlights } = body;
+    const { youtubeUrl, videoTitle, highlights, includeCaptions } = body;
 
     if (!youtubeUrl || !highlights || !highlights.length) {
       return Response.json({ error: "Missing required fields" }, { status: 400 });
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
       });
 
       const exportId = await convexMutation("exports:create", {
-        highlightId, userId: user._id, creditCost: 20,
+        highlightId, userId: user._id, creditCost: 20, includeCaptions: includeCaptions !== false,
       });
 
       results.push({ highlightId, exportId, title: h.title });

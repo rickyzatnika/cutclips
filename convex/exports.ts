@@ -23,6 +23,7 @@ export const create = mutation({
     highlightId: v.id("highlights"),
     userId: v.optional(v.id("users")),
     creditCost: v.number(),
+    includeCaptions: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     return await ctx.db.insert("exports", {
@@ -30,6 +31,7 @@ export const create = mutation({
       userId: args.userId,
       status: "queued",
       creditCost: args.creditCost,
+      includeCaptions: args.includeCaptions ?? true,
       createdAt: Date.now(),
     });
   },
@@ -67,14 +69,20 @@ export const claimQueued = mutation({
 
     const highlight = await ctx.db.get(job.highlightId);
     const video = highlight ? await ctx.db.get(highlight.videoId) : null;
+    const analyzeJob = video ? await ctx.db
+      .query("analyzeJobs")
+      .withIndex("by_youtubeUrl", (q) => q.eq("youtubeUrl", video.youtubeUrl))
+      .first() : null;
 
     return {
       exportId: job._id,
       highlightId: job.highlightId,
+      includeCaptions: job.includeCaptions ?? true,
       startTime: highlight?.startTime,
       endTime: highlight?.endTime,
       youtubeUrl: video?.youtubeUrl,
       videoTitle: video?.title,
+      transcriptSegments: analyzeJob?.transcriptSegments || [],
     };
   },
 });
