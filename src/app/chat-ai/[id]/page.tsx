@@ -7,6 +7,13 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { useRouter, useParams } from "next/navigation";
+import LightGallery from "lightgallery/react";
+import "lightgallery/css/lightgallery.css";
+import "lightgallery/css/lg-zoom.css";
+import "lightgallery/css/lg-thumbnail.css";
+import lgZoom from "lightgallery/plugins/zoom";
+import lgThumbnail from "lightgallery/plugins/thumbnail";
+
 import {
   Send,
   Trash2,
@@ -58,7 +65,6 @@ type Message = {
   images?: {
     url: string;
     alt?: string;
-    source?: string;
   }[];
 };
 
@@ -412,13 +418,21 @@ export default function ChatDetailPage() {
                   )}
                 </p>
                 {msg.images && msg.images.length > 0 && (
-                  <div className="mt-3 grid grid-cols-2 gap-2">
+                  <LightGallery
+                    elementClassNames="mt-3 grid grid-cols-2 gap-2"
+                    plugins={[lgZoom, lgThumbnail]}
+                    download={true}
+                    mobileSettings={{
+                      controls: true,
+                      showCloseIcon: true,
+                      download: true,
+                    }}
+                    speed={300}
+                  >
                     {msg.images.map((img, ii) => (
                       <a
                         key={ii}
-                        href={img.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                        data-src={img.url}
                         className="overflow-hidden rounded-xl border border-zinc-700"
                       >
                         <Image
@@ -429,14 +443,9 @@ export default function ChatDetailPage() {
                           className="h-24 w-full object-cover"
                           unoptimized
                         />
-                        {img.source && (
-                          <p className="px-2 py-1 text-[10px] text-zinc-500">
-                            {img.source}
-                          </p>
-                        )}
                       </a>
                     ))}
-                  </div>
+                  </LightGallery>
                 )}
                 {msg.videos && msg.videos.length > 0 && (
                   <div className="mt-3 space-y-2">

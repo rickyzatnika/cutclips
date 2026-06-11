@@ -41,8 +41,7 @@ const TOOLS = [
     type: "function",
     function: {
       name: "search_images",
-      description:
-        "Cari gambar dari Unsplash dan Pexels berdasarkan kata kunci",
+      description: "Cari gambar berdasarkan kata kunci",
       parameters: {
         type: "object",
         properties: {
@@ -325,10 +324,7 @@ async function callGroqWithTools(
                   : []
               ) as Record<string, unknown>[];
 
-              toolResult = {
-                pexels_count: pexelPhotos.length,
-                unsplash_count: unsplashPhotos.length,
-              };
+              toolResult = {};
 
               if (pexelPhotos.length > 0) {
                 extraImages.push(
@@ -341,9 +337,7 @@ async function callGroqWithTools(
                           psrc?.medium ||
                           psrc?.original ||
                           (p as Record<string, string>).url,
-                        alt:
-                          (p as Record<string, string>).alt || args.query,
-                        source: "Pexels",
+                        alt: (p as Record<string, string>).alt || args.query,
                       };
                     }),
                 );
@@ -360,7 +354,6 @@ async function callGroqWithTools(
                       alt:
                         (p as Record<string, string>).alt_description ||
                         args.query,
-                      source: "Unsplash",
                     })),
                 );
               }
@@ -481,7 +474,12 @@ async function processWithLLM(
       });
 
       const uniqueVideos = new Set(
-        clips.map((c: Record<string, unknown>) => (c.video as Record<string, unknown>)?._id).filter(Boolean),
+        clips
+          .map(
+            (c: Record<string, unknown>) =>
+              (c.video as Record<string, unknown>)?._id,
+          )
+          .filter(Boolean),
       );
       const totalVideos = uniqueVideos.size;
       const totalClips = clips.length;
@@ -557,17 +555,19 @@ Jangan mengarang:
 - data YouTube
 - data pengguna
 
-# GAYA BAHASA
+# GAYA BAHASA - INDONESIA, INGGRIS dan SUNDA
 
-- Gunakan Bahasa Indonesia santai dan ramah.
+- Gunakan Bahasa Indonesia santai dan ramah (Tidak baku).
+- Gunakan Bahasa Ingris jika diperlukan.
 - Ikuti bahasa user.
-- Jika user menggunakan Bahasa Sunda, balas dengan Sunda yang natural.
-- Jawaban singkat, jelas, dan langsung ke inti.
+- Jika user menggunakan Bahasa Sunda, balas dengan Bahasa Sunda yang natural.
+- Jawaban jelas, dan langsung ke inti.
 - Maksimal 4 kalimat jika memungkinkan.
 - Hindari poin-poin jika tidak diperlukan.
 - Utamakan gaya chat manusia.
 - Jangan terdengar seperti dokumentasi.
 - Jangan memperkenalkan diri berulang kali.
+- Saat menampilkan hasil gambar jangan menyebut sumber (Pexels/Unsplash).
 
 # PERCAKAPAN
 
@@ -657,8 +657,8 @@ Gratis
 
 Starter
 - Rp25.000
-- 200 kredit
-- Bonus 100 kredit
+- 100 kredit
+- + Bonus 100 kredit
 
 Kreator
 - Rp75.000
@@ -683,7 +683,7 @@ Menampilkan:
 
 ## Chat AI
 
-Asisten AI CutClips untuk membantu pengguna.
+Asisten AI CutClips untuk membantu.
 `;
   const USER_CONTEXT = `
 # DATA USER

@@ -13,6 +13,7 @@
     "@serwist/sw": "^9.5.11",
     "clsx": "^2.1.1",
     "convex": "^1.40.0",
+    "lightgallery": "^2.9.0",
     "lucide-react": "^0.487.0",
     "next": "^15.3.2",
     "next-auth": "^4.24.14",
