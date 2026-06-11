@@ -211,7 +211,7 @@ function AnalyzeContent() {
 
   if (error && pollStatus === "error") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-black px-4">
+      <div className="flex min-h-screen items-center justify-center bg-black px-4 pb-16">
         <div className="w-full max-w-md text-center">
           <AlertCircle className="mx-auto h-12 w-12 text-red-400" />
           <h2 className="mt-4 text-xl font-semibold text-white">Analisis Gagal</h2>
@@ -230,7 +230,7 @@ function AnalyzeContent() {
 
   if (pollStatus === "loading" || pollStatus === "processing") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-black px-4">
+      <div className="flex min-h-screen items-center justify-center bg-black px-4 pb-16">
         <div className="w-full max-w-md text-center">
           <Loader2 className="mx-auto h-10 w-10 animate-spin text-emerald-400" />
           <p className="mt-4 text-sm text-zinc-400">{statusMessage}</p>
@@ -241,7 +241,7 @@ function AnalyzeContent() {
   }
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-black pb-16">
       <div className="mx-auto max-w-4xl px-4 py-8">
         <Link
           href="/"
@@ -361,7 +361,7 @@ export default function AnalyzePage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-black">
+        <div className="flex min-h-screen items-center justify-center bg-black pb-16">
           <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
         </div>
       }

@@ -137,7 +137,7 @@ function GenerateContent() {
 
   if (!videoUrl) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-black px-4">
+      <div className="flex min-h-screen items-center justify-center bg-black px-4 pb-16">
         <div className="w-full max-w-md text-center">
           <AlertCircle className="mx-auto h-12 w-12 text-zinc-500" />
           <h2 className="mt-4 text-xl font-semibold text-white">Tidak Ada Clip Dipilih</h2>
@@ -153,7 +153,7 @@ function GenerateContent() {
 
   if (!session) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-black px-4">
+      <div className="flex min-h-screen items-center justify-center bg-black px-4 pb-16">
         <div className="w-full max-w-md text-center">
           <LogIn className="mx-auto h-12 w-12 text-emerald-400" />
           <h2 className="mt-4 text-xl font-semibold text-white">Masuk untuk Membuat Clip</h2>
@@ -179,7 +179,7 @@ function GenerateContent() {
 
   if (error && status === "failed") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-black px-4">
+      <div className="flex min-h-screen items-center justify-center bg-black px-4 pb-16">
         <div className="w-full max-w-md text-center">
           <XCircle className="mx-auto h-12 w-12 text-red-400" />
           <h2 className="mt-4 text-xl font-semibold text-white">Gagal</h2>
@@ -196,7 +196,7 @@ function GenerateContent() {
   }
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-black pb-16">
       <div className="mx-auto max-w-lg px-4 py-12">
         <Link
           href="/workspace"
@@ -294,7 +294,7 @@ export default function GeneratePage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-black">
+        <div className="flex min-h-screen items-center justify-center bg-black pb-16">
           <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
         </div>
       }

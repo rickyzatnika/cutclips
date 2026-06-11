@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
-import { Scissors, CreditCard, LogOut, LayoutDashboard, History, Sparkles, User } from "lucide-react";
+import { Scissors, LogOut, LayoutDashboard, User } from "lucide-react";
 
 export default function AppLayout({
   children,
@@ -37,53 +37,8 @@ export default function AppLayout({
             <span className="text-lg font-bold text-white">CutClips</span>
           </Link>
 
-          {/* Desktop nav */}
+          {/* Desktop nav — credits + admin + logout only */}
           <nav className="hidden sm:flex items-center gap-4">
-            <Link
-              href="/workspace"
-              className={`text-sm ${
-                pathname === "/workspace"
-                  ? "text-white"
-                  : "text-zinc-500 hover:text-white"
-              }`}
-            >
-              Clip
-            </Link>
-            <Link
-              href="/workspace/history"
-              className={`flex items-center gap-1 text-sm ${
-                pathname === "/workspace/history"
-                  ? "text-white"
-                  : "text-zinc-500 hover:text-white"
-              }`}
-            >
-              <History className="h-3.5 w-3.5" />
-              Riwayat
-            </Link>
-            <Link
-              href="/analyze"
-              className={`flex items-center gap-1 text-sm ${
-                pathname === "/analyze"
-                  ? "text-white"
-                  : "text-zinc-500 hover:text-white"
-              }`}
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              Analyze
-            </Link>
-            <Link
-              href="/workspace/billing"
-              className={`text-sm ${
-                pathname === "/workspace/billing"
-                  ? "text-white"
-                  : "text-zinc-500 hover:text-white"
-              }`}
-            >
-              <span className="flex items-center gap-1">
-                <CreditCard className="h-3.5 w-3.5" />
-                Tagihan
-              </span>
-            </Link>
             {isAdmin && (
               <Link
                 href="/dashboard"
@@ -125,7 +80,7 @@ export default function AppLayout({
         </div>
       </header>
 
-      <main className="flex-1 pb-16 sm:pb-0">{children}</main>
+      <main className="flex-1 pb-16">{children}</main>
     </div>
   );
 }
