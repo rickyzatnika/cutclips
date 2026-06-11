@@ -9,7 +9,7 @@ const tabs = [
   { href: "/workspace", label: "Clip", icon: Film },
   { href: "/workspace/history", label: "Riwayat", icon: History },
   { href: "/workspace/billing", label: "Isi Credit", icon: CreditCard },
-  { href: "/analyze", label: "Analisis", icon: Sparkles },
+  { href: "/chat-ai", label: "Tanya AI", icon: Sparkles },
 ];
 
 export function MobileNav() {
@@ -21,7 +21,8 @@ export function MobileNav() {
   const isAuthPage =
     pathname.startsWith("/workspace") ||
     pathname.startsWith("/analyze") ||
-    pathname.startsWith("/generate");
+    pathname.startsWith("/generate") ||
+    pathname === "/chat-ai";
 
   if (!isAuthPage) return null;
 

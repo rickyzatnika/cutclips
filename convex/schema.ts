@@ -160,6 +160,32 @@ export default defineSchema({
     createdAt: v.number(),
     approvedAt: v.optional(v.number()),
   })
-    .index("by_status", ["status"])
-    .index("by_userId", ["userId"]),
+      .index("by_status", ["status"])
+      .index("by_userId", ["userId"]),
+
+  conversations: defineTable({
+    userEmail: v.string(),
+    title: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_email", ["userEmail"]),
+
+  messages: defineTable({
+    conversationId: v.id("conversations"),
+    role: v.union(v.literal("user"), v.literal("assistant")),
+    content: v.string(),
+    audioUrl: v.optional(v.string()),
+    videos: v.optional(v.array(v.object({
+      title: v.string(),
+      url: v.string(),
+      thumbnail: v.string(),
+      channelName: v.optional(v.string()),
+    }))),
+    images: v.optional(v.array(v.object({
+      url: v.string(),
+      alt: v.optional(v.string()),
+      source: v.optional(v.string()),
+    }))),
+    createdAt: v.number(),
+  }).index("by_conversation", ["conversationId"]),
 });

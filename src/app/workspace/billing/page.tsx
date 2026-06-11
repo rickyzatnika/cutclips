@@ -22,13 +22,13 @@ const plans = [
   },
   {
     id: "starter",
-    creditsLabel: "+100 Kredit",
-    credits: 100,
+    creditsLabel: "+200 Kredit (Bonus 100!)",
+    credits: 200,
     price: 25000,
     priceLabel: "Rp25.000",
     name: "Starter",
     features: [
-      "100 kredit tambahan",
+      "200 kredit (100 + Bonus 100)",
       "Bebas Watermark",
       "Analisis gratis & tak terbatas",
       "Semua kategori highlight",
@@ -40,8 +40,8 @@ const plans = [
     id: "creator",
     creditsLabel: "+500 Kredit",
     credits: 500,
-    price: 100000,
-    priceLabel: "Rp100.000",
+    price: 75000,
+    priceLabel: "Rp75.000",
     name: "Kreator",
     features: [
       "500 kredit tambahan",

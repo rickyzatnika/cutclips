@@ -11,9 +11,11 @@
 import type * as ai from "../ai.js";
 import type * as analyzeJobs from "../analyzeJobs.js";
 import type * as cleanup from "../cleanup.js";
+import type * as conversations from "../conversations.js";
 import type * as credits from "../credits.js";
 import type * as exports from "../exports.js";
 import type * as highlights from "../highlights.js";
+import type * as messages from "../messages.js";
 import type * as notifications from "../notifications.js";
 import type * as payments from "../payments.js";
 import type * as transcripts from "../transcripts.js";
@@ -30,9 +32,11 @@ declare const fullApi: ApiFromModules<{
   ai: typeof ai;
   analyzeJobs: typeof analyzeJobs;
   cleanup: typeof cleanup;
+  conversations: typeof conversations;
   credits: typeof credits;
   exports: typeof exports;
   highlights: typeof highlights;
+  messages: typeof messages;
   notifications: typeof notifications;
   payments: typeof payments;
   transcripts: typeof transcripts;
