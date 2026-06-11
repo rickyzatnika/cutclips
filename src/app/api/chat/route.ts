@@ -41,7 +41,8 @@ const TOOLS = [
     type: "function",
     function: {
       name: "search_images",
-      description: "Cari gambar dari Pexels dan Unsplash berdasarkan kata kunci",
+      description:
+        "Cari gambar dari Pexels dan Unsplash berdasarkan kata kunci",
       parameters: {
         type: "object",
         properties: {
@@ -60,7 +61,10 @@ const TOOLS = [
         type: "object",
         properties: {
           query: { type: "string", description: "Kata kunci video YouTube" },
-          maxResults: { type: "number", description: "Maksimal hasil (default 5)" },
+          maxResults: {
+            type: "number",
+            description: "Maksimal hasil (default 5)",
+          },
         },
         required: ["query"],
       },
@@ -197,21 +201,33 @@ async function callGroqWithTools(
 ): Promise<{
   content: string;
   images: { url: string; alt?: string; source?: string }[];
-  videos: { title: string; url: string; thumbnail: string; channelName?: string }[];
+  videos: {
+    title: string;
+    url: string;
+    thumbnail: string;
+    channelName?: string;
+  }[];
 }> {
   const keys = getApiKeys();
 
   async function groqCompletion(
     msgs: { role: string; content: string }[],
     tools?: unknown,
-  ): Promise<{ content: string; toolCalls?: { id: string; type: string; function: { name: string; arguments: string } }[] }> {
+  ): Promise<{
+    content: string;
+    toolCalls?: {
+      id: string;
+      type: string;
+      function: { name: string; arguments: string };
+    }[];
+  }> {
     for (const key of keys) {
       for (const model of MODELS) {
         try {
           const body: Record<string, unknown> = {
             model,
             messages: msgs,
-            temperature: 0.7,
+            temperature: 0.4,
             max_tokens: 2048,
           };
           if (tools) {
@@ -248,127 +264,171 @@ async function callGroqWithTools(
     return { content: "" };
   }
 
-  // First call with tools
-  const first = await groqCompletion(messages, TOOLS);
-
-  const extraImages: { url: string; alt?: string; source?: string }[] = [];
-  const extraVideos: { title: string; url: string; thumbnail: string; channelName?: string }[] = [];
-
-  if (first.toolCalls && first.toolCalls.length > 0) {
-    const toolMessages = [...messages];
-
-    for (const tc of first.toolCalls) {
-      if (tc.type !== "function") continue;
-      const fn = tc.function;
-      let result: unknown;
-
-      try {
-        const args = JSON.parse(fn.arguments);
-
-        switch (fn.name) {
-          case "search_web": {
-            const r = await tavilySearch(args.query);
-            result = {
-              results: (r.results || []).slice(0, 5).map((item: Record<string, string>) => ({
-                title: item.title,
-                url: item.url,
-                content: item.content?.slice(0, 300),
-              })),
-              images: (r.images || []).slice(0, 3),
-            };
-            break;
-          }
-          case "search_images": {
-            const unsplashRes = await unsplashSearch(args.query);
-
-            const unsplashPhotos = (unsplashRes && "results" in unsplashRes ? unsplashRes.results : []) as Record<string, unknown>[];
-
-            result = {
-              unsplash_count: unsplashPhotos.length,
-            };
-
-            if (unsplashPhotos.length > 0) {
-              extraImages.push(
-                ...unsplashPhotos.slice(0, 8).map((p: Record<string, unknown>) => ({
-                  url: (p.urls as Record<string, string>)?.regular || (p.urls as Record<string, string>)?.small || "",
-                  alt: (p as Record<string, string>).alt_description || args.query,
-                  source: "Unsplash",
-                })),
-              );
-            }
-            break;
-          }
-          case "search_youtube": {
-            const r = await youtubeSearch(args.query, args.maxResults || 5);
-            const items = r.items || [];
-            result = {
-              videos: items.slice(0, 5).map((item: Record<string, unknown>) => ({
-                title: (item.snippet as Record<string, string>)?.title || "",
-                videoId: (item.id as Record<string, string>)?.videoId || "",
-                channelName: (item.snippet as Record<string, string>)?.channelTitle || "",
-                thumbnail: (item.snippet as Record<string, unknown>)?.thumbnails
-                  ? ((item.snippet as Record<string, unknown>).thumbnails as Record<string, unknown>)?.high
-                    ? (((item.snippet as Record<string, unknown>).thumbnails as Record<string, Record<string, string>>)?.high?.url || "")
-                    : (((item.snippet as Record<string, unknown>).thumbnails as Record<string, Record<string, string>>)?.default?.url || "")
-                  : "",
-              })),
-            };
-            if (items.length > 0) {
-              extraVideos.push(
-                ...items.slice(0, 5).map((item: Record<string, unknown>) => {
-                  const snippet = item.snippet as Record<string, string>;
-                  const idData = item.id as Record<string, string>;
-                  const thumbs = (item.snippet as Record<string, unknown>).thumbnails as Record<string, Record<string, string>>;
-                  return {
-                    title: snippet?.title || "",
-                    url: `https://youtube.com/watch?v=${idData?.videoId || ""}`,
-                    thumbnail: thumbs?.high?.url || thumbs?.default?.url || "",
-                    channelName: snippet?.channelTitle || "",
-                  };
-                }),
-              );
-            }
-            break;
-          }
-          default:
-            result = { error: `Unknown tool: ${fn.name}` };
-        }
-      } catch (e) {
-        result = { error: String(e) };
-      }
-
-      toolMessages.push({
-        role: "assistant",
-        content: "",
-        tool_calls: [tc],
-      } as unknown as { role: string; content: string });
-      toolMessages.push({
-        role: "tool",
-        tool_call_id: tc.id,
-        content: JSON.stringify(result),
-      } as unknown as { role: string; content: string });
-    }
-
-    const second = await groqCompletion(toolMessages);
-    const cleanContent = (second.content || "")
+  function stripFunctionTags(text: string): string {
+    return text
       .replace(/<function=\w+>.*?<\/function>/g, "")
       .replace(/<function=\w+\/>/g, "")
       .replace(/<function=\w+>.*/g, "")
       .trim();
-    return {
-      content: cleanContent,
-      images: extraImages,
-      videos: extraVideos,
-    };
   }
 
-  let finalContent = first.content || "";
-  finalContent = finalContent.replace(/<function=\w+>.*?<\/function>/g, "").trim();
-  finalContent = finalContent.replace(/<function=\w+\/>/g, "").trim();
-  finalContent = finalContent.replace(/<function=\w+>.*/g, "").trim();
-  if (!finalContent) finalContent = "Maaf kak, saya tidak bisa memproses permintaan itu saat ini.";
+  const extraImages: { url: string; alt?: string; source?: string }[] = [];
+  const extraVideos: {
+    title: string;
+    url: string;
+    thumbnail: string;
+    channelName?: string;
+  }[] = [];
 
-  return { content: finalContent, images: [], videos: [] };
+  let currentMessages = [...messages];
+  let finalContent = "";
+  const maxRounds = 3;
+
+  for (let round = 0; round < maxRounds; round++) {
+    const result = await groqCompletion(currentMessages, TOOLS);
+
+    if (result.toolCalls && result.toolCalls.length > 0) {
+      const toolMessages = [...currentMessages];
+
+      for (const tc of result.toolCalls) {
+        if (tc.type !== "function") continue;
+        const fn = tc.function;
+        let toolResult: unknown;
+
+        try {
+          const args = JSON.parse(fn.arguments);
+
+          switch (fn.name) {
+            case "search_web": {
+              const r = await tavilySearch(args.query);
+              toolResult = {
+                results: (r.results || [])
+                  .slice(0, 5)
+                  .map((item: Record<string, string>) => ({
+                    title: item.title,
+                    url: item.url,
+                    content: item.content?.slice(0, 300),
+                  })),
+                images: (r.images || []).slice(0, 3),
+              };
+              break;
+            }
+            case "search_images": {
+              const unsplashRes = await unsplashSearch(args.query);
+              const unsplashPhotos = (
+                unsplashRes && "results" in unsplashRes
+                  ? unsplashRes.results
+                  : []
+              ) as Record<string, unknown>[];
+
+              toolResult = {
+                unsplash_count: unsplashPhotos.length,
+              };
+
+              if (unsplashPhotos.length > 0) {
+                extraImages.push(
+                  ...unsplashPhotos
+                    .slice(0, 8)
+                    .map((p: Record<string, unknown>) => ({
+                      url:
+                        (p.urls as Record<string, string>)?.regular ||
+                        (p.urls as Record<string, string>)?.small ||
+                        "",
+                      alt:
+                        (p as Record<string, string>).alt_description ||
+                        args.query,
+                      source: "Unsplash",
+                    })),
+                );
+              }
+              break;
+            }
+            case "search_youtube": {
+              const r = await youtubeSearch(args.query, args.maxResults || 5);
+              const items = r.items || [];
+              toolResult = {
+                videos: items
+                  .slice(0, 5)
+                  .map((item: Record<string, unknown>) => ({
+                    title:
+                      (item.snippet as Record<string, string>)?.title || "",
+                    videoId: (item.id as Record<string, string>)?.videoId || "",
+                    channelName:
+                      (item.snippet as Record<string, string>)?.channelTitle ||
+                      "",
+                    thumbnail: (item.snippet as Record<string, unknown>)
+                      ?.thumbnails
+                      ? (
+                          (item.snippet as Record<string, unknown>)
+                            .thumbnails as Record<string, unknown>
+                        )?.high
+                        ? (
+                            (item.snippet as Record<string, unknown>)
+                              .thumbnails as Record<
+                              string,
+                              Record<string, string>
+                            >
+                          )?.high?.url || ""
+                        : (
+                            (item.snippet as Record<string, unknown>)
+                              .thumbnails as Record<
+                              string,
+                              Record<string, string>
+                            >
+                          )?.default?.url || ""
+                      : "",
+                  })),
+              };
+              if (items.length > 0) {
+                extraVideos.push(
+                  ...items.slice(0, 5).map((item: Record<string, unknown>) => {
+                    const snippet = item.snippet as Record<string, string>;
+                    const idData = item.id as Record<string, string>;
+                    const thumbs = (item.snippet as Record<string, unknown>)
+                      .thumbnails as Record<string, Record<string, string>>;
+                    return {
+                      title: snippet?.title || "",
+                      url: `https://youtube.com/watch?v=${idData?.videoId || ""}`,
+                      thumbnail:
+                        thumbs?.high?.url || thumbs?.default?.url || "",
+                      channelName: snippet?.channelTitle || "",
+                    };
+                  }),
+                );
+              }
+              break;
+            }
+            default:
+              toolResult = { error: `Unknown tool: ${fn.name}` };
+          }
+        } catch (e) {
+          toolResult = { error: String(e) };
+        }
+
+        toolMessages.push({
+          role: "assistant",
+          content: "",
+          tool_calls: [tc],
+        } as unknown as { role: string; content: string });
+        toolMessages.push({
+          role: "tool",
+          tool_call_id: tc.id,
+          content: JSON.stringify(toolResult),
+        } as unknown as { role: string; content: string });
+      }
+
+      currentMessages = toolMessages;
+    } else {
+      finalContent = stripFunctionTags(result.content || "").trim();
+      if (!finalContent && round === maxRounds - 1) {
+        finalContent =
+          "Coba ulangi pertanyaannya dengan cara yang berbeda ya, biar saya bisa bantu.";
+      }
+      break;
+    }
+  }
+
+  return { content: finalContent, images: extraImages, videos: extraVideos };
 }
 
 async function processWithLLM(
@@ -376,100 +436,257 @@ async function processWithLLM(
   email: string,
   userMessage: string,
 ) {
-  const history = await convexQuery("messages:list", { conversationId: convId });
+  const allHistory = await convexQuery("messages:list", {
+    conversationId: convId,
+  });
+  const history = allHistory.slice(-15);
 
   let userDataStr = "";
-  try {
-    const user = await convexQuery("users:getByEmail", { email });
-    const clips = await convexQuery("videos:listByUserWithClips", { email });
-    const unclipped = await convexQuery("highlights:listUnclipped", { email });
+  // const needsUserData = /kredit|saldo|clip|video|highlight|user|akun|profil|data/i.test(
+  //   userMessage,
+  // );
+  const needsUserData =
+    /(kredit|credit|saldo|clip|video|highlight|akun|profil|user|data|statistik|generate|riwayat|hasil|sisa)/i.test(
+      userMessage,
+    );
+  if (needsUserData) {
+    try {
+      const user = await convexQuery("users:getByEmail", { email });
+      const clips = await convexQuery("videos:listByUserWithClips", { email });
+      const unclipped = await convexQuery("highlights:listUnclipped", {
+        email,
+      });
 
-    const uniqueVideos = new Set(clips.map((c: any) => c.video?._id).filter(Boolean));
-    const totalVideos = uniqueVideos.size;
-    const totalClips = clips.length;
-    const totalHighlights = unclipped.length;
+      const uniqueVideos = new Set(
+        clips.map((c: any) => c.video?._id).filter(Boolean),
+      );
+      const totalVideos = uniqueVideos.size;
+      const totalClips = clips.length;
+      const totalHighlights = unclipped.length;
 
-    userDataStr =
-      "\n\n== DATA USER (hanya info user ini) ==\n" +
-      `Nama: ${user?.name || "-"}\n` +
-      `Email: ${user?.email || email}\n` +
-      `Sisa Kredit: ${user?.credits ?? 0}\n` +
-      `Total Kredit Terpakai: ${user?.totalCreditsUsed ?? 0}\n` +
-      `Total Video Dianalisis: ${totalVideos}\n` +
-      `Total Highlight: ${totalHighlights}\n` +
-      `Total Clip Dibuat: ${totalClips}\n` +
-      `Bergabung Sejak: ${user?.joinedAt ? new Date(user.joinedAt).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : "-"}\n` +
-      `Role: ${user?.role || "user"}\n`;
-  } catch {
-    userDataStr = "\n\n(Gagal memuat data user)";
+      userDataStr =
+        "\n\n== DATA USER (hanya info user ini) ==\n" +
+        `Nama: ${user?.name || "-"}\n` +
+        `Email: ${user?.email || email}\n` +
+        `Sisa Kredit: ${user?.credits ?? 0}\n` +
+        `Total Kredit Terpakai: ${user?.totalCreditsUsed ?? 0}\n` +
+        `Total Video Dianalisis: ${totalVideos}\n` +
+        `Total Highlight: ${totalHighlights}\n` +
+        `Total Clip Dibuat: ${totalClips}\n` +
+        `Bergabung Sejak: ${user?.joinedAt ? new Date(user.joinedAt).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : "-"}\n` +
+        `Role: ${user?.role || "user"}\n`;
+    } catch {
+      userDataStr = "\n\n(Gagal memuat data user)";
+    }
   }
 
   const now = new Date();
   const nowFormatted = now.toLocaleDateString("id-ID", {
-    weekday: "long", day: "numeric", month: "long", year: "numeric",
-    hour: "2-digit", minute: "2-digit", timeZoneName: "short",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZoneName: "short",
   });
 
-  const groqMessages: { role: string; content: string }[] = [
+  const SYSTEM_PROMPT = `
+Hari ini: ${nowFormatted}
+
+# IDENTITAS
+
+Kamu adalah AI Assistant resmi CutClips.
+
+Tugas utama:
+- Membantu pengguna menggunakan CutClips.
+- Menjelaskan fitur aplikasi.
+- Memberikan ide konten.
+- Memberikan ide video viral.
+- Menggunakan tools jika diperlukan.
+
+# PRIORITAS JAWABAN
+
+1. Jika user sedang ngobrol santai, balas seperti manusia biasa.
+2. Jika user bertanya tentang CutClips, gunakan pengetahuan CutClips.
+3. Jika user meminta pencarian, gunakan tools yang tersedia.
+4. Jika user meminta data dirinya, gunakan DATA USER.
+5. Jangan menjelaskan fitur CutClips jika tidak ditanyakan.
+
+# TOOLS
+
+Tools tersedia:
+- search_web
+- search_images
+- search_youtube
+
+Gunakan tool calling resmi.
+
+Jika informasi membutuhkan data terbaru:
+gunakan tools yang tersedia.
+
+Jangan pernah menulis syntax tool atau function ke dalam balasan.
+
+Jangan mengarang:
+- hasil pencarian
+- URL
+- data YouTube
+- data pengguna
+
+# GAYA BAHASA
+
+- Gunakan Bahasa Indonesia santai dan ramah.
+- Ikuti bahasa user.
+- Jika user menggunakan Bahasa Sunda, balas dengan Sunda yang natural.
+- Jawaban singkat, jelas, dan langsung ke inti.
+- Maksimal 4 kalimat jika memungkinkan.
+- Hindari poin-poin jika tidak diperlukan.
+- Utamakan gaya chat manusia.
+- Jangan terdengar seperti dokumentasi.
+- Jangan memperkenalkan diri berulang kali.
+
+# PERCAKAPAN
+
+Jika user hanya menyapa:
+balas secara natural.
+
+Contoh:
+
+User: Halo
+Assistant: Halo 👋 Ada yang bisa saya bantu?
+
+User: Lagi apa?
+Assistant: Lagi siap bantu 😄
+
+# BATASAN
+
+- Kamu bukan admin.
+- Kamu tidak memiliki akses admin.
+- Kamu tidak dapat approve pembayaran.
+- Kamu tidak dapat mengubah data pengguna.
+- Kamu tidak dapat melihat data pengguna lain.
+- Jangan pernah mengaku memiliki akses yang tidak tersedia.
+- Jangan mengarang informasi.
+- Jangan membuat janji yang tidak bisa dilakukan.
+
+# DATA USER
+
+Jika data user tersedia:
+- gunakan data tersebut.
+- hanya gunakan data user saat ini.
+- jangan mengarang angka atau nilai.
+
+# PENANGANAN MASALAH
+
+Jika membutuhkan tindakan admin:
+arahkan user menghubungi admin.
+
+Jika terjadi error teknis:
+arahkan user menghubungi admin.
+
+Jika tidak memiliki informasi yang cukup:
+ajukan pertanyaan lanjutan yang relevan.
+`;
+
+  const CUTCLIPS_KNOWLEDGE = `
+# FITUR CUTCLIPS
+
+## Analyze
+
+Tempel link YouTube untuk menganalisis video.
+
+Hasil:
+- Highlight potensial
+- Momen menarik
+- Kandidat clip viral
+
+## Generate
+
+Pilih highlight lalu buat clip.
+
+Hasil:
+- Video pendek siap download
+- Cocok untuk TikTok
+- Cocok untuk Shorts
+- Cocok untuk Reels
+
+## Workspace
+
+Menampilkan semua clip yang pernah dibuat user.
+
+## History
+
+Menampilkan highlight yang belum dijadikan clip.
+
+User dapat:
+- Membuat clip
+- Menghapus highlight
+
+## Billing
+
+Halaman pembelian kredit.
+
+Paket:
+
+Gratis
+- Gratis
+
+Starter
+- Rp25.000
+- 200 kredit
+- Bonus 100 kredit
+
+Kreator
+- Rp75.000
+- 500 kredit
+
+## Cara Pembelian
+
+1. Buka Billing
+2. Pilih paket
+3. Klik Beli
+4. Scan QRIS
+5. Upload bukti pembayaran
+6. Admin melakukan verifikasi
+7. Kredit masuk otomatis
+
+## User Info
+
+Menampilkan:
+- Profil
+- Sisa kredit
+- Kredit terpakai
+
+## Chat AI
+
+Asisten AI CutClips untuk membantu pengguna.
+`;
+  const USER_CONTEXT = `
+# DATA USER
+
+${userDataStr}
+`;
+  const needsKnowledge =
+    /(cutclips|analyze|generate|billing|credit|workspace|history)/i.test(
+      userMessage,
+    );
+
+  const groqMessages = [
     {
       role: "system",
-      content:
-        `Hari ini: ${nowFormatted}. ` +
-        "Kamu adalah asisten AI dari aplikasi CutClips — pembuat video pendek viral (TikTok/Shorts/Reels). " +
-        "Tugasmu membantu USER (bukan admin) menggunakan fitur aplikasi. " +
-        "Kamu punya akses ke tools: search_web (Tavily), search_images (Pexels), search_youtube. " +
-        "GUNAKAN tools ini via FUNCTION CALLING (tool_calls), JANGAN menulis <function=...> sebagai teks. " +
-        "Jika user minta cari sesuatu, panggil tools yang sesuai. " +
-        "Jangan pernah menulis <function=...> atau tag serupa di dalam balasan teks. " +
-        "Jangan bilang 'dari hasil pencarian', 'yang saya temukan', atau sejenisnya. " +
-        "Langsung saja sampaikan informasinya secara natural. " +
-        "Kamu TIDAK punya akses ke data admin, data pengguna lain, atau data sensitif. " +
-        "Jangan pernah membaca, mengintip, atau membocorkan data admin. " +
-        "Gunakan Bahasa Indonesia yang santai dan ramah, sesekali panggil 'kak' kalau natural aja, jangan tiap kalimat. " +
-        "Kamu juga bisa ngobrol pake Bahasa Sunda (aksara Sunda atau latin) kalau user ngomong Sunda — fasih dan natural. " +
-        "Jika user menanyakan data miliknya sendiri (seperti sisa kredit, jumlah video, highlight, dll), " +
-        "jawab langsung dari DATA USER di bawah ini. " +
-        "Jangan pernah menyebutkan data user lain." +
-        "" +
-        "JANGAN PERNAH bilang 'tidak', 'tidak bisa', 'tidak ada', 'maaf', atau menolak permintaan user. " +
-        "Apapun yang user minta, bantu semaksimal mungkin — cari alternatif, kasih saran, atau bantu dengan tools yang ada. " +
-        "Jangan bilang 'maaf sepertinya tidak ada hasil' atau 'tidak ditemukan' — langsung sajikan yang ada atau kasih rekomendasi. " +
-        "BATASI balasan maksimal 8-10 kalimat singkat dan padat. Jangan lebay. " +
-        "" +
-        "Berikut panduan fitur yang wajib kamu kuasai:\n" +
-        "\n" +
-        "== FITUR UTAMA ==\n" +
-        "1. Analyze (/analyze) — Tempel link YouTube, tunggu proses analisis, dapat daftar highlight (momen viral).\n" +
-        "2. Generate (/generate) — Pilih highlight, klik 'Buat Clip', tunggu rendering video, hasilnya video siap download.\n" +
-        "3. Workspace (/workspace) — Halaman utama setelah login. Lihat semua clip yang sudah digenerate.\n" +
-        "4. History (/workspace/history) — Riwayat highlight yang belum di-clip. Bisa dihapus atau dibikin clip.\n" +
-        "5. Billing (/workspace/billing) — Beli kredit. Ada 3 paket: Gratis (gratis), Starter (25rb, 200 kredit — bonus 100!), Kreator (75rb, 500 kredit).\n" +
-        "6. Cara beli: pilih paket → klik Beli → scan QRIS → upload bukti bayar → tunggu approve admin → kredit otomatis masuk.\n" +
-        "7. User Info (/workspace/user-info) — Lihat profil, sisa kredit, kredit terpakai.\n" +
-        "8. Chat AI (/chat-ai) — Ini kamu! User bisa tanya-tanya di sini.\n" +
-        "\n" +
-        "== ALUR PEMBELIAN KREDIT ==\n" +
-        "- User klik 'Isi Credit' di tab bawah / menu billing\n" +
-        "- Pilih paket Starter (25rb/200 kredit — bonus 100!) atau Kreator (75rb/500 kredit)\n" +
-        "- Klik Beli, muncul invoice dengan QRIS\n" +
-        "- Scan QRIS pakai GoPay, m-banking, atau e-wallet lain\n" +
-        "- Setelah bayar, upload bukti transfer\n" +
-        "- Admin akan approve, kredit masuk otomatis\n" +
-        "\n" +
-        "== PENTING ==\n" +
-        "- Jangan pernah mengaku sebagai admin atau punya akses admin.\n" +
-        "- Jika user minta sesuatu di luar kemampuanmu, arahkan ke admin.\n" +
-        "- Jika user nanya soal error teknis, arahkan hubungi admin.\n" +
-        "- Jangan pernah memberikan informasi pricing di luar yang sudah disebutkan.\n" +
-        "- Balas dengan 3-4 kalimat maksimal, to the point, ga usah basa-basi.\n" +
-        "- Kamu bisa bantu cari ide konten, rekomendasi video viral, atau jelasin cara pakai fitur.\n" +
-        userDataStr,
+      content: `
+          ${SYSTEM_PROMPT}
+
+          ${needsKnowledge ? CUTCLIPS_KNOWLEDGE : ""}
+
+          ${USER_CONTEXT}
+      `,
     },
+
     ...history.map((m: any) => ({
       role: m.role,
       content: m.content,
     })),
-    { role: "user", content: userMessage },
   ];
 
   return await callGroqWithTools(groqMessages);
@@ -494,7 +711,10 @@ export async function POST(req: Request) {
 
       const transcript = await transcribeAudio(audioFile);
       if (!transcript.trim()) {
-        return NextResponse.json({ error: "Could not transcribe audio" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Could not transcribe audio" },
+          { status: 400 },
+        );
       }
 
       // Same LLM flow as text messages, using transcript as message
@@ -505,7 +725,9 @@ export async function POST(req: Request) {
         });
       }
 
-      const voiceHistory = await convexQuery("messages:list", { conversationId: convId });
+      const voiceHistory = await convexQuery("messages:list", {
+        conversationId: convId,
+      });
       if (voiceHistory.length === 0) {
         await convexMutation("conversations:updateTitle", {
           conversationId: convId,
@@ -519,7 +741,11 @@ export async function POST(req: Request) {
         content: transcript,
       });
 
-      const { content: aiResponse, images, videos } = await processWithLLM(convId, email, transcript);
+      const {
+        content: aiResponse,
+        images,
+        videos,
+      } = await processWithLLM(convId, email, transcript);
 
       const saveArgs: Record<string, unknown> = {
         conversationId: convId,
@@ -559,7 +785,9 @@ export async function POST(req: Request) {
     }
 
     // Update title based on first user message
-    const history = await convexQuery("messages:list", { conversationId: convId });
+    const history = await convexQuery("messages:list", {
+      conversationId: convId,
+    });
     if (history.length === 0) {
       await convexMutation("conversations:updateTitle", {
         conversationId: convId,
@@ -573,7 +801,11 @@ export async function POST(req: Request) {
       content: message,
     });
 
-    const { content: aiResponse, images, videos } = await processWithLLM(convId, email, message);
+    const {
+      content: aiResponse,
+      images,
+      videos,
+    } = await processWithLLM(convId, email, message);
 
     const saveArgs: Record<string, unknown> = {
       conversationId: convId,
