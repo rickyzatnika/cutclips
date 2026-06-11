@@ -51,7 +51,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex min-h-screen bg-black">
-      <aside className="flex w-56 flex-col border-r border-zinc-800 bg-zinc-900/50">
+      <aside className="fixed top-0 left-0 z-30 flex h-screen w-56 flex-col border-r border-zinc-800 bg-zinc-900/50">
         <div className="border-b border-zinc-800 px-5 py-4">
           <Link href="/dashboard" className="flex items-center gap-2">
             <span className="text-lg font-bold text-white">CutClips</span>
@@ -61,7 +61,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </Link>
         </div>
 
-        <nav className="flex flex-1 flex-col gap-1 p-3">
+        <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
           {navItems.map((item) => {
             const active = pathname === item.href;
             return (
@@ -94,7 +94,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </aside>
 
-      <main className="flex-1 overflow-auto">
+      <main className="ml-56 flex-1 overflow-auto">
         <div className="mx-auto max-w-6xl p-6 lg:p-8">
           {children}
         </div>
