@@ -1,9 +1,10 @@
 "use client";
 
 import { Suspense, useState, useRef } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import Image from "next/image";
 import { Loader2, ArrowLeft, CheckCircle, AlertCircle, Upload } from "lucide-react";
 
 const PACK_LABELS: Record<string, string> = {
@@ -13,7 +14,6 @@ const PACK_LABELS: Record<string, string> = {
 
 function InvoiceContent() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const { data: session } = useSession();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -124,12 +124,14 @@ function InvoiceContent() {
           <div className="mt-6 rounded-xl border border-zinc-700 bg-zinc-800/50 p-4 text-center">
             <p className="mb-3 text-sm text-zinc-400">Scan QRIS untuk membayar</p>
             <div className="mx-auto flex items-center justify-center">
-              <img
+              <Image
                 src="/QRIS.jpeg"
                 alt="QRIS"
+                width={200}
+                height={200}
                 className="max-w-50 rounded-lg"
                 onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = "none";
+                  (e.currentTarget).style.display = "none";
                 }}
               />
             </div>

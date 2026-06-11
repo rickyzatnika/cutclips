@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { signOut, useSession } from "next-auth/react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
@@ -41,7 +42,7 @@ export default function UserInfoPage() {
           {isLoading ? (
             <Skeleton className="h-14 w-14 rounded-full" />
           ) : session?.user?.image ? (
-            <img src={session.user.image} alt="" className="h-full w-full object-cover" />
+            <Image src={session.user.image} alt="" width={56} height={56} className="h-full w-full object-cover" unoptimized />
           ) : (
             <div className="flex h-full w-full items-center justify-center">
               <span className="text-xl font-bold text-emerald-400">

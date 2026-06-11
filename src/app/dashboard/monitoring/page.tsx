@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { useSession } from "next-auth/react";
 import { api } from "@convex/_generated/api";
+import type { Id } from "@convex/_generated/dataModel";
 import {
   Clock,
   AlertTriangle,
@@ -355,7 +356,7 @@ export default function MonitoringPage() {
                 </tr>
               </thead>
               <tbody>
-                {data.exports.recent.map((exp: any) => (
+                {data.exports.recent.map((exp: { _id: Id<"exports">; status: string; progress: string | null; error: string | null; videoTitle: string | null; highlightTitle: string | null; userEmail: string | null; createdAt: number }) => (
                   <tr
                     key={exp._id}
                     className="border-b border-zinc-800/50 text-zinc-300"
@@ -450,7 +451,7 @@ export default function MonitoringPage() {
                 </tr>
               </thead>
               <tbody>
-                {data.analyzeJobs.recent.map((job: any) => (
+                {data.analyzeJobs.recent.map((job: { _id: Id<"analyzeJobs">; status: string; title: string | null; youtubeUrl: string | null; createdAt: number; error: string | null }) => (
                   <tr
                     key={job._id}
                     className="border-b border-zinc-800/50 text-zinc-300"

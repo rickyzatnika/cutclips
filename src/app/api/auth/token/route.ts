@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    const idToken = (session as any)?.idToken;
+    const idToken = (session as { idToken?: string })?.idToken;
     return Response.json({ accessToken: idToken || null });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

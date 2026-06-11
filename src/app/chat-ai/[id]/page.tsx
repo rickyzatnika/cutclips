@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
+import Image from "next/image";
 import { useSession } from "next-auth/react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
+import type { Id } from "@convex/_generated/dataModel";
 import { useRouter, useParams } from "next/navigation";
 import {
   Send,
@@ -66,6 +68,7 @@ export default function ChatDetailPage() {
   const router = useRouter();
   const params = useParams();
   const conversationId = params.id as string;
+  const convId = conversationId ? (conversationId as unknown as Id<"conversations">) : undefined;
 
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -84,13 +87,14 @@ export default function ChatDetailPage() {
   );
   const messages = useQuery(
     api.messages.list,
-    conversationId ? { conversationId: conversationId as any } : "skip",
+    convId ? { conversationId: convId } : "skip",
   ) as Message[] | undefined;
 
   const currentConv = conversations?.find((c) => c._id === conversationId);
 
   const deleteConversation = useMutation(api.conversations.remove);
   const createConversation = useMutation(api.conversations.create);
+  const updateTitle = useMutation(api.conversations.updateTitle);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -180,6 +184,9 @@ export default function ChatDetailPage() {
           });
           const data = await res.json();
           if (!res.ok) throw new Error(data.error);
+          if ((!messages || messages.length === 0) && conversationId) {
+            if (convId) updateTitle({ conversationId: convId, title: (data.transcript || "").slice(0, 60) });
+          }
           if (data.content && "speechSynthesis" in window) {
             const utterance = new SpeechSynthesisUtterance(data.content);
             utterance.lang = "id-ID";
@@ -227,6 +234,9 @@ export default function ChatDetailPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
+      if ((!messages || messages.length === 0) && convId) {
+        updateTitle({ conversationId: convId, title: text.slice(0, 60) });
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -242,7 +252,7 @@ export default function ChatDetailPage() {
   };
 
   const handleDelete = async (id: string) => {
-    await deleteConversation({ conversationId: id as any });
+    await deleteConversation({ conversationId: id as unknown as Id<"conversations"> });
     if (id === conversationId) {
       router.push("/chat-ai");
     }
@@ -357,7 +367,7 @@ export default function ChatDetailPage() {
 
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto pt-14 pb-20">
-        <div className="space-y-4 p-4">
+        <div className="mx-auto max-w-3xl space-y-4 p-4">
           {!messages && (
             <div className="flex items-center justify-center pt-20">
               <Loader2 className="h-5 w-5 animate-spin text-zinc-600" />
@@ -411,11 +421,13 @@ export default function ChatDetailPage() {
                         rel="noopener noreferrer"
                         className="overflow-hidden rounded-xl border border-zinc-700"
                       >
-                        <img
+                        <Image
                           src={img.url}
                           alt={img.alt || ""}
+                          width={200}
+                          height={96}
                           className="h-24 w-full object-cover"
-                          loading="lazy"
+                          unoptimized
                         />
                         {img.source && (
                           <p className="px-2 py-1 text-[10px] text-zinc-500">
@@ -436,10 +448,13 @@ export default function ChatDetailPage() {
                         rel="noopener noreferrer"
                         className="flex items-center gap-3 rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 transition-colors hover:bg-zinc-800"
                       >
-                        <img
+                        <Image
                           src={v.thumbnail}
                           alt={v.title}
+                          width={96}
+                          height={64}
                           className="h-16 w-24 rounded-lg object-cover"
+                          unoptimized
                         />
                         <div className="min-w-0 flex-1">
                           <p className="line-clamp-2 text-xs font-medium text-white">
@@ -486,7 +501,7 @@ export default function ChatDetailPage() {
           paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 0.75rem)",
         }}
       >
-        <div className="relative flex items-end">
+        <div className="mx-auto max-w-3xl relative flex items-end">
           <textarea
             ref={inputRef}
             value={input}

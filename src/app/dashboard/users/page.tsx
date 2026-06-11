@@ -79,7 +79,7 @@ export default function UsersPage() {
   const [deleteModal, setDeleteModal] = useState<Doc<"users"> | null>(null);
   const [bulkDeleteModal, setBulkDeleteModal] = useState(false);
 
-  const userList = queryUsers ?? [];
+  const userList = useMemo(() => queryUsers ?? [], [queryUsers]);
   const filtered = useMemo(
     () => userList.filter(
       (x) =>

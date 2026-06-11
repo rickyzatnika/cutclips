@@ -42,7 +42,7 @@ const TOOLS = [
     function: {
       name: "search_images",
       description:
-        "Cari gambar dari Pexels dan Unsplash berdasarkan kata kunci",
+        "Cari gambar dari Unsplash dan Pexels berdasarkan kata kunci",
       parameters: {
         type: "object",
         properties: {
@@ -314,7 +314,11 @@ async function callGroqWithTools(
               break;
             }
             case "search_images": {
-              const unsplashRes = await unsplashSearch(args.query);
+              const [pexelRes, unsplashRes] = await Promise.all([
+                pexelsSearch(args.query),
+                unsplashSearch(args.query),
+              ]);
+              const pexelPhotos = pexelRes.photos || [];
               const unsplashPhotos = (
                 unsplashRes && "results" in unsplashRes
                   ? unsplashRes.results
@@ -322,13 +326,32 @@ async function callGroqWithTools(
               ) as Record<string, unknown>[];
 
               toolResult = {
+                pexels_count: pexelPhotos.length,
                 unsplash_count: unsplashPhotos.length,
               };
 
+              if (pexelPhotos.length > 0) {
+                extraImages.push(
+                  ...pexelPhotos
+                    .slice(0, 4)
+                    .map((p: Record<string, unknown>) => {
+                      const psrc = p.src as Record<string, string>;
+                      return {
+                        url:
+                          psrc?.medium ||
+                          psrc?.original ||
+                          (p as Record<string, string>).url,
+                        alt:
+                          (p as Record<string, string>).alt || args.query,
+                        source: "Pexels",
+                      };
+                    }),
+                );
+              }
               if (unsplashPhotos.length > 0) {
                 extraImages.push(
                   ...unsplashPhotos
-                    .slice(0, 8)
+                    .slice(0, 4)
                     .map((p: Record<string, unknown>) => ({
                       url:
                         (p.urls as Record<string, string>)?.regular ||
@@ -458,7 +481,7 @@ async function processWithLLM(
       });
 
       const uniqueVideos = new Set(
-        clips.map((c: any) => c.video?._id).filter(Boolean),
+        clips.map((c: Record<string, unknown>) => (c.video as Record<string, unknown>)?._id).filter(Boolean),
       );
       const totalVideos = uniqueVideos.size;
       const totalClips = clips.length;
@@ -489,6 +512,7 @@ async function processWithLLM(
     hour: "2-digit",
     minute: "2-digit",
     timeZoneName: "short",
+    timeZone: "Asia/Jakarta",
   });
 
   const SYSTEM_PROMPT = `
@@ -640,9 +664,9 @@ Kreator
 - Rp75.000
 - 500 kredit
 
-## Cara Pembelian
+## Cara Pembelian/isi credit/topup credit
 
-1. Buka Billing
+1. Tap tombol Isi Credit
 2. Pilih paket
 3. Klik Beli
 4. Scan QRIS
@@ -683,9 +707,9 @@ ${userDataStr}
       `,
     },
 
-    ...history.map((m: any) => ({
-      role: m.role,
-      content: m.content,
+    ...history.map((m: Record<string, unknown>) => ({
+      role: m.role as string,
+      content: m.content as string,
     })),
   ];
 

@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { convexMutation } from "@/lib/convex-rest";
+import Image from "next/image";
 import { useToast } from "@/components/ui/toast";
 import { Loader2, CheckCircle, XCircle, Clock, ExternalLink, ImageIcon, Trash2, X } from "lucide-react";
 import type { Doc } from "@convex/_generated/dataModel";
@@ -205,7 +206,7 @@ export default function PaymentsPage() {
                   <div className="shrink-0">
                     {payment.proofUrl ? (
                       <a href={payment.proofUrl} target="_blank" rel="noreferrer" className="group relative block h-32 w-32 overflow-hidden rounded-xl bg-zinc-800">
-                        <img src={payment.proofUrl} alt="Bukti transfer" className="h-full w-full object-cover transition-opacity group-hover:opacity-80" />
+                        <Image src={payment.proofUrl} alt="Bukti transfer" width={128} height={128} className="h-full w-full object-cover transition-opacity group-hover:opacity-80" unoptimized />
                         <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/40">
                           <ExternalLink className="h-6 w-6 text-white opacity-0 transition-opacity group-hover:opacity-100" />
                         </div>

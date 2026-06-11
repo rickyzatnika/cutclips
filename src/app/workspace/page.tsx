@@ -21,6 +21,8 @@ import {
   TrendingUp,
   List,
   AlertTriangle,
+  Sparkles,
+  Coins,
 } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -144,6 +146,10 @@ export default function WorkspacePage() {
   const sentinelRef = useRef<HTMLDivElement>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const userEmail = session?.user?.email;
+  const userData = useQuery(
+    api.users.getByEmail,
+    userEmail ? { email: userEmail } : "skip",
+  );
   const latestPayment = useQuery(
     api.payments.getLatestByUser,
     userEmail ? { email: userEmail } : "skip",
@@ -299,6 +305,46 @@ export default function WorkspacePage() {
         </div>
       </form>
 
+      {/* Stats row */}
+      <div className="mb-6 grid grid-cols-3 gap-3">
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3">
+          <p className="text-xs text-zinc-500">Kredit</p>
+          <p className="mt-1 flex items-center gap-1.5 text-lg font-bold text-white">
+            <Coins className="h-4 w-4 text-emerald-400" />
+            {userData ? (userData as any).credits?.toLocaleString() : "..."}
+          </p>
+        </div>
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3">
+          <p className="text-xs text-zinc-500">Total Clip</p>
+          <p className="mt-1 flex items-center gap-1.5 text-lg font-bold text-white">
+            <Video className="h-4 w-4 text-emerald-400" />
+            {clips.length || "..."}
+          </p>
+        </div>
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3">
+          <p className="text-xs text-zinc-500">Siap Download</p>
+          <p className="mt-1 flex items-center gap-1.5 text-lg font-bold text-white">
+            <Download className="h-4 w-4 text-emerald-400" />
+            {completed.length || "..."}
+          </p>
+        </div>
+      </div>
+
+      {/* AI Insight */}
+      {completed.length > 0 && (
+        <div className="mb-6 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
+          <div className="flex items-center gap-2 text-xs text-emerald-400">
+            <Sparkles className="h-3.5 w-3.5" />
+            AI Insight
+          </div>
+          <p className="mt-1 text-sm text-zinc-400">
+            {completed.length > 5
+              ? `Anda sudah membuat ${completed.length} clip — terus konsisten! 🔥`
+              : `${completed.length} clip berhasil dibuat. Tempel URL YouTube baru untuk menambah koleksi.`}
+          </p>
+        </div>
+      )}
+
       {/* Filter & Sort */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
@@ -427,10 +473,14 @@ export default function WorkspacePage() {
               ))}
             </div>
           ) : completed.length === 0 ? (
-            <div className="rounded-2xl border border-zinc-800 p-12 text-center">
-              <Film className="mx-auto mb-3 h-8 w-8 text-zinc-600" />
-              <p className="text-sm text-zinc-500">
-                Belum ada clip. Tempel URL YouTube di atas untuk memulai.
+            <div className="rounded-2xl border border-zinc-800 px-6 py-14 text-center">
+              <Film className="mx-auto mb-4 h-10 w-10 text-zinc-700" />
+              <h3 className="text-base font-semibold text-white">
+                Belum Ada Clip
+              </h3>
+              <p className="mx-auto mt-1 max-w-sm text-sm text-zinc-500">
+                Tempel link YouTube pertama kamu, biarkan AI menemukan highlight
+                terbaik dan buat clip viral dalam hitungan menit.
               </p>
             </div>
           ) : (
@@ -460,12 +510,7 @@ export default function WorkspacePage() {
                           onRequestDelete={(id) => setConfirmDeleteId(id)}
                         />
                       </div>
-                    </div>
-                    <div className="p-3">
-                      <h3 className="truncate text-sm font-medium text-white">
-                        {clip.highlightTitle}
-                      </h3>
-                      <p className="mt-1 text-xs text-zinc-500">
+                      <div className="absolute bottom-2 left-2 rounded-md bg-black/70 px-2 py-0.5 text-xs text-white">
                         {Math.floor(clip.startTime / 60)}:
                         {Math.floor(clip.startTime % 60)
                           .toString()
@@ -475,6 +520,20 @@ export default function WorkspacePage() {
                         {Math.floor(clip.endTime % 60)
                           .toString()
                           .padStart(2, "0")}
+                      </div>
+                    </div>
+                    <div className="p-3">
+                      <h3 className="truncate text-sm font-medium text-white">
+                        {clip.highlightTitle}
+                      </h3>
+                      <p className="mt-1 truncate text-xs text-zinc-600">
+                        {clip.video.title}
+                      </p>
+                      <p className="mt-1 text-[11px] text-zinc-700">
+                        {new Date(clip.createdAt).toLocaleDateString("id-ID", {
+                          day: "numeric",
+                          month: "short",
+                        })}
                       </p>
                     </div>
                   </div>

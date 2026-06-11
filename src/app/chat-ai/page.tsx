@@ -4,12 +4,12 @@ import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
+import type { Id } from "@convex/_generated/dataModel";
 import { useRouter } from "next/navigation";
 import {
   Plus,
   Trash2,
   Loader2,
-  MessageCircle,
   Sparkles,
 } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
@@ -48,7 +48,7 @@ export default function ChatAIListPage() {
     setDeleting(id);
     setConfirmDelete(null);
     try {
-      await deleteConversation({ conversationId: id as any });
+      await deleteConversation({ conversationId: id as unknown as Id<"conversations"> });
       toast({ title: "Percakapan dihapus", variant: "success" });
     } catch (err) {
       toast({
@@ -63,7 +63,7 @@ export default function ChatAIListPage() {
 
   return (
     <div className="flex flex-col bg-[#050505] min-h-screen">
-      <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-4">
+      <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-4 sm:px-6">
         <h1 className="text-lg font-bold text-white">Tanya AI</h1>
         <button
           onClick={handleNewChat}
@@ -74,28 +74,29 @@ export default function ChatAIListPage() {
         </button>
       </div>
 
-      {!conversations ? (
-        <div className="flex flex-1 items-center justify-center py-20">
-          <Loader2 className="h-6 w-6 animate-spin text-zinc-600" />
-        </div>
-      ) : conversations.length === 0 ? (
-        <div className="flex flex-1 flex-col items-center justify-center px-4 py-20 text-center">
-          <Sparkles className="mb-4 h-12 w-12 text-emerald-400/60" />
-          <h2 className="text-lg font-semibold text-white">
-            Belum ada percakapan
-          </h2>
-          <p className="mt-1 max-w-xs text-sm text-zinc-500">
-            Mulai chat dengan AI untuk mencari ide konten atau diskusi
-          </p>
-          <button
-            onClick={handleNewChat}
-            className="mt-6 cursor-pointer rounded-lg bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-emerald-400"
-          >
-            Mulai Percakapan
-          </button>
-        </div>
-      ) : (
-        <div className="flex-1 space-y-1 p-3 pb-24">
+      <div className="flex-1 w-full max-w-2xl mx-auto px-3">
+        {!conversations ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="h-6 w-6 animate-spin text-zinc-600" />
+          </div>
+        ) : conversations.length === 0 ? (
+          <div className="flex flex-col items-center justify-center px-4 py-20 text-center">
+            <Sparkles className="mb-4 h-12 w-12 text-emerald-400/60" />
+            <h2 className="text-lg font-semibold text-white">
+              Belum ada percakapan
+            </h2>
+            <p className="mt-1 max-w-xs text-sm text-zinc-500">
+              Mulai chat dengan AI untuk mencari ide konten atau diskusi
+            </p>
+            <button
+              onClick={handleNewChat}
+              className="mt-6 cursor-pointer rounded-lg bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-emerald-400"
+            >
+              Mulai Percakapan
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-1 pb-24 sm:pb-6">
           {conversations.map((conv) => (
             <div
               key={conv._id}
@@ -128,6 +129,7 @@ export default function ChatAIListPage() {
           ))}
         </div>
       )}
+      </div>
 
       {/* Confirm delete modal */}
       {confirmDelete && (

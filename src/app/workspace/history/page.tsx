@@ -3,6 +3,7 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { useSession } from "next-auth/react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
@@ -319,10 +320,13 @@ export default function HistoryPage() {
             return (
               <div key={video._id}>
                 <div className="mb-4 flex items-center gap-3 border-b border-zinc-800 pb-3">
-                  <img
+                  <Image
                     src={thumb}
                     alt={video.title}
+                    width={64}
+                    height={40}
                     className="h-10 w-16 rounded-lg object-cover"
+                    unoptimized
                   />
                   <div className="min-w-0 flex-1">
                     <Link

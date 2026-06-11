@@ -2,7 +2,6 @@
 
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { Skeleton } from "@/components/ui/skeleton";

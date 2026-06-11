@@ -13,6 +13,7 @@ import {
   History,
   Sparkles,
   CreditCard,
+  MessageCircle,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -69,6 +70,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             >
               <Sparkles className="h-3.5 w-3.5" />
               Analyze
+            </Link>
+            <Link
+              href="/chat-ai"
+              className={`flex items-center gap-1 text-sm ${
+                pathname === "/chat-ai" || pathname.startsWith("/chat-ai/")
+                  ? "text-white"
+                  : "text-zinc-500 hover:text-white"
+              }`}
+            >
+              <MessageCircle className="h-3.5 w-3.5" />
+              Tanya AI
             </Link>
             <Link
               href="/workspace/billing"
