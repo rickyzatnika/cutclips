@@ -11,6 +11,7 @@ import {
   Flame,
   Sparkles,
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const CATEGORY_EMOJIS: Record<string, string> = {
   funny: "😂",
@@ -230,11 +231,35 @@ function AnalyzeContent() {
 
   if (pollStatus === "loading" || pollStatus === "processing") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-black px-4 pb-16">
-        <div className="w-full max-w-md text-center">
-          <Loader2 className="mx-auto h-10 w-10 animate-spin text-emerald-400" />
-          <p className="mt-4 text-sm text-zinc-400">{statusMessage}</p>
-          <p className="mt-2 text-xs text-zinc-600">Proses ini biasanya memakan waktu 30-60 detik</p>
+      <div className="min-h-screen bg-black pb-16">
+        <div className="mx-auto max-w-4xl px-4 py-8">
+          <Skeleton className="mb-6 h-4 w-20" />
+          <div className="mb-8 space-y-2">
+            <Skeleton className="h-6 w-72" />
+            <Skeleton className="h-4 w-24" />
+          </div>
+          <div className="space-y-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <Skeleton className="h-5 w-3/4" />
+                    <div className="flex gap-3">
+                      <Skeleton className="h-3 w-20" />
+                      <Skeleton className="h-3 w-16" />
+                      <Skeleton className="h-3 w-24" />
+                    </div>
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-3 w-2/3" />
+                  </div>
+                  <Skeleton className="h-10 w-24 shrink-0 rounded-lg" />
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="mt-6 text-center text-xs text-zinc-600">
+            {statusMessage} — Biasanya 30-60 detik
+          </p>
         </div>
       </div>
     );

@@ -12,6 +12,7 @@ import {
   LogIn,
   XCircle,
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type ExportStatus = "idle" | "saving" | "saved" | "exporting" | "queued" | "processing" | "completed" | "failed";
 
@@ -214,9 +215,14 @@ function GenerateContent() {
         </div>
 
         {status === "saving" && (
-          <div className="flex items-center justify-center gap-2 py-8 text-sm text-zinc-400">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Menyimpan highlight...
+          <div className="space-y-3 py-4">
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-10 w-16 rounded-lg" />
+              <div className="space-y-2 flex-1">
+                <Skeleton className="h-4 w-48" />
+                <Skeleton className="h-3 w-32" />
+              </div>
+            </div>
           </div>
         )}
 
@@ -239,24 +245,24 @@ function GenerateContent() {
         )}
 
         {(status === "exporting" || status === "queued" || status === "processing") && (
-          <div className="space-y-4 text-center">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-zinc-900">
-              <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
+          <div className="space-y-4">
+            <Skeleton className="aspect-[9/16] w-full max-w-xs mx-auto rounded-2xl" />
+            <div className="text-center">
+              <h2 className="text-lg font-semibold text-white">
+                {status === "exporting" ? "Membuat clip..."
+                  : status === "queued" ? "Clip dalam antrian..."
+                  : "Memproses clip..."}
+              </h2>
+              {status === "queued" && queueInfo ? (
+                <p className="text-sm text-zinc-500">
+                  {queueInfo.ahead > 0
+                    ? `${queueInfo.ahead} antrian di depan. Estimasi ${Math.ceil(queueInfo.estimatedSeconds / 60)} menit.`
+                    : "Kamu berikutnya! Sebentar lagi..."}
+                </p>
+              ) : (
+                <p className="text-sm text-zinc-500">Biasanya memakan waktu 30-60 detik.</p>
+              )}
             </div>
-            <h2 className="text-lg font-semibold text-white">
-              {status === "exporting" ? "Membuat clip..."
-                : status === "queued" ? "Clip dalam antrian..."
-                : "Memproses clip..."}
-            </h2>
-            {status === "queued" && queueInfo ? (
-              <p className="text-sm text-zinc-500">
-                {queueInfo.ahead > 0
-                  ? `${queueInfo.ahead} antrian di depan. Estimasi ${Math.ceil(queueInfo.estimatedSeconds / 60)} menit.`
-                  : "Kamu berikutnya! Sebentar lagi..."}
-              </p>
-            ) : (
-              <p className="text-sm text-zinc-500">Biasanya memakan waktu 30-60 detik.</p>
-            )}
           </div>
         )}
 

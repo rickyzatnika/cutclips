@@ -23,6 +23,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const BATCH_SIZE = 3;
 
@@ -270,9 +271,36 @@ export default function HistoryPage() {
       </div>
 
       {!data ? (
-        <div className="rounded-2xl border border-zinc-800 p-12 text-center">
-          <div className="mx-auto mb-3 h-6 w-6 animate-spin rounded-full border-2 border-zinc-600 border-t-emerald-400" />
-          <p className="text-sm text-zinc-500">Memuat...</p>
+        <div className="space-y-8">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div key={i}>
+                <div className="mb-4 flex items-center gap-3 border-b border-zinc-800 pb-3">
+                <Skeleton className="h-10 w-16 rounded-lg" />
+                <Skeleton className="h-4 w-48" />
+              </div>
+              <div className="space-y-2">
+                {Array.from({ length: 2 }).map((_, j) => (
+                  <div key={j} className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4">
+                    <div className="flex items-start gap-3">
+                      <Skeleton className="mt-0.5 h-4 w-4 shrink-0" />
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Skeleton className="h-4 w-40" />
+                          <Skeleton className="h-4 w-16 rounded-full" />
+                        </div>
+                        <div className="flex gap-3">
+                          <Skeleton className="h-3 w-24" />
+                          <Skeleton className="h-3 w-20" />
+                          <Skeleton className="h-3 w-20" />
+                        </div>
+                        <Skeleton className="h-3 w-64" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       ) : grouped.length === 0 ? (
         <div className="rounded-2xl border border-zinc-800 p-12 text-center">
@@ -290,7 +318,7 @@ export default function HistoryPage() {
               video.thumbnailUrl || getYoutubeThumbnail(video.youtubeUrl);
             return (
               <div key={video._id}>
-                <div className="mb-3 flex items-center gap-3">
+                <div className="mb-4 flex items-center gap-3 border-b border-zinc-800 pb-3">
                   <img
                     src={thumb}
                     alt={video.title}
@@ -319,74 +347,79 @@ export default function HistoryPage() {
                     return (
                       <div
                         key={h._id}
-                        className="flex items-start gap-3 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 transition-colors hover:border-zinc-700"
+                        className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 transition-colors hover:border-zinc-700"
                       >
-                        <button
-                          onClick={() => toggleSelect(h._id)}
-                          className="mt-0.5 shrink-0 cursor-pointer text-zinc-600 hover:text-white transition-colors"
-                        >
-                          {checked ? (
-                            <CheckSquare className="h-4 w-4 text-emerald-400" />
-                          ) : (
-                            <Square className="h-4 w-4" />
-                          )}
-                        </button>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <h3 className="truncate text-sm font-medium text-white">
-                              {h.title}
-                            </h3>
-                            <span className="shrink-0 rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] text-zinc-400">
-                              {CATEGORY_LABELS[h.category] || h.category}
-                            </span>
+                        <div className="flex items-start gap-3">
+                          <button
+                            onClick={() => toggleSelect(h._id)}
+                            className="mt-0.5 shrink-0 cursor-pointer text-zinc-600 hover:text-white transition-colors"
+                          >
+                            {checked ? (
+                              <CheckSquare className="h-4 w-4 text-emerald-400" />
+                            ) : (
+                              <Square className="h-4 w-4" />
+                            )}
+                          </button>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <h3 className="truncate text-sm font-medium text-white">
+                                {h.title}
+                              </h3>
+                              <span className="shrink-0 rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] text-zinc-400">
+                                {CATEGORY_LABELS[h.category] || h.category}
+                              </span>
+                            </div>
+                            <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-zinc-500">
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {formatTime(h.startTime)} &mdash;{" "}
+                                {formatTime(h.endTime)}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <TrendingUp className="h-3 w-3" />
+                                Virality {h.viralityScore}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Sparkles className="h-3 w-3" />
+                                Confidence {h.confidenceScore}
+                              </span>
+                            </div>
+                            {h.reasoning && (
+                              <p className="mt-1 text-xs text-zinc-600 line-clamp-1">
+                                <MessageCircle className="mr-1 inline h-3 w-3" />
+                                {h.reasoning}
+                              </p>
+                            )}
                           </div>
-                          <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-zinc-500">
-                            <span className="flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              {formatTime(h.startTime)} &mdash;{" "}
-                              {formatTime(h.endTime)}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <TrendingUp className="h-3 w-3" />
-                              Virality {h.viralityScore}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Sparkles className="h-3 w-3" />
-                              Confidence {h.confidenceScore}
-                            </span>
-                          </div>
-                          {h.reasoning && (
-                            <p className="mt-1 text-xs text-zinc-600 line-clamp-1">
-                              <MessageCircle className="mr-1 inline h-3 w-3" />
-                              {h.reasoning}
-                            </p>
-                          )}
                         </div>
-                        <button
-                          onClick={() => handleGenerate(h._id)}
-                          disabled={generating === h._id}
-                          className="flex shrink-0 items-center gap-1.5 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-emerald-400 disabled:opacity-50 cursor-pointer"
-                        >
-                          {generating === h._id ? (
-                            <>
-                              <div className="h-4 w-4 animate-spin rounded-full border-2 border-black border-t-transparent" />
-                              Memproses
-                            </>
-                          ) : (
-                            <>
-                              <Zap className="h-4 w-4" />
-                              Buat Clip
-                            </>
-                          )}
-                        </button>
-                        <button
-                          onClick={() =>
-                            setConfirm({ type: "single", highlightId: h._id })
-                          }
-                          className="shrink-0 cursor-pointer rounded-lg p-2 text-zinc-600 transition-colors hover:bg-red-500/10 hover:text-red-400"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        <div className="mt-3 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleGenerate(h._id)}
+                              disabled={generating === h._id}
+                              className="flex items-center gap-1.5 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-emerald-400 disabled:opacity-50 cursor-pointer"
+                            >
+                              {generating === h._id ? (
+                                <>
+                                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-black border-t-transparent" />
+                                  Memproses
+                                </>
+                              ) : (
+                                <>
+                                  <Zap className="h-4 w-4" />
+                                  Buat Clip
+                                </>
+                              )}
+                            </button>
+                            <button
+                              onClick={() => setConfirm({ type: "single", highlightId: h._id })}
+                              className="cursor-pointer rounded-lg p-2 text-zinc-600 transition-colors hover:bg-red-500/10 hover:text-red-400"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                          <span className="text-xs text-zinc-600">{h.endTime - h.startTime}s</span>
+                        </div>
                       </div>
                     );
                   })}

@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const creditPacks = [
   { id: "starter", credits: 100, price: 25000, label: "Rp25.000" },
@@ -14,7 +15,8 @@ export default function BillingPage() {
   const { data: session } = useSession();
   const router = useRouter();
   const user = useQuery(api.users.getByEmail, session?.user?.email ? { email: session.user.email } : "skip");
-  const credits = user?.credits ?? null;
+  const credits = user?.credits;
+  const isLoading = user === undefined;
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
@@ -26,7 +28,7 @@ export default function BillingPage() {
       <div className="mb-8 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6">
         <p className="text-sm text-zinc-400">Current Balance</p>
         <p className="mt-1 text-3xl font-bold text-white">
-          {credits ?? 0} Credits
+          {isLoading ? <Skeleton className="inline-block h-8 w-16 align-middle" /> : credits ?? 0} Credits
         </p>
       </div>
 

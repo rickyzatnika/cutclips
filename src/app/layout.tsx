@@ -1,6 +1,6 @@
 import "./globals.css";
 import { Inter } from "next/font/google";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Providers } from "@/providers/providers";
 import { MobileNav } from "@/components/layout/mobile-nav";
 
@@ -23,12 +23,15 @@ export const metadata: Metadata = {
     title: "CutClips",
     statusBarStyle: "black-translucent",
   },
-  themeColor: "#10b981",
   other: {
     "mobile-web-app-capable": "yes",
     "apple-mobile-web-app-capable": "yes",
     "apple-mobile-web-app-status-bar-style": "black-translucent",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#10b981",
 };
 
 export default function RootLayout({

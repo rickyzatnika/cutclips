@@ -23,6 +23,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const BATCH_SIZE = 15;
 
@@ -333,7 +334,7 @@ export default function WorkspacePage() {
             className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-300"
           >
             <List className="h-3 w-3" />
-            Riwayat Highlight
+            Riwayat
           </Link>
         </div>
         <div className="flex items-center gap-2">
@@ -411,9 +412,19 @@ export default function WorkspacePage() {
           </h2>
 
           {loading ? (
-            <div className="rounded-2xl border border-zinc-800 p-12 text-center">
-              <Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-zinc-600" />
-              <p className="text-sm text-zinc-500">Memuat...</p>
+            <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
+              {Array.from({ length: 10 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900"
+                >
+                  <Skeleton className="aspect-9/16 w-full rounded-none" />
+                  <div className="space-y-2 p-3">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-3 w-1/2" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : completed.length === 0 ? (
             <div className="rounded-2xl border border-zinc-800 p-12 text-center">
@@ -433,7 +444,7 @@ export default function WorkspacePage() {
                     key={clip.exportId}
                     className="group relative overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 transition-colors hover:border-zinc-700"
                   >
-                    <div className="relative aspect-[9/16] bg-zinc-950">
+                    <div className="relative aspect-9/16 bg-zinc-950">
                       <video
                         src={clip.downloadUrl}
                         poster={poster}
