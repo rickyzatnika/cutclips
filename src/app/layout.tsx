@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   description:
     "AI menemukan momen paling menarik dari video YouTube kamu secara otomatis. Ubah video panjang jadi Shorts, Reels, dan TikTok viral.",
   manifest: "/manifest.json",
-  icons: { icon: "/icon.svg" },
+  icons: { icon: "/icon.svg?v=2", apple: "/icon.svg?v=2" },
   appleWebApp: {
     capable: true,
     title: "CutClips",

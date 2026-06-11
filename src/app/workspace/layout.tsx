@@ -96,7 +96,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             )}
             <div className="ml-2 flex items-center gap-4 border-l border-zinc-800 pl-4">
               <Link
-                href="/pricing"
+                href="/workspace/billing"
                 className="text-sm text-zinc-400 hover:text-white"
               >
                 Credits = {isLoading ? <Skeleton className="inline-block h-4 w-10 align-middle" /> : credits ?? 0}
@@ -112,7 +112,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
           {/* Mobile credits */}
           <Link
-            href="/pricing"
+            href="/workspace/user-info"
             className="flex sm:hidden items-center gap-1 text-xs text-zinc-400"
           >
             <User className="h-3.5 w-3.5" />

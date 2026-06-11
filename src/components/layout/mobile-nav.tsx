@@ -8,8 +8,8 @@ import { Film, History, Sparkles, CreditCard } from "lucide-react";
 const tabs = [
   { href: "/workspace", label: "Clip", icon: Film },
   { href: "/workspace/history", label: "Riwayat", icon: History },
-  { href: "/analyze", label: "Analisis", icon: Sparkles },
   { href: "/workspace/billing", label: "Isi Credit", icon: CreditCard },
+  { href: "/analyze", label: "Analisis", icon: Sparkles },
 ];
 
 export function MobileNav() {
@@ -36,11 +36,11 @@ export function MobileNav() {
           <Link
             key={tab.href}
             href={tab.href}
-            className={`flex flex-1 flex-col items-center gap-0.5 py-3 text-[12px] font-medium transition-colors ${
+            className={`flex flex-1 flex-col items-center gap-0.5 py-3 text-[14px] font-medium transition-colors ${
               active ? "text-emerald-400" : "text-zinc-500 hover:text-zinc-300"
             }`}
           >
-            <tab.icon className="h-8 w-8" />
+            <tab.icon className="h-6 w-6" />
             {tab.label}
           </Link>
         );
