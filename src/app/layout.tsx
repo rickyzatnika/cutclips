@@ -15,6 +15,19 @@ export const metadata: Metadata = {
   },
   description:
     "AI menemukan momen paling menarik dari video YouTube kamu secara otomatis. Ubah video panjang jadi Shorts, Reels, dan TikTok viral.",
+  manifest: "/manifest.json",
+  icons: { icon: "/icon.svg" },
+  appleWebApp: {
+    capable: true,
+    title: "CutClips",
+    statusBarStyle: "black-translucent",
+  },
+  themeColor: "#10b981",
+  other: {
+    "mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-status-bar-style": "black-translucent",
+  },
 };
 
 export default function RootLayout({
