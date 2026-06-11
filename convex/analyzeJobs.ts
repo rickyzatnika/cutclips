@@ -97,6 +97,47 @@ export const fail = mutation({
   },
 });
 
+export const requeueAnalyze = mutation({
+  args: {
+    jobId: v.id("analyzeJobs"),
+    email: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const admin = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .unique();
+    if (!admin || admin.role !== "admin") throw new Error("Not authorized");
+
+    await ctx.db.patch(args.jobId, {
+      status: "queued",
+      error: undefined,
+      completedAt: undefined,
+      startedAt: undefined,
+    });
+  },
+});
+
+export const cancelAnalyze = mutation({
+  args: {
+    jobId: v.id("analyzeJobs"),
+    email: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const admin = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .unique();
+    if (!admin || admin.role !== "admin") throw new Error("Not authorized");
+
+    await ctx.db.patch(args.jobId, {
+      status: "failed",
+      error: "Dibatalkan oleh admin",
+      completedAt: Date.now(),
+    });
+  },
+});
+
 export const getById = query({
   args: { jobId: v.id("analyzeJobs") },
   handler: async (ctx, args) => {
