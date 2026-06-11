@@ -2,6 +2,7 @@ import "./globals.css";
 import { Inter } from "next/font/google";
 import type { Metadata } from "next";
 import { Providers } from "@/providers/providers";
+import { MobileNav } from "@/components/layout/mobile-nav";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -38,7 +39,10 @@ export default function RootLayout({
   return (
     <html lang="id" className={`${inter.variable} dark`} suppressHydrationWarning>
       <body className="font-sans antialiased bg-[#050505] text-white">
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+          <MobileNav />
+        </Providers>
       </body>
     </html>
   );

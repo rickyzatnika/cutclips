@@ -59,7 +59,7 @@ export default function PricingPage() {
           </p>
         </div>
 
-        <div className="mt-12 grid gap-6 lg:grid-cols-3">
+        <div className="mt-12 grid grid-cols-1 gap-6 lg:grid-cols-3">
           {plans.map((plan) => {
             const isGratis = plan.name === "Gratis";
             const href = isGratis

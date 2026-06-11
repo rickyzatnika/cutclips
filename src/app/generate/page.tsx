@@ -207,7 +207,7 @@ function GenerateContent() {
         </Link>
 
         <div className="mb-6">
-          <h1 className="text-lg font-semibold text-white">{title}</h1>
+          <h1 className="truncate text-lg font-semibold text-white">{title}</h1>
           <p className="mt-1 text-sm text-zinc-500">
             {formatTime(startTime)} — {formatTime(endTime)} ({Math.round(endTime - startTime)}s)
           </p>

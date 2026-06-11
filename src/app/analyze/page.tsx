@@ -253,7 +253,7 @@ function AnalyzeContent() {
 
         {videoInfo && (
           <div className="mb-8">
-            <h1 className="text-xl font-bold text-white">{videoInfo.title}</h1>
+            <h1 className="truncate text-xl font-bold text-white">{videoInfo.title}</h1>
             <p className="mt-1 text-sm text-zinc-500">
               {Math.floor(videoInfo.duration / 60)}m {Math.floor(videoInfo.duration % 60)}s
             </p>
