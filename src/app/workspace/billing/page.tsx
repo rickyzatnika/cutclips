@@ -26,7 +26,7 @@ export default function BillingPage() {
       <div className="mb-8 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6">
         <p className="text-sm text-zinc-400">Current Balance</p>
         <p className="mt-1 text-3xl font-bold text-white">
-          {credits != null ? credits : "..."} Credits
+          {credits ?? 0} Credits
         </p>
       </div>
 
