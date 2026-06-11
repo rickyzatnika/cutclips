@@ -6,8 +6,25 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
-import { Film, MoreVertical, Download, Trash2, Loader2, CheckCircle2, Cloud, Film as FilmIcon, Video, Timer, Clock, TrendingUp, List } from "lucide-react";
+import {
+  Film,
+  MoreVertical,
+  Download,
+  Trash2,
+  Loader2,
+  CheckCircle2,
+  Cloud,
+  Film as FilmIcon,
+  Video,
+  Timer,
+  Clock,
+  TrendingUp,
+  List,
+  AlertTriangle,
+} from "lucide-react";
 import { useToast } from "@/components/ui/toast";
+
+const BATCH_SIZE = 15;
 
 const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL;
 
@@ -40,20 +57,37 @@ interface Clip {
 
 function getYoutubeThumbnail(url: string): string {
   const m = url.match(
-    /(?:youtu\.be\/|v=|vi\/|embed\/|shorts\/)([a-zA-Z0-9_-]{11})/
+    /(?:youtu\.be\/|v=|vi\/|embed\/|shorts\/)([a-zA-Z0-9_-]{11})/,
   );
   if (m) return `https://img.youtube.com/vi/${m[1]}/hqdefault.jpg`;
   return "";
 }
 
-function MenuButton({ clip, email, onDeleted }: { clip: Clip; email?: string | null; onDeleted: () => void }) {
+function getClipThumbnail(downloadUrl: string): string {
+  return downloadUrl
+    .replace(/\.mp4$/, ".jpg")
+    .replace("/upload/", "/upload/so_0/");
+}
+
+function MenuButton({
+  clip,
+  email,
+  onDeleted,
+  onRequestDelete,
+}: {
+  clip: Clip;
+  email?: string | null;
+  onDeleted: () => void;
+  onRequestDelete: (exportId: string) => void;
+}) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -62,7 +96,10 @@ function MenuButton({ clip, email, onDeleted }: { clip: Clip; email?: string | n
   return (
     <div ref={ref} className="relative">
       <button
-        onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen(!open);
+        }}
         className="rounded-lg bg-black/60 p-1.5 cursor-pointer text-white opacity-100 sm:opacity-0 transition-opacity group-hover:opacity-100 hover:bg-zinc-700"
       >
         <MoreVertical className="h-4 w-4" />
@@ -78,18 +115,9 @@ function MenuButton({ clip, email, onDeleted }: { clip: Clip; email?: string | n
             Unduh
           </a>
           <button
-            onClick={async () => {
+            onClick={() => {
               setOpen(false);
-              try {
-                const res = await fetch("/api/delete-clip", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ exportId: clip.exportId, email }),
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error || "Delete failed");
-                onDeleted();
-              } catch {}
+              onRequestDelete(clip.exportId);
             }}
             className="flex w-full cursor-pointer items-center gap-2 px-4 py-2.5 text-sm text-red-400 transition-colors hover:bg-zinc-800 hover:text-red-300"
           >
@@ -111,8 +139,14 @@ export default function WorkspacePage() {
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("newest");
+  const [visibleCount, setVisibleCount] = useState(BATCH_SIZE);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const userEmail = session?.user?.email;
-  const latestPayment = useQuery(api.payments.getLatestByUser, userEmail ? { email: userEmail } : "skip");
+  const latestPayment = useQuery(
+    api.payments.getLatestByUser,
+    userEmail ? { email: userEmail } : "skip",
+  );
   const prevStatus = useRef<string | null>(null);
 
   useEffect(() => {
@@ -120,9 +154,17 @@ export default function WorkspacePage() {
     const current = latestPayment.status;
     if (prevStatus.current === "pending" && current !== "pending") {
       if (current === "approved") {
-        toast({ title: "Pembayaran disetujui! 🎉", description: `${latestPayment.credits} kredit sudah ditambahkan.`, variant: "success" });
+        toast({
+          title: "Pembayaran disetujui! 🎉",
+          description: `${latestPayment.credits} kredit sudah ditambahkan.`,
+          variant: "success",
+        });
       } else if (current === "rejected") {
-        toast({ title: "Pembayaran ditolak", description: latestPayment.adminNote || "Silakan hubungi admin.", variant: "error" });
+        toast({
+          title: "Pembayaran ditolak",
+          description: latestPayment.adminNote || "Silakan hubungi admin.",
+          variant: "error",
+        });
       }
     }
     prevStatus.current = current;
@@ -152,12 +194,31 @@ export default function WorkspacePage() {
   }, [fetchClips]);
 
   // Smart poll: every 3s while processing, stop when all done
-  const hasProcessing = clips.some((c) => c.status === "queued" || c.status === "processing");
+  const hasProcessing = clips.some(
+    (c) => c.status === "queued" || c.status === "processing",
+  );
   useEffect(() => {
     if (!hasProcessing) return;
     const interval = setInterval(fetchClips, 3000);
     return () => clearInterval(interval);
   }, [hasProcessing, fetchClips]);
+
+  const executeDelete = async () => {
+    if (!confirmDeleteId) return;
+    const exportId = confirmDeleteId;
+    setConfirmDeleteId(null);
+    try {
+      const res = await fetch("/api/delete-clip", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ exportId, email: session?.user?.email }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Delete failed");
+      setClips((prev) => prev.filter((c) => c.exportId !== exportId));
+      toast({ title: "Clip dihapus", variant: "success" });
+    } catch {}
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -165,17 +226,56 @@ export default function WorkspacePage() {
     router.push(`/analyze?url=${encodeURIComponent(url.trim())}`);
   };
 
-  const completed = useMemo(() => clips.filter((c) => c.status === "completed"), [clips]);
+  useEffect(() => {
+    setVisibleCount(BATCH_SIZE);
+  }, [sortBy]);
+
+  const completed = useMemo(
+    () => clips.filter((c) => c.status === "completed"),
+    [clips],
+  );
 
   const filtered = useMemo(() => {
-    let list = filterStatus === "processing"
-      ? clips.filter((c) => c.status === "queued" || c.status === "processing")
-      : completed;
-    if (sortBy === "newest") list = [...list].sort((a, b) => b.createdAt - a.createdAt);
-    else if (sortBy === "oldest") list = [...list].sort((a, b) => a.createdAt - b.createdAt);
-    else if (sortBy === "title") list = [...list].sort((a, b) => a.highlightTitle.localeCompare(b.highlightTitle));
+    let list =
+      filterStatus === "processing"
+        ? clips.filter(
+            (c) => c.status === "queued" || c.status === "processing",
+          )
+        : completed;
+    if (sortBy === "newest")
+      list = [...list].sort((a, b) => b.createdAt - a.createdAt);
+    else if (sortBy === "oldest")
+      list = [...list].sort((a, b) => a.createdAt - b.createdAt);
+    else if (sortBy === "title")
+      list = [...list].sort((a, b) =>
+        a.highlightTitle.localeCompare(b.highlightTitle),
+      );
     return list;
   }, [clips, filterStatus, sortBy]);
+
+  const visibleClips = useMemo(
+    () => filtered.slice(0, visibleCount),
+    [filtered, visibleCount],
+  );
+  const hasMore = visibleCount < filtered.length;
+
+  const loadMore = useCallback(() => {
+    setVisibleCount((prev) => Math.min(prev + BATCH_SIZE, filtered.length));
+  }, [filtered.length]);
+
+  useEffect(() => {
+    if (!hasMore || filterStatus === "processing") return;
+    const el = sentinelRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) loadMore();
+      },
+      { rootMargin: "300px" },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [hasMore, filterStatus, loadMore]);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
@@ -204,7 +304,9 @@ export default function WorkspacePage() {
           <button
             onClick={() => setFilterStatus("all")}
             className={`cursor-pointer rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-              filterStatus === "all" ? "bg-emerald-500/20 text-emerald-400" : "text-zinc-500 hover:text-zinc-300"
+              filterStatus === "all"
+                ? "bg-emerald-500/20 text-emerald-400"
+                : "text-zinc-500 hover:text-zinc-300"
             }`}
           >
             Semua
@@ -212,18 +314,26 @@ export default function WorkspacePage() {
           <button
             onClick={() => setFilterStatus("processing")}
             className={`cursor-pointer rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-              filterStatus === "processing" ? "bg-emerald-500/20 text-emerald-400" : "text-zinc-500 hover:text-zinc-300"
+              filterStatus === "processing"
+                ? "bg-emerald-500/20 text-emerald-400"
+                : "text-zinc-500 hover:text-zinc-300"
             }`}
           >
             <Loader2 className="mr-1 inline h-3 w-3" />
-            Proses ({clips.filter((c) => c.status === "queued" || c.status === "processing").length})
+            Proses (
+            {
+              clips.filter(
+                (c) => c.status === "queued" || c.status === "processing",
+              ).length
+            }
+            )
           </button>
           <Link
             href="/workspace/history"
             className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-300"
           >
             <List className="h-3 w-3" />
-            Riwayat Video
+            Riwayat Highlight
           </Link>
         </div>
         <div className="flex items-center gap-2">
@@ -241,17 +351,21 @@ export default function WorkspacePage() {
       </div>
 
       {/* Processing clips */}
-      {filterStatus !== "all" && filterStatus === "processing" && filtered.length > 0 && (
-        <div className="mb-10">
-          <div className="mb-4 flex items-center gap-2">
-            <Loader2 className="h-4 w-4 animate-spin text-emerald-400" />
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
-              Membuat Clip ({filtered.length})
-            </h2>
-          </div>
-          <div className="space-y-3">
-            {filtered.map((clip) => {
-                const step = PROGRESS_STEPS[clip.progress || "queued"] || PROGRESS_STEPS.queued;
+      {filterStatus !== "all" &&
+        filterStatus === "processing" &&
+        filtered.length > 0 && (
+          <div className="mb-10">
+            <div className="mb-4 flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin text-emerald-400" />
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
+                Membuat Clip ({filtered.length})
+              </h2>
+            </div>
+            <div className="space-y-3">
+              {filtered.map((clip) => {
+                const step =
+                  PROGRESS_STEPS[clip.progress || "queued"] ||
+                  PROGRESS_STEPS.queued;
                 const StepIcon = step.icon;
                 return (
                   <div
@@ -273,14 +387,16 @@ export default function WorkspacePage() {
                     </div>
                     <div className="mt-3 flex items-center gap-2 text-xs text-zinc-600">
                       <StepIcon className="h-3.5 w-3.5 animate-pulse text-emerald-400" />
-                      <span className="text-emerald-400/80">{step.label}...</span>
+                      <span className="text-emerald-400/80">
+                        {step.label}...
+                      </span>
                     </div>
                   </div>
                 );
               })}
             </div>
           </div>
-      )}
+        )}
 
       {/* Completed clips */}
       {filterStatus !== "processing" && (
@@ -307,19 +423,20 @@ export default function WorkspacePage() {
               </p>
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6">
-              {filtered.map((clip) => {
-                const thumb =
-                  clip.video.thumbnailUrl || getYoutubeThumbnail(clip.video.youtubeUrl);
+            <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
+              {visibleClips.map((clip) => {
+                const poster = clip.downloadUrl
+                  ? getClipThumbnail(clip.downloadUrl)
+                  : "";
                 return (
                   <div
                     key={clip.exportId}
                     className="group relative overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 transition-colors hover:border-zinc-700"
                   >
-                    <div className="relative aspect-video bg-zinc-950">
+                    <div className="relative aspect-[9/16] bg-zinc-950">
                       <video
                         src={clip.downloadUrl}
-                        poster={thumb}
+                        poster={poster}
                         controls
                         preload="metadata"
                         className="h-full w-full object-contain"
@@ -328,10 +445,8 @@ export default function WorkspacePage() {
                         <MenuButton
                           clip={clip}
                           email={session?.user?.email}
-                          onDeleted={() => {
-                            setClips((prev) => prev.filter((c) => c.exportId !== clip.exportId));
-                            toast({ title: "Clip dihapus", variant: "success" });
-                          }}
+                          onDeleted={() => {}}
+                          onRequestDelete={(id) => setConfirmDeleteId(id)}
                         />
                       </div>
                     </div>
@@ -356,6 +471,49 @@ export default function WorkspacePage() {
               })}
             </div>
           )}
+          {filterStatus !== "processing" && hasMore && (
+            <div ref={sentinelRef} className="flex justify-center py-6">
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-600 border-t-emerald-400" />
+            </div>
+          )}
+        </div>
+      )}
+
+      {confirmDeleteId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="w-full max-w-sm rounded-2xl border border-zinc-700 bg-zinc-900 p-6 shadow-xl">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500/10">
+                <AlertTriangle className="h-5 w-5 text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-white">
+                  Konfirmasi Hapus
+                </h3>
+                <p className="text-xs text-zinc-400">
+                  Clip ini akan dihapus permanen.
+                </p>
+              </div>
+            </div>
+            <p className="mb-6 text-sm text-zinc-500">
+              Yakin ingin menghapus? Tindakan ini tidak bisa dibatalkan.
+            </p>
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={() => setConfirmDeleteId(null)}
+                className="cursor-pointer rounded-lg bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-700"
+              >
+                Batal
+              </button>
+              <button
+                onClick={executeDelete}
+                className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-red-400"
+              >
+                <Trash2 className="h-4 w-4" />
+                Hapus
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

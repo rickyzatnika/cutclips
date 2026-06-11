@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
-import { Scissors, CreditCard, LogOut, Menu, X, LayoutDashboard } from "lucide-react";
+import { Scissors, CreditCard, LogOut, Menu, X, LayoutDashboard, History } from "lucide-react";
 
 export default function AppLayout({
   children,
@@ -62,6 +62,17 @@ export default function AppLayout({
                   <CreditCard className="h-3.5 w-3.5" />
                   Billing
                 </span>
+              </Link>
+              <Link
+                href="/workspace/history"
+                className={`flex items-center gap-1 text-sm ${
+                  pathname === "/workspace/history"
+                    ? "text-white"
+                    : "text-zinc-500 hover:text-white"
+                }`}
+              >
+                <History className="h-3.5 w-3.5" />
+                Riwayat
               </Link>
               {isAdmin && (
                 <Link
@@ -133,6 +144,17 @@ export default function AppLayout({
                 }`}
               >
                 Billing
+              </Link>
+              <Link
+                href="/workspace/history"
+                onClick={() => setMenuOpen(false)}
+                className={`block rounded-lg px-3 py-2 text-sm ${
+                  pathname === "/workspace/history"
+                    ? "text-white"
+                    : "text-zinc-400 hover:bg-zinc-900 hover:text-white"
+                }`}
+              >
+                Riwayat
               </Link>
               {isAdmin && (
                 <Link
