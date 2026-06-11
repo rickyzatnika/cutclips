@@ -12,11 +12,13 @@ import {
   MessageCircle,
   Sparkles,
 } from "lucide-react";
+import { useToast } from "@/components/ui/toast";
 
 export default function ChatAIListPage() {
   const { data: session } = useSession();
   const email = session?.user?.email;
   const router = useRouter();
+  const { toast } = useToast();
 
   const conversations = useQuery(
     api.conversations.list,
@@ -27,6 +29,7 @@ export default function ChatAIListPage() {
   const createConversation = useMutation(api.conversations.create);
 
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const handleNewChat = async () => {
     if (!email) return;
@@ -43,10 +46,16 @@ export default function ChatAIListPage() {
 
   const handleDelete = async (id: string) => {
     setDeleting(id);
+    setConfirmDelete(null);
     try {
       await deleteConversation({ conversationId: id as any });
+      toast({ title: "Percakapan dihapus", variant: "success" });
     } catch (err) {
-      console.error(err);
+      toast({
+        title: "Gagal menghapus",
+        description: err instanceof Error ? err.message : String(err),
+        variant: "error",
+      });
     } finally {
       setDeleting(null);
     }
@@ -107,15 +116,49 @@ export default function ChatAIListPage() {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleDelete(conv._id);
+                  setConfirmDelete(conv._id);
                 }}
                 disabled={deleting === conv._id}
-                className="ml-2 cursor-pointer rounded-lg p-1.5 text-zinc-600 opacity-0 transition-opacity hover:text-red-400 group-hover:opacity-100 disabled:opacity-50"
+                className="ml-2 flex cursor-pointer items-center gap-1 rounded-lg bg-zinc-800 px-2.5 py-2 text-xs text-zinc-400 transition-colors hover:bg-red-500/20 hover:text-red-400 disabled:opacity-50"
               >
-                <Trash2 className="h-4 w-4" />
+                <Trash2 className="h-3.5 w-3.5" />
+                Hapus
               </button>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Confirm delete modal */}
+      {confirmDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+          onClick={() => setConfirmDelete(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl border border-zinc-800 bg-zinc-900 p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-white">Hapus Percakapan?</h3>
+            <p className="mt-2 text-sm text-zinc-400">
+              Semua pesan dalam percakapan ini akan dihapus permanen.
+            </p>
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setConfirmDelete(null)}
+                className="cursor-pointer rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-300 transition-colors hover:bg-zinc-800"
+              >
+                Batal
+              </button>
+              <button
+                onClick={() => handleDelete(confirmDelete)}
+                disabled={deleting === confirmDelete}
+                className="cursor-pointer rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-400 disabled:opacity-50"
+              >
+                {deleting === confirmDelete ? "Menghapus..." : "Hapus"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

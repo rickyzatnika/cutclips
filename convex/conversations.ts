@@ -25,6 +25,14 @@ export const create = mutation({
   },
 });
 
+export const updateTitle = mutation({
+  args: { conversationId: v.id("conversations"), title: v.string() },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    await ctx.db.patch(args.conversationId, { title: args.title, updatedAt: now });
+  },
+});
+
 export const remove = mutation({
   args: { conversationId: v.id("conversations") },
   handler: async (ctx, args) => {

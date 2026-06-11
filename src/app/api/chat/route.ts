@@ -212,9 +212,12 @@ async function callGroqWithTools(
             model,
             messages: msgs,
             temperature: 0.7,
-            max_tokens: 1024,
+            max_tokens: 2048,
           };
-          if (tools) body.tools = tools;
+          if (tools) {
+            body.tools = tools;
+            body.tool_choice = "auto";
+          }
 
           const res = await fetch(
             "https://api.groq.com/openai/v1/chat/completions",
@@ -276,35 +279,17 @@ async function callGroqWithTools(
             break;
           }
           case "search_images": {
-            const [pexelRes, unsplashRes] = await Promise.all([
-              pexelsSearch(args.query),
-              unsplashSearch(args.query),
-            ]);
+            const unsplashRes = await unsplashSearch(args.query);
 
-            const pexelPhotos = pexelRes.photos || [];
             const unsplashPhotos = (unsplashRes && "results" in unsplashRes ? unsplashRes.results : []) as Record<string, unknown>[];
 
             result = {
-              pexels_count: pexelPhotos.length,
               unsplash_count: unsplashPhotos.length,
             };
 
-            if (pexelPhotos.length > 0) {
-              extraImages.push(
-                ...pexelPhotos.slice(0, 4).map((p: Record<string, unknown>) => {
-                  const psrc = p.src as Record<string, string>;
-                  return {
-                    url: psrc?.medium || psrc?.original || (p as Record<string, string>).url,
-                    alt: (p as Record<string, string>).alt || args.query,
-                    source: "Pexels",
-                  };
-                }),
-              );
-            }
-
             if (unsplashPhotos.length > 0) {
               extraImages.push(
-                ...unsplashPhotos.slice(0, 4).map((p: Record<string, unknown>) => ({
+                ...unsplashPhotos.slice(0, 8).map((p: Record<string, unknown>) => ({
                   url: (p.urls as Record<string, string>)?.regular || (p.urls as Record<string, string>)?.small || "",
                   alt: (p as Record<string, string>).alt_description || args.query,
                   source: "Unsplash",
@@ -365,14 +350,129 @@ async function callGroqWithTools(
     }
 
     const second = await groqCompletion(toolMessages);
+    const cleanContent = (second.content || "")
+      .replace(/<function=\w+>.*?<\/function>/g, "")
+      .replace(/<function=\w+\/>/g, "")
+      .replace(/<function=\w+>.*/g, "")
+      .trim();
     return {
-      content: second.content,
+      content: cleanContent,
       images: extraImages,
       videos: extraVideos,
     };
   }
 
-  return { content: first.content, images: [], videos: [] };
+  let finalContent = first.content || "";
+  finalContent = finalContent.replace(/<function=\w+>.*?<\/function>/g, "").trim();
+  finalContent = finalContent.replace(/<function=\w+\/>/g, "").trim();
+  finalContent = finalContent.replace(/<function=\w+>.*/g, "").trim();
+  if (!finalContent) finalContent = "Maaf kak, saya tidak bisa memproses permintaan itu saat ini.";
+
+  return { content: finalContent, images: [], videos: [] };
+}
+
+async function processWithLLM(
+  convId: string,
+  email: string,
+  userMessage: string,
+) {
+  const history = await convexQuery("messages:list", { conversationId: convId });
+
+  let userDataStr = "";
+  try {
+    const user = await convexQuery("users:getByEmail", { email });
+    const clips = await convexQuery("videos:listByUserWithClips", { email });
+    const unclipped = await convexQuery("highlights:listUnclipped", { email });
+
+    const uniqueVideos = new Set(clips.map((c: any) => c.video?._id).filter(Boolean));
+    const totalVideos = uniqueVideos.size;
+    const totalClips = clips.length;
+    const totalHighlights = unclipped.length;
+
+    userDataStr =
+      "\n\n== DATA USER (hanya info user ini) ==\n" +
+      `Nama: ${user?.name || "-"}\n` +
+      `Email: ${user?.email || email}\n` +
+      `Sisa Kredit: ${user?.credits ?? 0}\n` +
+      `Total Kredit Terpakai: ${user?.totalCreditsUsed ?? 0}\n` +
+      `Total Video Dianalisis: ${totalVideos}\n` +
+      `Total Highlight: ${totalHighlights}\n` +
+      `Total Clip Dibuat: ${totalClips}\n` +
+      `Bergabung Sejak: ${user?.joinedAt ? new Date(user.joinedAt).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : "-"}\n` +
+      `Role: ${user?.role || "user"}\n`;
+  } catch {
+    userDataStr = "\n\n(Gagal memuat data user)";
+  }
+
+  const now = new Date();
+  const nowFormatted = now.toLocaleDateString("id-ID", {
+    weekday: "long", day: "numeric", month: "long", year: "numeric",
+    hour: "2-digit", minute: "2-digit", timeZoneName: "short",
+  });
+
+  const groqMessages: { role: string; content: string }[] = [
+    {
+      role: "system",
+      content:
+        `Hari ini: ${nowFormatted}. ` +
+        "Kamu adalah asisten AI dari aplikasi CutClips — pembuat video pendek viral (TikTok/Shorts/Reels). " +
+        "Tugasmu membantu USER (bukan admin) menggunakan fitur aplikasi. " +
+        "Kamu punya akses ke tools: search_web (Tavily), search_images (Pexels), search_youtube. " +
+        "GUNAKAN tools ini via FUNCTION CALLING (tool_calls), JANGAN menulis <function=...> sebagai teks. " +
+        "Jika user minta cari sesuatu, panggil tools yang sesuai. " +
+        "Jangan pernah menulis <function=...> atau tag serupa di dalam balasan teks. " +
+        "Jangan bilang 'dari hasil pencarian', 'yang saya temukan', atau sejenisnya. " +
+        "Langsung saja sampaikan informasinya secara natural. " +
+        "Kamu TIDAK punya akses ke data admin, data pengguna lain, atau data sensitif. " +
+        "Jangan pernah membaca, mengintip, atau membocorkan data admin. " +
+        "Gunakan Bahasa Indonesia yang santai dan ramah, sesekali panggil 'kak' kalau natural aja, jangan tiap kalimat. " +
+        "Kamu juga bisa ngobrol pake Bahasa Sunda (aksara Sunda atau latin) kalau user ngomong Sunda — fasih dan natural. " +
+        "Jika user menanyakan data miliknya sendiri (seperti sisa kredit, jumlah video, highlight, dll), " +
+        "jawab langsung dari DATA USER di bawah ini. " +
+        "Jangan pernah menyebutkan data user lain." +
+        "" +
+        "JANGAN PERNAH bilang 'tidak', 'tidak bisa', 'tidak ada', 'maaf', atau menolak permintaan user. " +
+        "Apapun yang user minta, bantu semaksimal mungkin — cari alternatif, kasih saran, atau bantu dengan tools yang ada. " +
+        "Jangan bilang 'maaf sepertinya tidak ada hasil' atau 'tidak ditemukan' — langsung sajikan yang ada atau kasih rekomendasi. " +
+        "BATASI balasan maksimal 8-10 kalimat singkat dan padat. Jangan lebay. " +
+        "" +
+        "Berikut panduan fitur yang wajib kamu kuasai:\n" +
+        "\n" +
+        "== FITUR UTAMA ==\n" +
+        "1. Analyze (/analyze) — Tempel link YouTube, tunggu proses analisis, dapat daftar highlight (momen viral).\n" +
+        "2. Generate (/generate) — Pilih highlight, klik 'Buat Clip', tunggu rendering video, hasilnya video siap download.\n" +
+        "3. Workspace (/workspace) — Halaman utama setelah login. Lihat semua clip yang sudah digenerate.\n" +
+        "4. History (/workspace/history) — Riwayat highlight yang belum di-clip. Bisa dihapus atau dibikin clip.\n" +
+        "5. Billing (/workspace/billing) — Beli kredit. Ada 3 paket: Gratis (gratis), Starter (25rb, 200 kredit — bonus 100!), Kreator (75rb, 500 kredit).\n" +
+        "6. Cara beli: pilih paket → klik Beli → scan QRIS → upload bukti bayar → tunggu approve admin → kredit otomatis masuk.\n" +
+        "7. User Info (/workspace/user-info) — Lihat profil, sisa kredit, kredit terpakai.\n" +
+        "8. Chat AI (/chat-ai) — Ini kamu! User bisa tanya-tanya di sini.\n" +
+        "\n" +
+        "== ALUR PEMBELIAN KREDIT ==\n" +
+        "- User klik 'Isi Credit' di tab bawah / menu billing\n" +
+        "- Pilih paket Starter (25rb/200 kredit — bonus 100!) atau Kreator (75rb/500 kredit)\n" +
+        "- Klik Beli, muncul invoice dengan QRIS\n" +
+        "- Scan QRIS pakai GoPay, m-banking, atau e-wallet lain\n" +
+        "- Setelah bayar, upload bukti transfer\n" +
+        "- Admin akan approve, kredit masuk otomatis\n" +
+        "\n" +
+        "== PENTING ==\n" +
+        "- Jangan pernah mengaku sebagai admin atau punya akses admin.\n" +
+        "- Jika user minta sesuatu di luar kemampuanmu, arahkan ke admin.\n" +
+        "- Jika user nanya soal error teknis, arahkan hubungi admin.\n" +
+        "- Jangan pernah memberikan informasi pricing di luar yang sudah disebutkan.\n" +
+        "- Balas dengan 3-4 kalimat maksimal, to the point, ga usah basa-basi.\n" +
+        "- Kamu bisa bantu cari ide konten, rekomendasi video viral, atau jelasin cara pakai fitur.\n" +
+        userDataStr,
+    },
+    ...history.map((m: any) => ({
+      role: m.role,
+      content: m.content,
+    })),
+    { role: "user", content: userMessage },
+  ];
+
+  return await callGroqWithTools(groqMessages);
 }
 
 export async function POST(req: Request) {
@@ -382,7 +482,7 @@ export async function POST(req: Request) {
     if (contentType.includes("multipart/form-data")) {
       const formData = await req.formData();
       const audioFile = formData.get("audio") as File | null;
-      const convId = (formData.get("conversationId") as string) || "";
+      let convId = (formData.get("conversationId") as string) || "";
       const email = formData.get("email") as string;
 
       if (!audioFile || !email) {
@@ -393,7 +493,51 @@ export async function POST(req: Request) {
       }
 
       const transcript = await transcribeAudio(audioFile);
-      return NextResponse.json({ conversationId: convId, transcript });
+      if (!transcript.trim()) {
+        return NextResponse.json({ error: "Could not transcribe audio" }, { status: 400 });
+      }
+
+      // Same LLM flow as text messages, using transcript as message
+      if (!convId) {
+        convId = await convexMutation("conversations:create", {
+          userEmail: email,
+          title: transcript.slice(0, 60),
+        });
+      }
+
+      const voiceHistory = await convexQuery("messages:list", { conversationId: convId });
+      if (voiceHistory.length === 0) {
+        await convexMutation("conversations:updateTitle", {
+          conversationId: convId,
+          title: transcript.slice(0, 60),
+        });
+      }
+
+      await convexMutation("messages:send", {
+        conversationId: convId,
+        role: "user",
+        content: transcript,
+      });
+
+      const { content: aiResponse, images, videos } = await processWithLLM(convId, email, transcript);
+
+      const saveArgs: Record<string, unknown> = {
+        conversationId: convId,
+        role: "assistant",
+        content: aiResponse,
+      };
+      if (videos.length > 0) saveArgs.videos = videos;
+      if (images.length > 0) saveArgs.images = images;
+
+      await convexMutation("messages:send", saveArgs);
+
+      return NextResponse.json({
+        conversationId: convId,
+        content: aiResponse,
+        transcript,
+        images,
+        videos,
+      });
     }
 
     const { conversationId, message, email } = await req.json();
@@ -414,97 +558,22 @@ export async function POST(req: Request) {
       });
     }
 
+    // Update title based on first user message
+    const history = await convexQuery("messages:list", { conversationId: convId });
+    if (history.length === 0) {
+      await convexMutation("conversations:updateTitle", {
+        conversationId: convId,
+        title: message.slice(0, 60),
+      });
+    }
+
     await convexMutation("messages:send", {
       conversationId: convId,
       role: "user",
       content: message,
     });
 
-    const history = await convexQuery("messages:list", {
-      conversationId: convId,
-    });
-
-    // Fetch user's own data for AI context
-    let userDataStr = "";
-    try {
-      const user = await convexQuery("users:getByEmail", { email });
-      const clips = await convexQuery("videos:listByUserWithClips", { email });
-      const unclipped = await convexQuery("highlights:listUnclipped", { email });
-
-      const uniqueVideos = new Set(clips.map((c: any) => c.video?._id).filter(Boolean));
-      const totalVideos = uniqueVideos.size;
-      const totalClips = clips.length;
-      const totalHighlights = unclipped.length;
-
-      userDataStr =
-        "\n\n== DATA USER (hanya info user ini) ==\n" +
-        `Nama: ${user?.name || "-"}\n` +
-        `Email: ${user?.email || email}\n` +
-        `Sisa Kredit: ${user?.credits ?? 0}\n` +
-        `Total Kredit Terpakai: ${user?.totalCreditsUsed ?? 0}\n` +
-        `Total Video Dianalisis: ${totalVideos}\n` +
-        `Total Highlight: ${totalHighlights}\n` +
-        `Total Clip Dibuat: ${totalClips}\n` +
-        `Bergabung Sejak: ${user?.joinedAt ? new Date(user.joinedAt).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : "-"}\n` +
-        `Role: ${user?.role || "user"}\n`;
-    } catch {
-      userDataStr = "\n\n(Gagal memuat data user)";
-    }
-
-    const groqMessages: { role: string; content: string }[] = [
-      {
-        role: "system",
-        content:
-          "Kamu adalah asisten AI dari aplikasi CutClips — pembuat video pendek viral (TikTok/Shorts/Reels). " +
-          "Tugasmu membantu USER (bukan admin) menggunakan fitur aplikasi. " +
-          "Kamu punya akses ke tools: search_web (Tavily), search_images (Pexels), search_youtube. " +
-          "Gunakan tools ini saat user minta informasi, gambar, atau video YouTube. " +
-          "Kamu TIDAK punya akses ke data admin, data pengguna lain, atau data sensitif. " +
-          "Jangan pernah membaca, mengintip, atau membocorkan data admin. " +
-          "Gunakan Bahasa Indonesia yang santai dan ramah, panggil user 'kak'. " +
-          "Jika user menanyakan data miliknya sendiri (seperti sisa kredit, jumlah video, highlight, dll), " +
-          "jawab langsung dari DATA USER di bawah ini. " +
-          "Jangan pernah menyebutkan data user lain." +
-          "" +
-          "BATASI balasan maksimal 8-10 kalimat singkat dan padat. Jangan lebay. " +
-          "" +
-          "Berikut panduan fitur yang wajib kamu kuasai:\n" +
-          "\n" +
-          "== FITUR UTAMA ==\n" +
-          "1. Analyze (/analyze) — Tempel link YouTube, tunggu proses analisis, dapat daftar highlight (momen viral).\n" +
-          "2. Generate (/generate) — Pilih highlight, klik 'Buat Clip', tunggu rendering video, hasilnya video siap download.\n" +
-          "3. Workspace (/workspace) — Halaman utama setelah login. Lihat semua clip yang sudah digenerate.\n" +
-          "4. History (/workspace/history) — Riwayat highlight yang belum di-clip. Bisa dihapus atau dibikin clip.\n" +
-          "5. Billing (/workspace/billing) — Beli kredit. Ada 3 paket: Gratis (gratis), Starter (25rb, 200 kredit — bonus 100!), Kreator (75rb, 500 kredit).\n" +
-          "6. Cara beli: pilih paket → klik Beli → scan QRIS → upload bukti bayar → tunggu approve admin → kredit otomatis masuk.\n" +
-          "7. User Info (/workspace/user-info) — Lihat profil, sisa kredit, kredit terpakai.\n" +
-          "8. Chat AI (/chat-ai) — Ini kamu! User bisa tanya-tanya di sini.\n" +
-          "\n" +
-          "== ALUR PEMBELIAN KREDIT ==\n" +
-          "- User klik 'Isi Credit' di tab bawah / menu billing\n" +
-          "- Pilih paket Starter (25rb/200 kredit — bonus 100!) atau Kreator (75rb/500 kredit)\n" +
-          "- Klik Beli, muncul invoice dengan QRIS\n" +
-          "- Scan QRIS pakai GoPay, m-banking, atau e-wallet lain\n" +
-          "- Setelah bayar, upload bukti transfer\n" +
-          "- Admin akan approve, kredit masuk otomatis\n" +
-          "\n" +
-          "== PENTING ==\n" +
-          "- Jangan pernah mengaku sebagai admin atau punya akses admin.\n" +
-          "- Jika user minta sesuatu di luar kemampuanmu, arahkan ke admin.\n" +
-          "- Jika user nanya soal error teknis, arahkan hubungi admin.\n" +
-          "- Jangan pernah memberikan informasi pricing di luar yang sudah disebutkan.\n" +
-          "- Balas dengan 3-4 kalimat maksimal, to the point, ga usah basa-basi.\n" +
-          "- Kamu bisa bantu cari ide konten, rekomendasi video viral, atau jelasin cara pakai fitur.\n" +
-          userDataStr,
-      },
-      ...history.map((m: any) => ({
-        role: m.role,
-        content: m.content,
-      })),
-      { role: "user", content: message },
-    ];
-
-    const { content: aiResponse, images, videos } = await callGroqWithTools(groqMessages);
+    const { content: aiResponse, images, videos } = await processWithLLM(convId, email, message);
 
     const saveArgs: Record<string, unknown> = {
       conversationId: convId,

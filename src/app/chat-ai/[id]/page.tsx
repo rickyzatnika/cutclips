@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
@@ -19,6 +19,28 @@ import {
   X,
   Square,
 } from "lucide-react";
+
+function TypewriterText({ text }: { text: string }) {
+  const [displayed, setDisplayed] = useState("");
+  const doneRef = useRef(false);
+
+  useEffect(() => {
+    if (doneRef.current) return;
+    let i = 0;
+    const speed = text.length > 200 ? 5 : text.length > 100 ? 8 : 12;
+    const timer = setInterval(() => {
+      i++;
+      setDisplayed(text.slice(0, i));
+      if (i >= text.length) {
+        clearInterval(timer);
+        doneRef.current = true;
+      }
+    }, speed);
+    return () => clearInterval(timer);
+  }, [text]);
+
+  return <>{displayed}</>;
+}
 
 type Message = {
   _id?: string;
@@ -77,14 +99,23 @@ export default function ChatDetailPage() {
   useEffect(() => {
     return () => {
       if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      if (
+        mediaRecorderRef.current &&
+        mediaRecorderRef.current.state !== "inactive"
+      ) {
         mediaRecorderRef.current.stream.getTracks().forEach((t) => t.stop());
+      }
+      if ("speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
       }
     };
   }, []);
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+    if (
+      mediaRecorderRef.current &&
+      mediaRecorderRef.current.state !== "inactive"
+    ) {
       mediaRecorderRef.current.stop();
     }
     if (recordingTimerRef.current) {
@@ -96,7 +127,13 @@ export default function ChatDetailPage() {
   };
 
   const getAudioMimeType = () => {
-    const types = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/aac", ""];
+    const types = [
+      "audio/webm;codecs=opus",
+      "audio/webm",
+      "audio/mp4",
+      "audio/aac",
+      "",
+    ];
     for (const t of types) {
       if (t && MediaRecorder.isTypeSupported(t)) return t;
     }
@@ -113,7 +150,10 @@ export default function ChatDetailPage() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mimeType = getAudioMimeType();
       const ext = getAudioExtension(mimeType);
-      const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      const mediaRecorder = new MediaRecorder(
+        stream,
+        mimeType ? { mimeType } : undefined,
+      );
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
@@ -140,8 +180,12 @@ export default function ChatDetailPage() {
           });
           const data = await res.json();
           if (!res.ok) throw new Error(data.error);
-          if (data.transcript) {
-            setInput(data.transcript);
+          if (data.content && "speechSynthesis" in window) {
+            const utterance = new SpeechSynthesisUtterance(data.content);
+            utterance.lang = "id-ID";
+            utterance.rate = 1;
+            window.speechSynthesis.cancel();
+            window.speechSynthesis.speak(utterance);
           }
         } catch (err) {
           console.error(err);
@@ -350,7 +394,12 @@ export default function ChatDetailPage() {
                 }`}
               >
                 <p className="whitespace-pre-wrap text-sm leading-relaxed">
-                  {msg.content}
+                  {msg.role === "assistant" &&
+                  i === (messages?.length ?? 0) - 1 ? (
+                    <TypewriterText text={msg.content} />
+                  ) : (
+                    msg.content
+                  )}
                 </p>
                 {msg.images && msg.images.length > 0 && (
                   <div className="mt-3 grid grid-cols-2 gap-2">
@@ -421,7 +470,7 @@ export default function ChatDetailPage() {
                 <Bot className="h-4 w-4 text-emerald-400" />
               </div>
               <div className="animate-pulse rounded-2xl border border-zinc-800 bg-zinc-900/50 px-4 py-3">
-                <p className="text-sm text-zinc-500">Memikirkan jawaban...</p>
+                <p className="text-sm text-zinc-500">Wait, nuju mikir..</p>
               </div>
             </div>
           )}
