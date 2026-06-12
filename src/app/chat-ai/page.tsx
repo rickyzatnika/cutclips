@@ -80,13 +80,26 @@ export default function ChatAIListPage() {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
-  const handleNewChat = async (title?: string) => {
+  const handleNewChat = async (prompt?: string) => {
     if (!email) return;
     try {
       const id = await createConversation({
         userEmail: email,
-        title: title || "Percakapan Baru",
+        title: prompt || "Percakapan Baru",
       });
+
+      if (prompt) {
+        await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            conversationId: id,
+            message: prompt,
+            email,
+          }),
+        });
+      }
+
       router.push(`/chat-ai/${id}`);
     } catch {}
   };

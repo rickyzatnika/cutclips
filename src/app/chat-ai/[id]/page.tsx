@@ -107,18 +107,20 @@ export default function ChatDetailPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, sending]);
 
-  // Auto-scroll when content resizes (typewriter animation, image loads, etc.)
-  // but only if user is near the bottom
+  // Auto-scroll during typewriter animation, image loads, etc.
+  // Uses rAF to catch all content size changes (scrollHeight changes)
   useEffect(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
-    const observer = new ResizeObserver(() => {
+    let rafId: number;
+    const tick = () => {
       if (container.scrollHeight - container.scrollTop - container.clientHeight < 100) {
         container.scrollTop = container.scrollHeight;
       }
-    });
-    observer.observe(container);
-    return () => observer.disconnect();
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
   }, []);
 
   useEffect(() => {
