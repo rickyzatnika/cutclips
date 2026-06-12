@@ -57,6 +57,7 @@ type HistoryItem = {
     reasoning: string;
     createdAt: number;
   };
+  clipped: boolean;
   video: {
     _id: Id<"videos">;
     title: string;
@@ -87,11 +88,15 @@ export default function HistoryPage() {
   const [selected, setSelected] = useState<Set<Id<"highlights">>>(new Set());
   const [confirm, setConfirm] = useState<ConfirmAction | null>(null);
   const [visibleCount, setVisibleCount] = useState(BATCH_SIZE);
+  const [showAll, setShowAll] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   const data = useMemo(() => {
     if (!rawData) return undefined;
     let list = [...rawData];
+    if (!showAll) {
+      list = list.filter((item) => !item.clipped);
+    }
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(
@@ -102,7 +107,7 @@ export default function HistoryPage() {
     }
     list.sort((a, b) => b.highlight.createdAt - a.highlight.createdAt);
     return list;
-  }, [rawData, search]);
+  }, [rawData, search, showAll]);
 
   const grouped = useMemo(() => {
     if (!data) return [];
@@ -110,7 +115,7 @@ export default function HistoryPage() {
       Id<"videos">,
       {
         video: HistoryItem["video"];
-        highlights: HistoryItem["highlight"][];
+        highlights: { highlight: HistoryItem["highlight"]; clipped: boolean }[];
       }
     >();
     for (const item of data) {
@@ -118,7 +123,7 @@ export default function HistoryPage() {
       if (!map.has(key)) {
         map.set(key, { video: item.video, highlights: [] });
       }
-      map.get(key)!.highlights.push(item.highlight);
+      map.get(key)!.highlights.push({ highlight: item.highlight, clipped: item.clipped });
     }
     return Array.from(map.values());
   }, [data]);
@@ -251,6 +256,16 @@ export default function HistoryPage() {
           />
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowAll((v) => !v)}
+            className={`cursor-pointer rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
+              showAll
+                ? "bg-emerald-500/20 text-emerald-400"
+                : "text-zinc-500 hover:text-zinc-300"
+            }`}
+          >
+            {showAll ? "Semua" : "Belum di-clip"}
+          </button>
           {data && data.length > 0 && (
             <button
               onClick={toggleSelectAll}
@@ -351,7 +366,7 @@ export default function HistoryPage() {
                   </a>
                 </div>
                 <div className="space-y-2">
-                  {highlights.map((h) => {
+                  {highlights.map(({ highlight: h, clipped }) => {
                     const checked = selected.has(h._id);
                     return (
                       <div
@@ -403,29 +418,38 @@ export default function HistoryPage() {
                         </div>
                         <div className="mt-3 flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => handleGenerate(h._id)}
-                              disabled={generating === h._id}
-                              className="flex items-center gap-1.5 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-emerald-400 disabled:opacity-50 cursor-pointer"
-                            >
-                              {generating === h._id ? (
-                                <>
-                                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-black border-t-transparent" />
-                                  Memproses
-                                </>
-                              ) : (
-                                <>
-                                  <Zap className="h-4 w-4" />
-                                  Buat Clip
-                                </>
-                              )}
-                            </button>
-                            <button
-                              onClick={() => setConfirm({ type: "single", highlightId: h._id })}
-                              className="cursor-pointer rounded-lg p-2 text-zinc-600 transition-colors hover:bg-red-500/10 hover:text-red-400"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
+                            {clipped ? (
+                              <span className="flex items-center gap-1.5 rounded-lg bg-zinc-800 px-4 py-2 text-sm text-zinc-400">
+                                <Zap className="h-4 w-4" />
+                                Sudah dibuat
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => handleGenerate(h._id)}
+                                disabled={generating === h._id}
+                                className="flex items-center gap-1.5 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-emerald-400 disabled:opacity-50 cursor-pointer"
+                              >
+                                {generating === h._id ? (
+                                  <>
+                                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-black border-t-transparent" />
+                                    Memproses
+                                  </>
+                                ) : (
+                                  <>
+                                    <Zap className="h-4 w-4" />
+                                    Buat Clip
+                                  </>
+                                )}
+                              </button>
+                            )}
+                            {!clipped && (
+                              <button
+                                onClick={() => setConfirm({ type: "single", highlightId: h._id })}
+                                className="cursor-pointer rounded-lg p-2 text-zinc-600 transition-colors hover:bg-red-500/10 hover:text-red-400"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            )}
                           </div>
                           <span className="text-xs text-zinc-600">{h.endTime - h.startTime}s</span>
                         </div>
