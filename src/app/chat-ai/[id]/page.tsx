@@ -109,26 +109,49 @@ export default function ChatDetailPage() {
 
   // Auto-scroll during typewriter animation, image loads, etc.
   // User-scroll-up disables auto-scroll; scrolling back to bottom re-enables
+  // rAF loop only runs while content is actively changing (2s after last DOM mutation)
   useEffect(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
     let userScrolledUp = false;
+    let rafId = 0;
+    let stopTimer: ReturnType<typeof setTimeout>;
+
     const onScroll = () => {
       const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 50;
-      if (!atBottom) userScrolledUp = true;
-      else userScrolledUp = false;
+      userScrolledUp = !atBottom;
     };
     container.addEventListener("scroll", onScroll, { passive: true });
-    let rafId: number;
-    const tick = () => {
+
+    const loop = () => {
       if (!userScrolledUp) {
         container.scrollTop = container.scrollHeight;
       }
-      rafId = requestAnimationFrame(tick);
+      rafId = requestAnimationFrame(loop);
     };
-    rafId = requestAnimationFrame(tick);
+
+    const start = () => {
+      stop();
+      clearTimeout(stopTimer);
+      rafId = requestAnimationFrame(loop);
+    };
+    const stop = () => {
+      cancelAnimationFrame(rafId);
+      rafId = 0;
+    };
+    const restart = () => {
+      start();
+      stopTimer = setTimeout(stop, 2000);
+    };
+
+    const observer = new MutationObserver(restart);
+    observer.observe(container, { childList: true, subtree: true, characterData: true });
+    restart();
+
     return () => {
       container.removeEventListener("scroll", onScroll);
+      observer.disconnect();
+      clearTimeout(stopTimer);
       cancelAnimationFrame(rafId);
     };
   }, []);
