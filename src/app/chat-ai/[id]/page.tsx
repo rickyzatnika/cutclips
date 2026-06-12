@@ -107,15 +107,14 @@ export default function ChatDetailPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, sending]);
 
-  // Auto-scroll during typewriter animation, image loads, etc.
-  // User-scroll-up disables auto-scroll; scrolling back to bottom re-enables
-  // rAF loop only runs while content is actively changing (2s after last DOM mutation)
+  // Auto-scroll when content changes (typewriter, images, etc.)
+  // Runs at most 1 rAF per frame — no continuous loop, no CPU waste.
+  // User-scroll-up pauses auto-scroll; scrolling back to bottom re-enables.
   useEffect(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
     let userScrolledUp = false;
     let rafId = 0;
-    let stopTimer: ReturnType<typeof setTimeout>;
 
     const onScroll = () => {
       const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 50;
@@ -123,35 +122,29 @@ export default function ChatDetailPage() {
     };
     container.addEventListener("scroll", onScroll, { passive: true });
 
-    const loop = () => {
-      if (!userScrolledUp) {
-        container.scrollTop = container.scrollHeight;
-      }
-      rafId = requestAnimationFrame(loop);
-    };
-
-    const start = () => {
-      stop();
-      clearTimeout(stopTimer);
-      rafId = requestAnimationFrame(loop);
-    };
-    const stop = () => {
-      cancelAnimationFrame(rafId);
+    const scroll = () => {
       rafId = 0;
-    };
-    const restart = () => {
-      start();
-      stopTimer = setTimeout(stop, 2000);
+      container.scrollTop = container.scrollHeight;
     };
 
-    const observer = new MutationObserver(restart);
+    const schedule = () => {
+      if (!userScrolledUp && !rafId) {
+        rafId = requestAnimationFrame(scroll);
+      }
+    };
+
+    const observer = new MutationObserver(schedule);
     observer.observe(container, { childList: true, subtree: true, characterData: true });
-    restart();
+    // Catch image/video load events that change scrollHeight after element is in DOM
+    container.addEventListener("load", schedule, true);
+
+    // Initial scroll in case messages already exist
+    schedule();
 
     return () => {
       container.removeEventListener("scroll", onScroll);
+      container.removeEventListener("load", schedule, true);
       observer.disconnect();
-      clearTimeout(stopTimer);
       cancelAnimationFrame(rafId);
     };
   }, []);
