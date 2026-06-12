@@ -1,13 +1,38 @@
 import { NextRequest } from "next/server";
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY_1 || process.env.GROQ_API_KEY || "";
+const CONVEX_URL = process.env.CONVEX_URL || process.env.NEXT_PUBLIC_CONVEX_URL || "";
+
+async function convexQuery(path: string, args: Record<string, unknown>) {
+  const res = await fetch(`${CONVEX_URL}/api/query`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path, args }),
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message || data.error);
+  return data.value;
+}
 
 export async function POST(req: NextRequest) {
   try {
-    const { title, reasoning, category } = await req.json();
+    const { title, reasoning, category, email } = await req.json();
 
     if (!title) {
       return Response.json({ error: "Missing title" }, { status: 400 });
+    }
+
+    if (!email) {
+      return Response.json({ error: "Email required" }, { status: 400 });
+    }
+
+    const user = await convexQuery("users:getByEmail", { email });
+    if (!user) return Response.json({ error: "User not found" }, { status: 404 });
+    const totalReceived = (user.credits ?? 0) + (user.totalCreditsUsed ?? 0);
+    if (totalReceived <= 100) {
+      return Response.json({
+        error: "Fitur Generate Hook AI hanya untuk pengguna Starter & Kreator. Silakan isi credit terlebih dahulu.",
+      }, { status: 403 });
     }
 
     const prompt = `Buatkan 3 hook kalimat pembuka viral untuk video Shorts/Reels/TikTok berdasarkan highlight berikut.

@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import UpgradeModal from "@/components/ui/upgrade-modal";
 import {
   Loader2,
   AlertCircle,
@@ -72,6 +73,7 @@ function AnalyzeContent() {
   const [copiedHook, setCopiedHook] = useState<string | null>(null);
   const [creditsBlocked, setCreditsBlocked] = useState(false);
   const [creditsChecking, setCreditsChecking] = useState(true);
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -246,10 +248,14 @@ function AnalyzeContent() {
           title: highlight.title,
           reasoning: highlight.reasoning,
           category: highlight.category,
+          email: session?.user?.email,
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) {
+        if (res.status === 403) { setUpgradeModalOpen(true); return; }
+        throw new Error(data.error);
+      }
       setHooksMap((prev) => ({ ...prev, [key]: data.hooks }));
     } catch {
       // silent
@@ -563,6 +569,7 @@ function AnalyzeContent() {
           </div>
         )}
       </div>
+      <UpgradeModal open={upgradeModalOpen} onClose={() => setUpgradeModalOpen(false)} />
     </div>
   );
 }

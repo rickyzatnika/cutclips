@@ -16,6 +16,7 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AiAnalyzeLink } from "@/components/chat-ai/ai-analyze-link";
 
 export function DesktopNav() {
   const pathname = usePathname();
@@ -82,8 +83,7 @@ export function DesktopNav() {
             <CreditCard className="h-3.5 w-3.5" />
             Isi Credit
           </Link>
-          <Link
-            href="/chat-ai"
+          <AiAnalyzeLink
             className={`flex items-center gap-1 text-sm ${
               pathname === "/chat-ai" || pathname.startsWith("/chat-ai/")
                 ? "text-emerald-400"
@@ -92,7 +92,7 @@ export function DesktopNav() {
           >
             <MessageCircle className="h-3.5 w-3.5" />
             AI Analyze
-          </Link>
+          </AiAnalyzeLink>
           {isAdmin && (
             <Link
               href="/dashboard"

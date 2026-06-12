@@ -4,5 +4,8 @@
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.wordWrap": "on",
   "editor.fontSize": 13,
-  "workbench.colorTheme": "Dark Modern"
+  "workbench.colorTheme": "Dark Modern",
+  "[typescript]": {
+    "editor.defaultFormatter": "vscode.typescript-language-features"
+  }
 }

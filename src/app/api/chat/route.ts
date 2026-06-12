@@ -10,517 +10,536 @@ const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
 const MODELS = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
 
 function getApiKeys(): string[] {
-  const keys: string[] = [];
-  for (let i = 1; i <= 5; i++) {
-    const key = process.env[`GROQ_API_KEY_${i}`];
-    if (key) keys.push(key);
-  }
-  if (keys.length === 0) {
-    const fallback = process.env.GROQ_API_KEY;
-    if (fallback) keys.push(fallback);
-  }
-  return keys;
+	const keys: string[] = [];
+	for (let i = 1; i <= 5; i++) {
+		const key = process.env[`GROQ_API_KEY_${i}`];
+		if (key) keys.push(key);
+	}
+	if (keys.length === 0) {
+		const fallback = process.env.GROQ_API_KEY;
+		if (fallback) keys.push(fallback);
+	}
+	return keys;
 }
 
 const TOOLS = [
-  {
-    type: "function",
-    function: {
-      name: "search_web",
-      description: "Cari informasi terbaru dari web pakai Tavily search engine",
-      parameters: {
-        type: "object",
-        properties: {
-          query: { type: "string", description: "Kata kunci pencarian" },
-        },
-        required: ["query"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "search_images",
-      description: "Cari gambar berdasarkan kata kunci",
-      parameters: {
-        type: "object",
-        properties: {
-          query: { type: "string", description: "Kata kunci gambar" },
-        },
-        required: ["query"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "search_youtube",
-      description: "Cari video YouTube berdasarkan kata kunci",
-      parameters: {
-        type: "object",
-        properties: {
-          query: { type: "string", description: "Kata kunci video YouTube" },
-          maxResults: {
-            type: "number",
-            description: "Maksimal hasil (default 5)",
-          },
-        },
-        required: ["query"],
-      },
-    },
-  },
+	{
+		type: "function",
+		function: {
+			name: "search_web",
+			description: "Cari informasi terbaru dari web pakai Tavily search engine",
+			parameters: {
+				type: "object",
+				properties: {
+					query: { type: "string", description: "Kata kunci pencarian" },
+				},
+				required: ["query"],
+			},
+		},
+	},
+	{
+		type: "function",
+		function: {
+			name: "search_images",
+			description: "Cari gambar berdasarkan kata kunci",
+			parameters: {
+				type: "object",
+				properties: {
+					query: { type: "string", description: "Kata kunci gambar" },
+				},
+				required: ["query"],
+			},
+		},
+	},
+	{
+		type: "function",
+		function: {
+			name: "search_youtube",
+			description: "Cari video YouTube berdasarkan kata kunci",
+			parameters: {
+				type: "object",
+				properties: {
+					query: { type: "string", description: "Kata kunci video YouTube" },
+					maxResults: {
+						type: "number",
+						description: "Maksimal hasil (default 5)",
+					},
+				},
+				required: ["query"],
+			},
+		},
+	},
 ];
 
 async function convexMutation(path: string, args: Record<string, unknown>) {
-  const res = await fetch(`${CONVEX_URL}/api/mutation`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ path, args }),
-  });
-  const data = await res.json();
-  if (data.error) throw new Error(data.error);
-  return data.value;
+	const res = await fetch(`${CONVEX_URL}/api/mutation`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ path, args }),
+	});
+	const data = await res.json();
+	if (data.error) throw new Error(data.error);
+	return data.value;
 }
 
 async function convexQuery(path: string, args: Record<string, unknown>) {
-  const res = await fetch(`${CONVEX_URL}/api/query`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ path, args }),
-  });
-  const data = await res.json();
-  if (data.error) throw new Error(data.error);
-  return data.value;
+	const res = await fetch(`${CONVEX_URL}/api/query`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ path, args }),
+	});
+	const data = await res.json();
+	if (data.error) throw new Error(data.error);
+	return data.value;
 }
 
 async function transcribeAudio(audioFile: File): Promise<string> {
-  const keys = getApiKeys();
-  if (keys.length === 0) throw new Error("No GROQ API keys configured");
+	const keys = getApiKeys();
+	if (keys.length === 0) throw new Error("No GROQ API keys configured");
 
-  for (const key of keys) {
-    try {
-      const formData = new FormData();
-      formData.append("file", audioFile);
-      formData.append("model", "whisper-large-v3-turbo");
-      formData.append("language", "id");
+	for (const key of keys) {
+		try {
+			const formData = new FormData();
+			formData.append("file", audioFile);
+			formData.append("model", "whisper-large-v3-turbo");
+			formData.append("language", "id");
 
-      const res = await fetch(
-        "https://api.groq.com/openai/v1/audio/transcriptions",
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${key}` },
-          body: formData,
-        },
-      );
+			const res = await fetch(
+				"https://api.groq.com/openai/v1/audio/transcriptions",
+				{
+					method: "POST",
+					headers: { Authorization: `Bearer ${key}` },
+					body: formData,
+				},
+			);
 
-      if (res.status === 429 || res.status === 413) continue;
-      if (!res.ok) continue;
+			if (res.status === 429 || res.status === 413) continue;
+			if (!res.ok) continue;
 
-      const data = await res.json();
-      return data.text || "";
-    } catch {
-      continue;
-    }
-  }
+			const data = await res.json();
+			return data.text || "";
+		} catch {
+			continue;
+		}
+	}
 
-  throw new Error("All Groq API keys failed for transcription");
+	throw new Error("All Groq API keys failed for transcription");
 }
 
 // --- Tool implementations ---
 
 async function tavilySearch(query: string) {
-  if (!TAVILY_API_KEY) return { error: "Tavily API key not configured" };
-  try {
-    const res = await fetch("https://api.tavily.com/search", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        api_key: TAVILY_API_KEY,
-        query,
-        search_depth: "basic",
-        include_images: true,
-        max_results: 5,
-      }),
-    });
-    const data = await res.json();
-    return data;
-  } catch (err) {
-    return { error: String(err) };
-  }
+	if (!TAVILY_API_KEY) return { error: "Tavily API key not configured" };
+	try {
+		const res = await fetch("https://api.tavily.com/search", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				api_key: TAVILY_API_KEY,
+				query,
+				search_depth: "basic",
+				include_images: true,
+				max_results: 5,
+			}),
+		});
+		const data = await res.json();
+		return data;
+	} catch (err) {
+		return { error: String(err) };
+	}
 }
 
 async function pexelsSearch(query: string) {
-  if (!PEXELS_API_KEY) return { error: "Pexels API key not configured" };
-  try {
-    const res = await fetch(
-      `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=5`,
-      { headers: { Authorization: PEXELS_API_KEY } },
-    );
-    const data = await res.json();
-    return data;
-  } catch (err) {
-    return { error: String(err) };
-  }
+	if (!PEXELS_API_KEY) return { error: "Pexels API key not configured" };
+	try {
+		const res = await fetch(
+			`https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=5`,
+			{ headers: { Authorization: PEXELS_API_KEY } },
+		);
+		const data = await res.json();
+		return data;
+	} catch (err) {
+		return { error: String(err) };
+	}
 }
 
 const unsplash = UNSPLASH_ACCESS_KEY
-  ? createApi({ accessKey: UNSPLASH_ACCESS_KEY })
-  : null;
+	? createApi({ accessKey: UNSPLASH_ACCESS_KEY })
+	: null;
 
 async function unsplashSearch(query: string) {
-  if (!unsplash) return { error: "Unsplash API key not configured" };
-  try {
-    const { data, error } = await unsplash.GET("/search/photos", {
-      params: { query: { query, per_page: 5 } },
-    });
-    if (error) return { error: String(error) };
-    return data;
-  } catch (err) {
-    return { error: String(err) };
-  }
+	if (!unsplash) return { error: "Unsplash API key not configured" };
+	try {
+		const { data, error } = await unsplash.GET("/search/photos", {
+			params: { query: { query, per_page: 5 } },
+		});
+		if (error) return { error: String(error) };
+		return data;
+	} catch (err) {
+		return { error: String(err) };
+	}
 }
 
 async function youtubeSearch(query: string, maxResults = 5) {
-  if (!YOUTUBE_API_KEY) return { error: "YouTube API key not configured" };
-  try {
-    const res = await fetch(
-      `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&maxResults=${maxResults}&type=video&key=${YOUTUBE_API_KEY}`,
-    );
-    const data = await res.json();
-    return data;
-  } catch (err) {
-    return { error: String(err) };
-  }
+	if (!YOUTUBE_API_KEY) return { error: "YouTube API key not configured" };
+	try {
+		const res = await fetch(
+			`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&maxResults=${maxResults}&type=video&key=${YOUTUBE_API_KEY}`,
+		);
+		const data = await res.json();
+		return data;
+	} catch (err) {
+		return { error: String(err) };
+	}
 }
 
 // --- Groq call with tool support ---
 
 async function callGroqWithTools(
-  messages: { role: string; content: string }[],
+	messages: { role: string; content: string }[],
 ): Promise<{
-  content: string;
-  images: { url: string; alt?: string; source?: string }[];
-  videos: {
-    title: string;
-    url: string;
-    thumbnail: string;
-    channelName?: string;
-  }[];
+	content: string;
+	images: { url: string; alt?: string; source?: string }[];
+	videos: {
+		title: string;
+		url: string;
+		thumbnail: string;
+		channelName?: string;
+	}[];
 }> {
-  const keys = getApiKeys();
+	const keys = getApiKeys();
 
-  async function groqCompletion(
-    msgs: { role: string; content: string }[],
-    tools?: unknown,
-  ): Promise<{
-    content: string;
-    toolCalls?: {
-      id: string;
-      type: string;
-      function: { name: string; arguments: string };
-    }[];
-  }> {
-    for (const key of keys) {
-      for (const model of MODELS) {
-        try {
-          const body: Record<string, unknown> = {
-            model,
-            messages: msgs,
-            temperature: 0.4,
-            max_tokens: 2048,
-          };
-          if (tools) {
-            body.tools = tools;
-            body.tool_choice = "auto";
-          }
+	async function groqCompletion(
+		msgs: { role: string; content: string }[],
+		tools?: unknown,
+	): Promise<{
+		content: string;
+		toolCalls?: {
+			id: string;
+			type: string;
+			function: { name: string; arguments: string };
+		}[];
+	}> {
+		for (const key of keys) {
+			for (const model of MODELS) {
+				try {
+					const body: Record<string, unknown> = {
+						model,
+						messages: msgs,
+						temperature: 0.4,
+						max_tokens: 2048,
+					};
+					if (tools) {
+						body.tools = tools;
+						body.tool_choice = "auto";
+					}
 
-          const res = await fetch(
-            "https://api.groq.com/openai/v1/chat/completions",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${key}`,
-              },
-              body: JSON.stringify(body),
-            },
-          );
+					const res = await fetch(
+						"https://api.groq.com/openai/v1/chat/completions",
+						{
+							method: "POST",
+							headers: {
+								"Content-Type": "application/json",
+								Authorization: `Bearer ${key}`,
+							},
+							body: JSON.stringify(body),
+						},
+					);
 
-          if (res.status === 429 || res.status === 413) continue;
-          if (!res.ok) continue;
+					if (res.status === 429 || res.status === 413) continue;
+					if (!res.ok) continue;
 
-          const data = await res.json();
-          const choice = data.choices?.[0]?.message;
-          return {
-            content: choice?.content || "",
-            toolCalls: choice?.tool_calls,
-          };
-        } catch {
-          continue;
-        }
-      }
-    }
-    return { content: "" };
+					const data = await res.json();
+					const choice = data.choices?.[0]?.message;
+					return {
+						content: choice?.content || "",
+						toolCalls: choice?.tool_calls,
+					};
+				} catch {
+					continue;
+				}
+			}
+		}
+		return { content: "" };
+	}
+
+	function stripFunctionTags(text: string): string {
+		return text
+			.replace(/<function=\w+>.*?<\/function>/g, "")
+			.replace(/<function=\w+\/>/g, "")
+			.replace(/<function=\w+>.*/g, "")
+			.trim();
+	}
+
+	const extraImages: { url: string; alt?: string; source?: string }[] = [];
+	const extraVideos: {
+		title: string;
+		url: string;
+		thumbnail: string;
+		channelName?: string;
+	}[] = [];
+
+	let currentMessages = [...messages];
+	let finalContent = "";
+	const maxRounds = 3;
+
+	for (let round = 0; round < maxRounds; round++) {
+		const result = await groqCompletion(currentMessages, TOOLS);
+
+		if (result.toolCalls && result.toolCalls.length > 0) {
+			const toolMessages = [...currentMessages];
+
+			for (const tc of result.toolCalls) {
+				if (tc.type !== "function") continue;
+				const fn = tc.function;
+				let toolResult: unknown;
+
+				try {
+					const args = JSON.parse(fn.arguments);
+
+					switch (fn.name) {
+						case "search_web": {
+							const r = await tavilySearch(args.query);
+							toolResult = {
+								results: (r.results || [])
+									.slice(0, 5)
+									.map((item: Record<string, string>) => ({
+										title: item.title,
+										url: item.url,
+										content: item.content?.slice(0, 300),
+									})),
+								images: (r.images || []).slice(0, 3),
+							};
+							break;
+						}
+						case "search_images": {
+							const [pexelRes, unsplashRes] = await Promise.all([
+								pexelsSearch(args.query),
+								unsplashSearch(args.query),
+							]);
+							const pexelPhotos = pexelRes.photos || [];
+							const unsplashPhotos = (
+								unsplashRes && "results" in unsplashRes
+									? unsplashRes.results
+									: []
+							) as Record<string, unknown>[];
+
+							toolResult = {};
+
+							let remaining = 6;
+							if (pexelPhotos.length > 0) {
+								const take = Math.min(pexelPhotos.length, remaining);
+								extraImages.push(
+									...pexelPhotos
+										.slice(0, take)
+										.map((p: Record<string, unknown>) => {
+											const psrc = p.src as Record<string, string>;
+											return {
+												url:
+													psrc?.medium ||
+													psrc?.original ||
+													(p as Record<string, string>).url,
+												alt: (p as Record<string, string>).alt || args.query,
+											};
+										}),
+								);
+								remaining -= take;
+							}
+							if (remaining > 0 && unsplashPhotos.length > 0) {
+								const take = Math.min(unsplashPhotos.length, remaining);
+								extraImages.push(
+									...unsplashPhotos
+										.slice(0, take)
+										.map((p: Record<string, unknown>) => ({
+											url:
+												(p.urls as Record<string, string>)?.regular ||
+												(p.urls as Record<string, string>)?.small ||
+												"",
+											alt:
+												(p as Record<string, string>).alt_description ||
+												args.query,
+										})),
+								);
+							}
+							break;
+						}
+						case "search_youtube": {
+							const r = await youtubeSearch(args.query, args.maxResults || 5);
+							const items = r.items || [];
+							toolResult = {
+								videos: items
+									.slice(0, 5)
+									.map((item: Record<string, unknown>) => ({
+										title:
+											(item.snippet as Record<string, string>)?.title || "",
+										videoId: (item.id as Record<string, string>)?.videoId || "",
+										channelName:
+											(item.snippet as Record<string, string>)?.channelTitle ||
+											"",
+										thumbnail: (item.snippet as Record<string, unknown>)
+											?.thumbnails
+											? (
+												(item.snippet as Record<string, unknown>)
+													.thumbnails as Record<string, unknown>
+											)?.high
+												? (
+													(item.snippet as Record<string, unknown>)
+														.thumbnails as Record<
+															string,
+															Record<string, string>
+														>
+												)?.high?.url || ""
+												: (
+													(item.snippet as Record<string, unknown>)
+														.thumbnails as Record<
+															string,
+															Record<string, string>
+														>
+												)?.default?.url || ""
+											: "",
+									})),
+							};
+							if (items.length > 0) {
+								extraVideos.push(
+									...items.slice(0, 5).map((item: Record<string, unknown>) => {
+										const snippet = item.snippet as Record<string, string>;
+										const idData = item.id as Record<string, string>;
+										const thumbs = (item.snippet as Record<string, unknown>)
+											.thumbnails as Record<string, Record<string, string>>;
+										return {
+											title: snippet?.title || "",
+											url: `https://youtube.com/watch?v=${idData?.videoId || ""}`,
+											thumbnail:
+												thumbs?.high?.url || thumbs?.default?.url || "",
+											channelName: snippet?.channelTitle || "",
+										};
+									}),
+								);
+							}
+							break;
+						}
+						default:
+							toolResult = { error: `Unknown tool: ${fn.name}` };
+					}
+				} catch (e) {
+					toolResult = { error: String(e) };
+				}
+
+				toolMessages.push({
+					role: "assistant",
+					content: "",
+					tool_calls: [tc],
+				} as unknown as { role: string; content: string });
+				toolMessages.push({
+					role: "tool",
+					tool_call_id: tc.id,
+					content: JSON.stringify(toolResult),
+				} as unknown as { role: string; content: string });
+			}
+
+			currentMessages = toolMessages;
+		} else {
+			finalContent = stripFunctionTags(result.content || "").trim();
+			if (!finalContent && round === maxRounds - 1) {
+				finalContent =
+					"Coba ulangi pertanyaannya dengan cara yang berbeda ya, biar saya bisa bantu.";
+			}
+			break;
+		}
+	}
+
+	return { content: finalContent, images: extraImages, videos: extraVideos };
+}
+
+class PaidUserError extends Error {
+  status = 403;
+}
+
+async function checkPaidUser(email: string) {
+  const user = await convexQuery("users:getByEmail", { email });
+  if (!user) throw new Error("User not found");
+  const totalReceived = (user.credits ?? 0) + (user.totalCreditsUsed ?? 0);
+  if (totalReceived <= 100) {
+    const err = new PaidUserError(
+      "Fitur Chat AI hanya untuk pengguna Starter & Kreator. Silakan isi credit terlebih dahulu.",
+    );
+    throw err;
   }
-
-  function stripFunctionTags(text: string): string {
-    return text
-      .replace(/<function=\w+>.*?<\/function>/g, "")
-      .replace(/<function=\w+\/>/g, "")
-      .replace(/<function=\w+>.*/g, "")
-      .trim();
-  }
-
-  const extraImages: { url: string; alt?: string; source?: string }[] = [];
-  const extraVideos: {
-    title: string;
-    url: string;
-    thumbnail: string;
-    channelName?: string;
-  }[] = [];
-
-  let currentMessages = [...messages];
-  let finalContent = "";
-  const maxRounds = 3;
-
-  for (let round = 0; round < maxRounds; round++) {
-    const result = await groqCompletion(currentMessages, TOOLS);
-
-    if (result.toolCalls && result.toolCalls.length > 0) {
-      const toolMessages = [...currentMessages];
-
-      for (const tc of result.toolCalls) {
-        if (tc.type !== "function") continue;
-        const fn = tc.function;
-        let toolResult: unknown;
-
-        try {
-          const args = JSON.parse(fn.arguments);
-
-          switch (fn.name) {
-            case "search_web": {
-              const r = await tavilySearch(args.query);
-              toolResult = {
-                results: (r.results || [])
-                  .slice(0, 5)
-                  .map((item: Record<string, string>) => ({
-                    title: item.title,
-                    url: item.url,
-                    content: item.content?.slice(0, 300),
-                  })),
-                images: (r.images || []).slice(0, 3),
-              };
-              break;
-            }
-            case "search_images": {
-              const [pexelRes, unsplashRes] = await Promise.all([
-                pexelsSearch(args.query),
-                unsplashSearch(args.query),
-              ]);
-              const pexelPhotos = pexelRes.photos || [];
-              const unsplashPhotos = (
-                unsplashRes && "results" in unsplashRes
-                  ? unsplashRes.results
-                  : []
-              ) as Record<string, unknown>[];
-
-              toolResult = {};
-
-              let remaining = 6;
-              if (pexelPhotos.length > 0) {
-                const take = Math.min(pexelPhotos.length, remaining);
-                extraImages.push(
-                  ...pexelPhotos
-                    .slice(0, take)
-                    .map((p: Record<string, unknown>) => {
-                      const psrc = p.src as Record<string, string>;
-                      return {
-                        url:
-                          psrc?.medium ||
-                          psrc?.original ||
-                          (p as Record<string, string>).url,
-                        alt: (p as Record<string, string>).alt || args.query,
-                      };
-                    }),
-                );
-                remaining -= take;
-              }
-              if (remaining > 0 && unsplashPhotos.length > 0) {
-                const take = Math.min(unsplashPhotos.length, remaining);
-                extraImages.push(
-                  ...unsplashPhotos
-                    .slice(0, take)
-                    .map((p: Record<string, unknown>) => ({
-                      url:
-                        (p.urls as Record<string, string>)?.regular ||
-                        (p.urls as Record<string, string>)?.small ||
-                        "",
-                      alt:
-                        (p as Record<string, string>).alt_description ||
-                        args.query,
-                    })),
-                );
-              }
-              break;
-            }
-            case "search_youtube": {
-              const r = await youtubeSearch(args.query, args.maxResults || 5);
-              const items = r.items || [];
-              toolResult = {
-                videos: items
-                  .slice(0, 5)
-                  .map((item: Record<string, unknown>) => ({
-                    title:
-                      (item.snippet as Record<string, string>)?.title || "",
-                    videoId: (item.id as Record<string, string>)?.videoId || "",
-                    channelName:
-                      (item.snippet as Record<string, string>)?.channelTitle ||
-                      "",
-                    thumbnail: (item.snippet as Record<string, unknown>)
-                      ?.thumbnails
-                      ? (
-                          (item.snippet as Record<string, unknown>)
-                            .thumbnails as Record<string, unknown>
-                        )?.high
-                        ? (
-                            (item.snippet as Record<string, unknown>)
-                              .thumbnails as Record<
-                              string,
-                              Record<string, string>
-                            >
-                          )?.high?.url || ""
-                        : (
-                            (item.snippet as Record<string, unknown>)
-                              .thumbnails as Record<
-                              string,
-                              Record<string, string>
-                            >
-                          )?.default?.url || ""
-                      : "",
-                  })),
-              };
-              if (items.length > 0) {
-                extraVideos.push(
-                  ...items.slice(0, 5).map((item: Record<string, unknown>) => {
-                    const snippet = item.snippet as Record<string, string>;
-                    const idData = item.id as Record<string, string>;
-                    const thumbs = (item.snippet as Record<string, unknown>)
-                      .thumbnails as Record<string, Record<string, string>>;
-                    return {
-                      title: snippet?.title || "",
-                      url: `https://youtube.com/watch?v=${idData?.videoId || ""}`,
-                      thumbnail:
-                        thumbs?.high?.url || thumbs?.default?.url || "",
-                      channelName: snippet?.channelTitle || "",
-                    };
-                  }),
-                );
-              }
-              break;
-            }
-            default:
-              toolResult = { error: `Unknown tool: ${fn.name}` };
-          }
-        } catch (e) {
-          toolResult = { error: String(e) };
-        }
-
-        toolMessages.push({
-          role: "assistant",
-          content: "",
-          tool_calls: [tc],
-        } as unknown as { role: string; content: string });
-        toolMessages.push({
-          role: "tool",
-          tool_call_id: tc.id,
-          content: JSON.stringify(toolResult),
-        } as unknown as { role: string; content: string });
-      }
-
-      currentMessages = toolMessages;
-    } else {
-      finalContent = stripFunctionTags(result.content || "").trim();
-      if (!finalContent && round === maxRounds - 1) {
-        finalContent =
-          "Coba ulangi pertanyaannya dengan cara yang berbeda ya, biar saya bisa bantu.";
-      }
-      break;
-    }
-  }
-
-  return { content: finalContent, images: extraImages, videos: extraVideos };
 }
 
 async function processWithLLM(
-  convId: string,
-  email: string,
-  userMessage: string,
+	convId: string,
+	email: string,
+	userMessage: string,
 ) {
-  const allHistory = await convexQuery("messages:list", {
-    conversationId: convId,
-  });
-  const history = allHistory.slice(-15);
+	const allHistory = await convexQuery("messages:list", {
+		conversationId: convId,
+	});
+	const history = allHistory.slice(-15);
 
-  let userDataStr = "";
-  // const needsUserData = /kredit|saldo|clip|video|highlight|user|akun|profil|data/i.test(
-  //   userMessage,
-  // );
-  const needsUserData =
-    /(kredit|credit|saldo|clip|video|highlight|akun|profil|user|data|statistik|generate|riwayat|hasil|sisa)/i.test(
-      userMessage,
-    );
-  if (needsUserData) {
-    try {
-      const user = await convexQuery("users:getByEmail", { email });
-      const clips = await convexQuery("videos:listByUserWithClips", { email });
-      const unclipped = await convexQuery("highlights:listUnclipped", {
-        email,
-      });
+	let userDataStr = "";
+	// const needsUserData = /kredit|saldo|clip|video|highlight|user|akun|profil|data/i.test(
+	//   userMessage,
+	// );
+	const needsUserData =
+		/(kredit|credit|saldo|clip|video|highlight|akun|profil|user|data|statistik|generate|riwayat|hasil|sisa)/i.test(
+			userMessage,
+		);
+	if (needsUserData) {
+		try {
+			const user = await convexQuery("users:getByEmail", { email });
+			const clips = await convexQuery("videos:listByUserWithClips", { email });
+			const unclipped = await convexQuery("highlights:listUnclipped", {
+				email,
+			});
 
-      const uniqueVideos = new Set(
-        clips
-          .map(
-            (c: Record<string, unknown>) =>
-              (c.video as Record<string, unknown>)?._id,
-          )
-          .filter(Boolean),
-      );
-      const totalVideos = uniqueVideos.size;
-      const totalClips = clips.length;
-      const totalHighlights = unclipped.length;
+			const uniqueVideos = new Set(
+				clips
+					.map(
+						(c: Record<string, unknown>) =>
+							(c.video as Record<string, unknown>)?._id,
+					)
+					.filter(Boolean),
+			);
+			const totalVideos = uniqueVideos.size;
+			const totalClips = clips.length;
+			const totalHighlights = unclipped.length;
 
-      userDataStr =
-        "\n\n== DATA USER (hanya info user ini) ==\n" +
-        `Nama: ${user?.name || "-"}\n` +
-        `Email: ${user?.email || email}\n` +
-        `Sisa Kredit: ${user?.credits ?? 0}\n` +
-        `Total Kredit Terpakai: ${user?.totalCreditsUsed ?? 0}\n` +
-        `Total Video Dianalisis: ${totalVideos}\n` +
-        `Total Highlight: ${totalHighlights}\n` +
-        `Total Clip Dibuat: ${totalClips}\n` +
-        `Bergabung Sejak: ${user?.joinedAt ? new Date(user.joinedAt).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : "-"}\n` +
-        `Role: ${user?.role || "user"}\n`;
-    } catch {
-      userDataStr = "\n\n(Gagal memuat data user)";
-    }
-  }
+			userDataStr =
+				"\n\n== DATA USER (hanya info user ini) ==\n" +
+				`Nama: ${user?.name || "-"}\n` +
+				`Email: ${user?.email || email}\n` +
+				`Sisa Kredit: ${user?.credits ?? 0}\n` +
+				`Total Kredit Terpakai: ${user?.totalCreditsUsed ?? 0}\n` +
+				`Total Video Dianalisis: ${totalVideos}\n` +
+				`Total Highlight: ${totalHighlights}\n` +
+				`Total Clip Dibuat: ${totalClips}\n` +
+				`Bergabung Sejak: ${user?.joinedAt ? new Date(user.joinedAt).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : "-"}\n` +
+				`Role: ${user?.role || "user"}\n`;
+		} catch {
+			userDataStr = "\n\n(Gagal memuat data user)";
+		}
+	}
 
-  const now = new Date();
-  const nowFormatted = now.toLocaleDateString("id-ID", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZoneName: "short",
-    timeZone: "Asia/Jakarta",
-  });
+	const now = new Date();
+	const nowFormatted = now.toLocaleDateString("id-ID", {
+		weekday: "long",
+		day: "numeric",
+		month: "long",
+		year: "numeric",
+		hour: "2-digit",
+		minute: "2-digit",
+		timeZoneName: "short",
+		timeZone: "Asia/Jakarta",
+	});
 
-  const SYSTEM_PROMPT = `
+	const SYSTEM_PROMPT = `
 Hari ini: ${nowFormatted}
 
-Kamu asisten AI CutClips. Bantu ngobrol, pake app, nyari ide, atau cari info via tools.
+Kamu adalah AI CutClips — ahli analisa konten media sosial. 
+Pakar dalam: analisa video YouTube/Youtube shorts/TikTok/Instagram, strategi konten viral, 
+riset tren, optimasi judul & thumbnail, dan insight audiens.
+Pake data, tren, dan tools buat ngasih saran yang actionable.
 
 PENTING — JANGAN ASAL JAWAB:
 - Kalo gak tau, bilang gak tau. Jangan ngelantur atau ngarang informasi.
@@ -535,7 +554,6 @@ GAYA NGOMONG:
 - Jangan pake emoji berlebihan.
 - Jangan ngejelasin fitur CutClips kalo gak ditanya.
 - Jangan nyebut sumber gambar (Pexels/Unsplash) pas nampilin hasil.
-- Jangan ngejelasin fitur CutClips kalo gak ditanya.
 
 PAKE TOOLS KALAU PERLU:
 - search_web — nyari info
@@ -547,7 +565,7 @@ BATASAN:
 - Arahkan hubungi admin kalo butuh tindakan admin atau ada error teknis.
 `;
 
-  const CUTCLIPS_KNOWLEDGE = `
+	const CUTCLIPS_KNOWLEDGE = `
 # FITUR CUTCLIPS
 
 ## Analyze
@@ -620,174 +638,178 @@ Menampilkan:
 
 Asisten AI CutClips untuk membantu.
 `;
-  const USER_CONTEXT = `
+	const USER_CONTEXT = `
 # DATA USER
 
 ${userDataStr}
 `;
-  const needsKnowledge =
-    /(cutclips|analyze|generate|billing|credit|workspace|history)/i.test(
-      userMessage,
-    );
+	const needsKnowledge =
+		/(cutclips|analyze|generate|billing|credit|workspace|history)/i.test(
+			userMessage,
+		);
 
-  const groqMessages = [
-    {
-      role: "system",
-      content: `
+	const groqMessages = [
+		{
+			role: "system",
+			content: `
           ${SYSTEM_PROMPT}
 
           ${needsKnowledge ? CUTCLIPS_KNOWLEDGE : ""}
 
           ${USER_CONTEXT}
       `,
-    },
+		},
 
-    ...history.map((m: Record<string, unknown>) => ({
-      role: m.role as string,
-      content: m.content as string,
-    })),
-  ];
+		...history.map((m: Record<string, unknown>) => ({
+			role: m.role as string,
+			content: m.content as string,
+		})),
+	];
 
-  return await callGroqWithTools(groqMessages);
+	return await callGroqWithTools(groqMessages);
 }
 
 export async function POST(req: Request) {
-  try {
-    const contentType = req.headers.get("content-type") || "";
+	try {
+		const contentType = req.headers.get("content-type") || "";
 
-    if (contentType.includes("multipart/form-data")) {
-      const formData = await req.formData();
-      const audioFile = formData.get("audio") as File | null;
-      let convId = (formData.get("conversationId") as string) || "";
-      const email = formData.get("email") as string;
+		if (contentType.includes("multipart/form-data")) {
+			const formData = await req.formData();
+			const audioFile = formData.get("audio") as File | null;
+			let convId = (formData.get("conversationId") as string) || "";
+			const email = formData.get("email") as string;
 
-      if (!audioFile || !email) {
-        return NextResponse.json(
-          { error: "Audio file and email are required" },
-          { status: 400 },
-        );
-      }
+			if (!audioFile || !email) {
+				return NextResponse.json(
+					{ error: "Audio file and email are required" },
+					{ status: 400 },
+				);
+			}
 
-      const transcript = await transcribeAudio(audioFile);
-      if (!transcript.trim()) {
-        return NextResponse.json(
-          { error: "Could not transcribe audio" },
-          { status: 400 },
-        );
-      }
+			await checkPaidUser(email);
 
-      // Same LLM flow as text messages, using transcript as message
-      if (!convId) {
-        convId = await convexMutation("conversations:create", {
-          userEmail: email,
-          title: transcript.slice(0, 60),
-        });
-      }
+			const transcript = await transcribeAudio(audioFile);
+			if (!transcript.trim()) {
+				return NextResponse.json(
+					{ error: "Could not transcribe audio" },
+					{ status: 400 },
+				);
+			}
 
-      const voiceHistory = await convexQuery("messages:list", {
-        conversationId: convId,
-      });
-      if (voiceHistory.length === 0) {
-        await convexMutation("conversations:updateTitle", {
-          conversationId: convId,
-          title: transcript.slice(0, 60),
-        });
-      }
+			// Same LLM flow as text messages, using transcript as message
+			if (!convId) {
+				convId = await convexMutation("conversations:create", {
+					userEmail: email,
+					title: transcript.slice(0, 60),
+				});
+			}
 
-      await convexMutation("messages:send", {
-        conversationId: convId,
-        role: "user",
-        content: transcript,
-      });
+			const voiceHistory = await convexQuery("messages:list", {
+				conversationId: convId,
+			});
+			if (voiceHistory.length === 0) {
+				await convexMutation("conversations:updateTitle", {
+					conversationId: convId,
+					title: transcript.slice(0, 60),
+				});
+			}
 
-      const {
-        content: aiResponse,
-        images,
-        videos,
-      } = await processWithLLM(convId, email, transcript);
+			await convexMutation("messages:send", {
+				conversationId: convId,
+				role: "user",
+				content: transcript,
+			});
 
-      const saveArgs: Record<string, unknown> = {
-        conversationId: convId,
-        role: "assistant",
-        content: aiResponse,
-      };
-      if (videos.length > 0) saveArgs.videos = videos;
-      if (images.length > 0) saveArgs.images = images;
+			const {
+				content: aiResponse,
+				images,
+				videos,
+			} = await processWithLLM(convId, email, transcript);
 
-      await convexMutation("messages:send", saveArgs);
+			const saveArgs: Record<string, unknown> = {
+				conversationId: convId,
+				role: "assistant",
+				content: aiResponse,
+			};
+			if (videos.length > 0) saveArgs.videos = videos;
+			if (images.length > 0) saveArgs.images = images;
 
-      return NextResponse.json({
-        conversationId: convId,
-        content: aiResponse,
-        transcript,
-        images,
-        videos,
-      });
-    }
+			await convexMutation("messages:send", saveArgs);
 
-    const { conversationId, message, email } = await req.json();
+			return NextResponse.json({
+				conversationId: convId,
+				content: aiResponse,
+				transcript,
+				images,
+				videos,
+			});
+		}
 
-    if (!message || !email) {
-      return NextResponse.json(
-        { error: "Message and email are required" },
-        { status: 400 },
-      );
-    }
+		const { conversationId, message, email } = await req.json();
 
-    let convId = conversationId;
+		if (!message || !email) {
+			return NextResponse.json(
+				{ error: "Message and email are required" },
+				{ status: 400 },
+			);
+		}
 
-    if (!convId) {
-      convId = await convexMutation("conversations:create", {
-        userEmail: email,
-        title: message.slice(0, 60),
-      });
-    }
+		await checkPaidUser(email);
 
-    // Update title based on first user message
-    const history = await convexQuery("messages:list", {
-      conversationId: convId,
-    });
-    if (history.length === 0) {
-      await convexMutation("conversations:updateTitle", {
-        conversationId: convId,
-        title: message.slice(0, 60),
-      });
-    }
+		let convId = conversationId;
 
-    await convexMutation("messages:send", {
-      conversationId: convId,
-      role: "user",
-      content: message,
-    });
+		if (!convId) {
+			convId = await convexMutation("conversations:create", {
+				userEmail: email,
+				title: message.slice(0, 60),
+			});
+		}
 
-    const {
-      content: aiResponse,
-      images,
-      videos,
-    } = await processWithLLM(convId, email, message);
+		// Update title based on first user message
+		const history = await convexQuery("messages:list", {
+			conversationId: convId,
+		});
+		if (history.length === 0) {
+			await convexMutation("conversations:updateTitle", {
+				conversationId: convId,
+				title: message.slice(0, 60),
+			});
+		}
 
-    const saveArgs: Record<string, unknown> = {
-      conversationId: convId,
-      role: "assistant",
-      content: aiResponse,
-    };
-    if (videos.length > 0) saveArgs.videos = videos;
-    if (images.length > 0) saveArgs.images = images;
+		await convexMutation("messages:send", {
+			conversationId: convId,
+			role: "user",
+			content: message,
+		});
 
-    const msgId = await convexMutation("messages:send", saveArgs);
+		const {
+			content: aiResponse,
+			images,
+			videos,
+		} = await processWithLLM(convId, email, message);
 
-    return NextResponse.json({
-      conversationId: convId,
-      messageId: msgId,
-      content: aiResponse,
-      images,
-      videos,
-    });
-  } catch (err) {
-    console.error("[chat] error:", err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Internal error" },
-      { status: 500 },
-    );
-  }
+		const saveArgs: Record<string, unknown> = {
+			conversationId: convId,
+			role: "assistant",
+			content: aiResponse,
+		};
+		if (videos.length > 0) saveArgs.videos = videos;
+		if (images.length > 0) saveArgs.images = images;
+
+		const msgId = await convexMutation("messages:send", saveArgs);
+
+		return NextResponse.json({
+			conversationId: convId,
+			messageId: msgId,
+			content: aiResponse,
+			images,
+			videos,
+		});
+	} catch (err) {
+		const status = err instanceof PaidUserError ? 403 : 500;
+		return NextResponse.json(
+			{ error: err instanceof Error ? err.message : "Internal error" },
+			{ status },
+		);
+	}
 }

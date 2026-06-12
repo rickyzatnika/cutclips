@@ -295,7 +295,7 @@ export default function ChatDetailPage() {
   return (
     <div className="flex h-screen flex-col bg-[#050505]">
       {/* Fixed top header */}
-      <div className="fixed inset-x-0 top-0 z-40 border-b border-zinc-800 bg-[#050505] px-4 py-3">
+      <div className="fixed inset-x-0 top-0 z-40 border-b border-zinc-800 bg-[#050505] px-4 py-3 sm:hidden">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
