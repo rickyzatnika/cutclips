@@ -331,19 +331,125 @@ export default function WorkspacePage() {
       </div>
 
       {/* AI Insight */}
-      {completed.length > 0 && (
-        <div className="mb-6 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
-          <div className="flex items-center gap-2 text-xs text-emerald-400">
-            <Sparkles className="h-3.5 w-3.5" />
-            AI Insight
+      {(() => {
+        const c = completed.length;
+        const processing = clips.filter(
+          (x) => x.status === "queued" || x.status === "processing",
+        ).length;
+        const credits = userData ? (userData as any).credits ?? 0 : 0;
+        const cats = completed.map((x) => x.category);
+        const topCat = c > 0 && cats.length
+          ? cats
+              .filter((v, i, a) => a.indexOf(v) === i)
+              .sort((a, b) => cats.filter((v) => v === b).length - cats.filter((v) => v === a).length)[0]
+          : null;
+        const topCatCount = topCat ? cats.filter((v) => v === topCat).length : 0;
+        const totalDur = completed.reduce((s, x) => s + (x.endTime - x.startTime), 0);
+        const avgDur = c > 0 ? Math.round(totalDur / c / 60) : 0;
+        const latest =
+          c > 0
+            ? completed.reduce((a, b) => (a.createdAt > b.createdAt ? a : b))
+            : null;
+        const latestVideo = latest?.video?.title || "";
+        const latestDaysAgo = latest
+          ? Math.floor((Date.now() - latest.createdAt) / 86400000)
+          : 0;
+
+        const isNewbie = c <= 2;
+
+        const seeds: string[] = [];
+
+        if (processing > 0) {
+          seeds.push(
+            processing === 1
+              ? `${processing} clip sedang diproses — akan muncul otomatis setelah selesai.`
+              : `${processing} clip sedang diproses — bersabar sebentar ya.`,
+          );
+        }
+
+        if (credits < 50 && !isNewbie) {
+          seeds.push(`Sisa ${credits} kredit. Isi ulang agar proses clip tidak terhenti.`);
+        }
+
+        if (c === 0) {
+          seeds.push("Tempel URL YouTube pertama untuk mulai membuat highlight.");
+        } else if (c <= 2) {
+          seeds.push(
+            `${c} clip berhasil dibuat. Coba analisis video viral favorit untuk inspirasi.`,
+          );
+        } else if (c <= 5) {
+          seeds.push(
+            `${c} clip — lumayan! Fokus pada kualitas hook untuk hasil maksimal.`,
+          );
+        } else if (c <= 10) {
+          seeds.push(`${c} clip — konsisten banget! 🔥 Pertahankan ritmenya.`);
+        } else if (c <= 25) {
+          seeds.push(
+            `Total ${c} clip — Anda sudah pro! Saatnya eksplorasi konten baru. 🚀`,
+          );
+        } else {
+          seeds.push(
+            `${c} clip — kreator sejati! Konten Anda makin bervariasi. 🏆`,
+          );
+        }
+
+        if (topCat && topCatCount >= 3) {
+          const label: Record<string, string> = {
+            funny: "Konten lucu 🎭",
+            emotional: "Momen emosional 🎬",
+            inspirational: "Konten inspiratif ✨",
+            shocking: "Momen shocking ⚡",
+            educational: "Konten edukasi 📚",
+            hook: "Strong hooks 🎯",
+          };
+          seeds.push(
+            `${label[topCat] || topCat} paling banyak menghasilkan clip — pertanda niche Anda.`,
+          );
+        }
+
+        if (c >= 3 && totalDur >= 300) {
+          seeds.push(
+            `Total ${Math.round(totalDur / 60)} menit clip diproduksi — portofolio konten yang solid.`,
+          );
+        }
+
+        if (c >= 3 && avgDur >= 1 && avgDur <= 3) {
+          seeds.push(
+            `Durasi rata-rata ${avgDur} menit — ideal untuk Shorts/Reels. 👍`,
+          );
+        } else if (c >= 3 && avgDur > 3) {
+          seeds.push(
+            `Durasi rata-rata ${avgDur} menit — coba versi lebih pendek untuk engagement lebih tinggi.`,
+          );
+        }
+
+        if (latest && latestDaysAgo >= 7 && c >= 3) {
+          seeds.push(
+            `${latestDaysAgo} hari sejak clip terakhir. Saatnya upload video baru!`,
+          );
+        }
+
+        if (latestVideo && latestVideo.length < 30 && latestVideo.length > 0 && c >= 2) {
+          seeds.push(`Clip terbaru dari: "${latestVideo}".`);
+        }
+
+        if (seeds.length === 0 && c > 0) {
+          seeds.push(`${c} clip berhasil dibuat. Tempel URL YouTube baru untuk menambah koleksi.`);
+        }
+
+        const insight = seeds.slice(0, 2).join(" ");
+        if (!insight) return null;
+
+        return (
+          <div className="mb-6 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
+            <div className="flex items-center gap-2 text-xs text-emerald-400">
+              <Sparkles className="h-3.5 w-3.5" />
+              AI Insight
+            </div>
+            <p className="mt-1 text-sm text-zinc-400">{insight}</p>
           </div>
-          <p className="mt-1 text-sm text-zinc-400">
-            {completed.length > 5
-              ? `Anda sudah membuat ${completed.length} clip — terus konsisten! 🔥`
-              : `${completed.length} clip berhasil dibuat. Tempel URL YouTube baru untuk menambah koleksi.`}
-          </p>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Filter & Sort */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">

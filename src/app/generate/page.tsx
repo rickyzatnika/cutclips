@@ -35,6 +35,8 @@ function GenerateContent() {
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [queueInfo, setQueueInfo] = useState<{ ahead: number; estimatedSeconds: number } | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState("default");
+  const [captionEnabled, setCaptionEnabled] = useState(true);
   // Auto-save highlight on mount when logged in
   useEffect(() => {
     if (!session || !videoUrl || !startTime || !endTime) return;
@@ -76,7 +78,7 @@ function GenerateContent() {
       const res = await fetch("/api/genclip", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ highlightId, title }),
+        body: JSON.stringify({ highlightId, title, includeCaptions: captionEnabled, template: selectedTemplate }),
       });
 
       const data = await res.json();
@@ -231,9 +233,48 @@ function GenerateContent() {
             <p className="mb-2 text-sm text-zinc-400">
               Highlight tersimpan! Buat clip seharga <strong className="text-white">20 kredit</strong>.
             </p>
-            <p className="mb-4 text-xs text-zinc-600">
-              Kredit kamu cukup untuk ini.
-            </p>
+
+            <div className="mb-6 space-y-3">
+              <div className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3">
+                <span className="text-sm text-zinc-400">Caption TikTok Style</span>
+                <button
+                  onClick={() => setCaptionEnabled(!captionEnabled)}
+                  className={`relative h-6 w-11 cursor-pointer rounded-full transition-colors ${
+                    captionEnabled ? "bg-emerald-500" : "bg-zinc-700"
+                  }`}
+                >
+                  <span
+                    className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
+                      captionEnabled ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
+              <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3">
+                <label className="text-sm text-zinc-400">Template</label>
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  {[
+                    { id: "default", label: "Default", desc: "Boxblur + caption bawah", icon: "🎬" },
+                    { id: "podcast", label: "Podcast", desc: "Blur ringan + caption tengah", icon: "🎙️" },
+                    { id: "minimal", label: "Minimal", desc: "BG gelap + caption tipis", icon: "✨" },
+                  ].map((t) => (
+                    <button
+                      key={t.id}
+                      onClick={() => setSelectedTemplate(t.id)}
+                      className={`cursor-pointer rounded-xl border p-3 text-left transition-colors ${
+                        selectedTemplate === t.id
+                          ? "border-emerald-500 bg-emerald-500/10"
+                          : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
+                      }`}
+                    >
+                      <span className="text-lg">{t.icon}</span>
+                      <p className="mt-1 text-xs font-medium text-white">{t.label}</p>
+                      <p className="mt-0.5 text-[10px] text-zinc-500">{t.desc}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
 
             <button
               onClick={startExport}

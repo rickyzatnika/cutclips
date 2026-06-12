@@ -1,0 +1,8 @@
+{
+  "editor.fontFamily": "Montserrat",
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.wordWrap": "on",
+  "editor.fontSize": 13,
+  "workbench.colorTheme": "Dark Modern"
+}

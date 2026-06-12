@@ -88,6 +88,7 @@ export default defineSchema({
     error: v.optional(v.string()),
     creditCost: v.number(),
     includeCaptions: v.optional(v.boolean()),
+    template: v.optional(v.string()),
     createdAt: v.number(),
     completedAt: v.optional(v.number()),
   })

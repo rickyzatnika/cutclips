@@ -125,10 +125,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {/* Mobile credits */}
           <Link
             href="/workspace/user-info"
-            className="flex sm:hidden items-center gap-1 text-xs text-zinc-400"
+            className="flex sm:hidden items-center gap-2 text-xs text-zinc-400"
           >
-            <User className="h-3.5 w-3.5" />
-            <span className="font-medium text-white">
+            {!isLoading && user?.name && (
+              <span className="max-w-[100px] truncate text-right text-white font-medium">
+                {user.name}
+              </span>
+            )}
+            <User className="h-3.5 w-3.5 shrink-0" />
+            <span className="font-semibold text-white">
               {isLoading ? <Skeleton className="inline-block h-4 w-8 align-middle" /> : credits ?? 0}
             </span>
           </Link>

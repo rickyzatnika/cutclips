@@ -10,8 +10,13 @@ import {
   ArrowLeft,
   Flame,
   Sparkles,
+  Lightbulb,
+  Copy,
+  Check,
+  Coins,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { convexQuery } from "@/lib/convex-rest";
 
 const CATEGORY_EMOJIS: Record<string, string> = {
   funny: "😂",
@@ -47,7 +52,7 @@ type PollStatus = "loading" | "processing" | "done" | "error";
 function AnalyzeContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const url = searchParams.get("url");
 
   const [pollStatus, setPollStatus] = useState<PollStatus>("loading");
@@ -60,14 +65,45 @@ function AnalyzeContent() {
   } | null>(null);
   const [error, setError] = useState("");
   const [generating, setGenerating] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState("default");
+  const [captionEnabled, setCaptionEnabled] = useState(true);
+  const [hooksMap, setHooksMap] = useState<Record<string, string[]>>({});
+  const [loadingHooks, setLoadingHooks] = useState<Record<string, boolean>>({});
+  const [copiedHook, setCopiedHook] = useState<string | null>(null);
+  const [creditsBlocked, setCreditsBlocked] = useState(false);
+  const [creditsChecking, setCreditsChecking] = useState(true);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
+    if (status === "loading") return;
+
+    if (status === "unauthenticated" || !session?.user?.email) {
+      setCreditsChecking(false);
+      return;
+    }
+
+    convexQuery("users:getByEmail", { email: session.user.email })
+      .then((user) => {
+        const userData = user as { credits?: number } | null;
+        if (userData && typeof userData.credits === "number" && userData.credits <= 0) {
+          setCreditsBlocked(true);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setCreditsChecking(false));
+  }, [session, status]);
+
+  useEffect(() => {
+    if (status === "loading") return;
+
     if (!url) {
       setError("No URL provided");
       setPollStatus("error");
       return;
     }
+
+    if (creditsChecking) return;
+    if (creditsBlocked) return;
 
     let cancelled = false;
 
@@ -157,7 +193,7 @@ function AnalyzeContent() {
       cancelled = true;
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [url]);
+  }, [url, creditsChecking, creditsBlocked, session, status]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -175,6 +211,8 @@ function AnalyzeContent() {
         body: JSON.stringify({
           youtubeUrl: url,
           videoTitle: videoInfo?.title,
+          includeCaptions: captionEnabled,
+          template: selectedTemplate,
           highlights: highlights.map((h) => ({
             startTime: h.startTime,
             endTime: h.endTime,
@@ -196,6 +234,38 @@ function AnalyzeContent() {
     }
   };
 
+  const generateHooks = async (highlight: Highlight) => {
+    const key = `${highlight.startTime}-${highlight.endTime}`;
+    if (hooksMap[key] || loadingHooks[key]) return;
+    setLoadingHooks((prev) => ({ ...prev, [key]: true }));
+    try {
+      const res = await fetch("/api/generate-hooks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: highlight.title,
+          reasoning: highlight.reasoning,
+          category: highlight.category,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setHooksMap((prev) => ({ ...prev, [key]: data.hooks }));
+    } catch {
+      // silent
+    } finally {
+      setLoadingHooks((prev) => ({ ...prev, [key]: false }));
+    }
+  };
+
+  const copyHook = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedHook(text);
+      setTimeout(() => setCopiedHook(null), 2000);
+    } catch {}
+  };
+
   const generateClipUrl = (highlight: Highlight) => {
     const params = new URLSearchParams({
       videoUrl: url || "",
@@ -209,6 +279,36 @@ function AnalyzeContent() {
     });
     return `/generate?${params.toString()}`;
   };
+
+  if (creditsBlocked) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4">
+        <div className="w-full max-w-sm rounded-2xl border border-zinc-800 bg-zinc-900 p-6 text-center">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-500/10">
+            <Coins className="h-7 w-7 text-amber-400" />
+          </div>
+          <h2 className="mt-4 text-lg font-semibold text-white">Kredit Tidak Mencukupi</h2>
+          <p className="mt-2 text-sm leading-relaxed text-zinc-400">
+            Saldo kredit kamu habis. Isi ulang untuk melanjutkan analisis dan generate clip.
+          </p>
+          <div className="mt-6 flex flex-col gap-3">
+            <Link
+              href="/workspace/billing"
+              className="w-full rounded-xl bg-emerald-500 py-3 text-sm font-semibold text-black transition-colors hover:bg-emerald-400"
+            >
+              Isi Credit
+            </Link>
+            <button
+              onClick={() => router.push("/")}
+              className="w-full cursor-pointer rounded-xl border border-zinc-700 py-3 text-sm font-medium text-zinc-400 transition-colors hover:text-white"
+            >
+              Nanti
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (error && pollStatus === "error") {
     return (
@@ -298,6 +398,47 @@ function AnalyzeContent() {
 
             {session && (
               <>
+                <div className="mb-4 space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/30 p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-zinc-400">Caption TikTok Style</span>
+                    <button
+                      onClick={() => setCaptionEnabled(!captionEnabled)}
+                      className={`relative h-6 w-11 cursor-pointer rounded-full transition-colors ${
+                        captionEnabled ? "bg-emerald-500" : "bg-zinc-700"
+                      }`}
+                    >
+                      <span
+                        className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
+                          captionEnabled ? "translate-x-5" : "translate-x-0"
+                        }`}
+                      />
+                    </button>
+                  </div>
+                  <div>
+                    <label className="text-sm text-zinc-400">Template Clip</label>
+                    <div className="mt-2 grid grid-cols-3 gap-2">
+                      {[
+                        { id: "default", label: "Default", desc: "Boxblur + caption bawah", icon: "🎬" },
+                        { id: "podcast", label: "Podcast", desc: "Blur ringan + caption tengah", icon: "🎙️" },
+                        { id: "minimal", label: "Minimal", desc: "BG gelap + caption tipis", icon: "✨" },
+                      ].map((t) => (
+                        <button
+                          key={t.id}
+                          onClick={() => setSelectedTemplate(t.id)}
+                          className={`cursor-pointer rounded-xl border p-3 text-left transition-colors ${
+                            selectedTemplate === t.id
+                              ? "border-emerald-500 bg-emerald-500/10"
+                              : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
+                          }`}
+                        >
+                          <span className="text-lg">{t.icon}</span>
+                          <p className="mt-1 text-xs font-medium text-white">{t.label}</p>
+                          <p className="mt-0.5 text-[10px] text-zinc-500">{t.desc}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
                 <button
                   onClick={generateAll}
                   disabled={generating}
@@ -349,13 +490,57 @@ function AnalyzeContent() {
                     {h.reasoning}
                   </p>
 
-                  <Link
-                    href={generateClipUrl(h)}
-                    className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-black transition-colors hover:bg-emerald-400"
-                  >
-                    <Flame className="h-4 w-4" />
-                    Buat Clip
-                  </Link>
+                  <div className="mb-4">
+                    {hooksMap[`${h.startTime}-${h.endTime}`] ? (
+                      <div className="space-y-1.5">
+                        <p className="text-xs font-medium text-emerald-400">Hook Viral</p>
+                        {hooksMap[`${h.startTime}-${h.endTime}`].map((hook, i) => (
+                          <div
+                            key={i}
+                            className="flex items-start gap-2 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2"
+                          >
+                            <span className="mt-0.5 shrink-0 text-xs text-zinc-600">
+                              {i + 1}
+                            </span>
+                            <p className="flex-1 text-sm text-zinc-300">{hook}</p>
+                            <button
+                              onClick={() => copyHook(hook)}
+                              className="mt-0.5 shrink-0 cursor-pointer text-zinc-600 hover:text-white"
+                            >
+                              {copiedHook === hook ? (
+                                <Check className="h-3.5 w-3.5 text-emerald-400" />
+                              ) : (
+                                <Copy className="h-3.5 w-3.5" />
+                              )}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : loadingHooks[`${h.startTime}-${h.endTime}`] ? (
+                      <div className="flex items-center gap-2 text-xs text-zinc-500">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Generate hook...
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={generateClipUrl(h)}
+                      className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-black transition-colors hover:bg-emerald-400"
+                    >
+                      <Flame className="h-4 w-4" />
+                      Buat Clip
+                    </Link>
+                    <button
+                      onClick={() => generateHooks(h)}
+                      disabled={loadingHooks[`${h.startTime}-${h.endTime}`]}
+                      className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-zinc-800 px-4 py-3 text-sm font-medium text-zinc-400 transition-colors hover:border-zinc-700 hover:text-white disabled:opacity-50"
+                    >
+                      <Lightbulb className="h-4 w-4" />
+                      Hook
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

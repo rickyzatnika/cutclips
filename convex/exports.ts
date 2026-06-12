@@ -24,6 +24,7 @@ export const create = mutation({
     userId: v.optional(v.id("users")),
     creditCost: v.number(),
     includeCaptions: v.optional(v.boolean()),
+    template: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     return await ctx.db.insert("exports", {
@@ -32,6 +33,7 @@ export const create = mutation({
       status: "queued",
       creditCost: args.creditCost,
       includeCaptions: args.includeCaptions ?? true,
+      template: args.template ?? "default",
       createdAt: Date.now(),
     });
   },
@@ -78,6 +80,7 @@ export const claimQueued = mutation({
       exportId: job._id,
       highlightId: job.highlightId,
       includeCaptions: job.includeCaptions ?? true,
+      template: job.template ?? "default",
       startTime: highlight?.startTime,
       endTime: highlight?.endTime,
       youtubeUrl: video?.youtubeUrl,
