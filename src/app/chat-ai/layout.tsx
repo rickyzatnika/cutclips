@@ -2,7 +2,7 @@
 
 import { DesktopNav } from "@/components/layout/desktop-nav";
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
+export default function ChatAiLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col bg-[#050505]">
       <DesktopNav />

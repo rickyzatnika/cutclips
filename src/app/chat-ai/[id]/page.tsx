@@ -82,6 +82,7 @@ export default function ChatDetailPage() {
   const [recording, setRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -104,7 +105,21 @@ export default function ChatDetailPage() {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, sending]);
+
+  // Auto-scroll when content resizes (typewriter animation, image loads, etc.)
+  // but only if user is near the bottom
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    const observer = new ResizeObserver(() => {
+      if (container.scrollHeight - container.scrollTop - container.clientHeight < 100) {
+        container.scrollTop = container.scrollHeight;
+      }
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -372,7 +387,7 @@ export default function ChatDetailPage() {
       )}
 
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto pt-14 pb-20">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto pt-14 pb-20">
         <div className="mx-auto max-w-3xl space-y-4 p-4">
           {!messages && (
             <div className="flex items-center justify-center pt-20">

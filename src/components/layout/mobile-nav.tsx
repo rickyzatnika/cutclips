@@ -9,7 +9,7 @@ const tabs = [
   { href: "/workspace", label: "Clip", icon: Film },
   { href: "/workspace/history", label: "Riwayat", icon: History },
   { href: "/workspace/billing", label: "Isi Credit", icon: CreditCard },
-  { href: "/chat-ai", label: "Tanya AI", icon: Sparkles },
+  { href: "/chat-ai", label: "AI Analyze", icon: Sparkles },
 ];
 
 export function MobileNav() {

@@ -123,9 +123,11 @@ export const listAll = query({
         .collect();
 
       for (const h of highlights) {
+        const clipped = exportedHighlightIds.has(h._id);
+        if (clipped) continue;
         result.push({
           highlight: h,
-          clipped: exportedHighlightIds.has(h._id),
+          clipped: false,
           video: {
             _id: video._id,
             title: video.title,
