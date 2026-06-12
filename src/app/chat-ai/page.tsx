@@ -122,7 +122,7 @@ export default function ChatAIListPage() {
         </button>
       </div>
 
-      <div className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+      <div className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10 pb-24">
 
         <div className="mb-8 sm:mb-10">
           <h2 className="text-xl sm:text-2xl font-bold text-white">
