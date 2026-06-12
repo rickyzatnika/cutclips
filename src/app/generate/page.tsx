@@ -36,6 +36,7 @@ function GenerateContent() {
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [queueInfo, setQueueInfo] = useState<{ ahead: number; estimatedSeconds: number } | null>(null);
   const [progress, setProgress] = useState(0);
+  const [displayedProgress, setDisplayedProgress] = useState(0);
   const [selectedTemplate, setSelectedTemplate] = useState("default");
   const [captionEnabled, setCaptionEnabled] = useState(true);
   const [sumberVideo, setSumberVideo] = useState("");
@@ -134,6 +135,17 @@ function GenerateContent() {
     const interval = setInterval(poll, 3000);
     return () => { cancelled = true; clearInterval(interval); };
   }, [exportId, status]);
+
+  useEffect(() => {
+    if (status !== "processing") {
+      setDisplayedProgress(0);
+      return;
+    }
+    const interval = setInterval(() => {
+      setDisplayedProgress((prev) => Math.min(prev + 1, progress));
+    }, 300);
+    return () => clearInterval(interval);
+  }, [status, progress]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -322,10 +334,10 @@ function GenerateContent() {
                   <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-800">
                     <div
                       className="h-full rounded-full bg-emerald-500 transition-all duration-500 ease-out"
-                      style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+                      style={{ width: `${Math.min(100, Math.max(0, displayedProgress))}%` }}
                     />
                   </div>
-                  <p className="text-sm text-zinc-500">{Math.min(100, Math.max(0, progress))}%</p>
+                  <p className="text-sm text-zinc-500">{Math.min(100, Math.max(0, displayedProgress))}%</p>
                 </div>
               )}
             </div>
