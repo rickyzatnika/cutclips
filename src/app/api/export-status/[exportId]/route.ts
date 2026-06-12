@@ -20,7 +20,9 @@ export async function GET(
     return NextResponse.json({
       _id: exportDoc._id,
       status: exportDoc.status,
-      progress: typeof exportDoc.progress === "number" ? exportDoc.progress : 0,
+      progress: typeof exportDoc.progress === "number"
+        ? Math.round(exportDoc.progress <= 1 ? exportDoc.progress * 100 : exportDoc.progress)
+        : 0,
       downloadUrl: exportDoc.downloadUrl,
       error: exportDoc.error,
       createdAt: exportDoc.createdAt,

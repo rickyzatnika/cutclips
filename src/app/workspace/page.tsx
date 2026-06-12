@@ -182,7 +182,17 @@ export default function WorkspacePage() {
     })
       .then((r) => r.json())
       .then((data) => {
-        if (data.value) setClips(data.value);
+        if (data.value) {
+          setClips((prev) => {
+            const next = data.value as typeof prev;
+            if (prev.length === next.length && prev.every((c, i) =>
+              c.exportId === next[i].exportId && c.status === next[i].status && c.downloadUrl === next[i].downloadUrl
+            )) {
+              return prev;
+            }
+            return next;
+          });
+        }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -509,7 +519,7 @@ export default function WorkspacePage() {
             </div>
             <div className="space-y-3">
               {filtered.map((clip) => {
-                const pct = typeof clip.progress === "number" ? Math.min(100, Math.max(0, clip.progress)) : 0;
+                const pct = typeof clip.progress === "number" ? Math.min(100, Math.max(0, Math.round(clip.progress))) : 0;
                 const label =
                   clip.status === "queued"
                     ? PROGRESS_LABELS.queued

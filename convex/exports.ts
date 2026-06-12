@@ -47,7 +47,9 @@ export const updateProgress = mutation({
     if (args.workerSecret !== process.env.WORKER_API_KEY) {
       throw new Error("Invalid worker secret");
     }
-    await ctx.db.patch(args.exportId, { progress: args.progress });
+    // Worker sends fraction (0-1); normalize to percentage (0-100)
+    const pct = args.progress <= 1 ? args.progress * 100 : args.progress;
+    await ctx.db.patch(args.exportId, { progress: Math.min(100, Math.max(0, pct)) });
   },
 });
 

@@ -108,19 +108,29 @@ export default function ChatDetailPage() {
   }, [messages, sending]);
 
   // Auto-scroll during typewriter animation, image loads, etc.
-  // Uses rAF to catch all content size changes (scrollHeight changes)
+  // User-scroll-up disables auto-scroll; scrolling back to bottom re-enables
   useEffect(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
+    let userScrolledUp = false;
+    const onScroll = () => {
+      const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 50;
+      if (!atBottom) userScrolledUp = true;
+      else userScrolledUp = false;
+    };
+    container.addEventListener("scroll", onScroll, { passive: true });
     let rafId: number;
     const tick = () => {
-      if (container.scrollHeight - container.scrollTop - container.clientHeight < 100) {
+      if (!userScrolledUp) {
         container.scrollTop = container.scrollHeight;
       }
       rafId = requestAnimationFrame(tick);
     };
     rafId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafId);
+    return () => {
+      container.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(rafId);
+    };
   }, []);
 
   useEffect(() => {

@@ -14,7 +14,15 @@ import {
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
-type ExportStatus = "idle" | "saving" | "saved" | "exporting" | "queued" | "processing" | "completed" | "failed";
+type ExportStatus =
+  | "idle"
+  | "saving"
+  | "saved"
+  | "exporting"
+  | "queued"
+  | "processing"
+  | "completed"
+  | "failed";
 
 function GenerateContent() {
   const searchParams = useSearchParams();
@@ -34,7 +42,10 @@ function GenerateContent() {
   const [exportId, setExportId] = useState<string | null>(null);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
-  const [queueInfo, setQueueInfo] = useState<{ ahead: number; estimatedSeconds: number } | null>(null);
+  const [queueInfo, setQueueInfo] = useState<{
+    ahead: number;
+    estimatedSeconds: number;
+  } | null>(null);
   const [progress, setProgress] = useState(0);
   const [displayedProgress, setDisplayedProgress] = useState(0);
   const [selectedTemplate, setSelectedTemplate] = useState("default");
@@ -71,7 +82,18 @@ function GenerateContent() {
         setError(err.message);
         setStatus("failed");
       });
-  }, [session, videoUrl, startTime, endTime, title, category, confidenceScore, viralityScore, reasoning, status]);
+  }, [
+    session,
+    videoUrl,
+    startTime,
+    endTime,
+    title,
+    category,
+    confidenceScore,
+    viralityScore,
+    reasoning,
+    status,
+  ]);
 
   const startExport = useCallback(async () => {
     if (!highlightId) return;
@@ -81,7 +103,13 @@ function GenerateContent() {
       const res = await fetch("/api/genclip", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ highlightId, title, includeCaptions: captionEnabled, template: selectedTemplate, sumberVideo }),
+        body: JSON.stringify({
+          highlightId,
+          title,
+          includeCaptions: captionEnabled,
+          template: selectedTemplate,
+          sumberVideo,
+        }),
       });
 
       const data = await res.json();
@@ -133,7 +161,10 @@ function GenerateContent() {
 
     poll();
     const interval = setInterval(poll, 3000);
-    return () => { cancelled = true; clearInterval(interval); };
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, [exportId, status]);
 
   useEffect(() => {
@@ -145,11 +176,11 @@ function GenerateContent() {
       setDisplayedProgress((prev) => {
         if (prev < progress) {
           const diff = progress - prev;
-          return Math.min(prev + Math.max(1, Math.ceil(diff * 0.12)), progress);
+          return Math.min(prev + Math.max(1, Math.ceil(diff * 0.1)), progress);
         }
-        return Math.min(prev + 0.3, 98);
+        return Math.min(prev + 1, 95);
       });
-    }, 400);
+    }, 700);
     return () => clearInterval(interval);
   }, [status, progress]);
 
@@ -164,9 +195,16 @@ function GenerateContent() {
       <div className="flex min-h-screen items-center justify-center bg-black px-4 pb-16">
         <div className="w-full max-w-md text-center">
           <AlertCircle className="mx-auto h-12 w-12 text-zinc-500" />
-          <h2 className="mt-4 text-xl font-semibold text-white">Tidak Ada Clip Dipilih</h2>
-          <p className="mt-2 text-sm text-zinc-400">Kembali dan pilih highlight untuk dibuat.</p>
-          <Link href="/" className="mt-6 inline-flex items-center gap-2 text-sm text-emerald-400 hover:text-emerald-300">
+          <h2 className="mt-4 text-xl font-semibold text-white">
+            Tidak Ada Clip Dipilih
+          </h2>
+          <p className="mt-2 text-sm text-zinc-400">
+            Kembali dan pilih highlight untuk dibuat.
+          </p>
+          <Link
+            href="/"
+            className="mt-6 inline-flex items-center gap-2 text-sm text-emerald-400 hover:text-emerald-300"
+          >
             <ArrowLeft className="h-4 w-4" />
             Beranda
           </Link>
@@ -180,18 +218,26 @@ function GenerateContent() {
       <div className="flex min-h-screen items-center justify-center bg-black px-4 pb-16">
         <div className="w-full max-w-md text-center">
           <LogIn className="mx-auto h-12 w-12 text-emerald-400" />
-          <h2 className="mt-4 text-xl font-semibold text-white">Masuk untuk Membuat Clip</h2>
+          <h2 className="mt-4 text-xl font-semibold text-white">
+            Masuk untuk Membuat Clip
+          </h2>
           <p className="mt-2 text-sm text-zinc-400">
-            Kamu perlu masuk untuk membuat dan mengunduh clip. Daftar dapat 100 kredit gratis.
+            Kamu perlu masuk untuk membuat dan mengunduh clip. Daftar dapat 100
+            kredit gratis.
           </p>
           <div className="mt-6 space-y-3">
             <button
-              onClick={() => signIn("google", { callbackUrl: window.location.href })}
+              onClick={() =>
+                signIn("google", { callbackUrl: window.location.href })
+              }
               className="w-full cursor-pointer rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-black transition-colors hover:bg-emerald-400"
             >
               Masuk dengan Google
             </button>
-            <Link href={`/?url=${encodeURIComponent(videoUrl)}`} className="block text-sm text-zinc-500 hover:text-white">
+            <Link
+              href={`/?url=${encodeURIComponent(videoUrl)}`}
+              className="block text-sm text-zinc-500 hover:text-white"
+            >
               <ArrowLeft className="mr-1 inline h-4 w-4" />
               Coba video lain
             </Link>
@@ -233,7 +279,8 @@ function GenerateContent() {
         <div className="mb-6">
           <h1 className="truncate text-lg font-semibold text-white">{title}</h1>
           <p className="mt-1 text-sm text-zinc-500">
-            {formatTime(startTime)} — {formatTime(endTime)} ({Math.round(endTime - startTime)}s)
+            {formatTime(startTime)} — {formatTime(endTime)} (
+            {Math.round(endTime - startTime)}s)
           </p>
         </div>
 
@@ -252,7 +299,8 @@ function GenerateContent() {
         {status === "saved" && (
           <div className="text-center">
             <p className="mb-2 text-sm text-zinc-400">
-              Highlight tersimpan! Buat clip seharga <strong className="text-white">20 kredit</strong>.
+              Highlight tersimpan! Buat clip seharga{" "}
+              <strong className="text-white">20 kredit</strong>.
             </p>
 
             <div className="mb-6 space-y-3">
@@ -271,7 +319,9 @@ function GenerateContent() {
                 />
               </div>
               <div className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3">
-                <span className="text-sm text-zinc-400">Caption TikTok Style</span>
+                <span className="text-sm text-zinc-400">
+                  Caption TikTok Style
+                </span>
                 <button
                   onClick={() => setCaptionEnabled(!captionEnabled)}
                   className={`relative h-6 w-11 cursor-pointer rounded-full transition-colors ${
@@ -289,9 +339,24 @@ function GenerateContent() {
                 <label className="text-sm text-zinc-400">Template</label>
                 <div className="mt-2 grid grid-cols-3 gap-2">
                   {[
-                    { id: "default", label: "Default", desc: "Boxblur + caption bawah", icon: "🎬" },
-                    { id: "podcast", label: "Podcast", desc: "Blur ringan + caption tengah", icon: "🎙️" },
-                    { id: "minimal", label: "Minimal", desc: "BG gelap + caption tipis", icon: "✨" },
+                    {
+                      id: "default",
+                      label: "Default",
+                      desc: "Boxblur + caption bawah",
+                      icon: "🎬",
+                    },
+                    {
+                      id: "podcast",
+                      label: "Podcast",
+                      desc: "Blur ringan + caption tengah",
+                      icon: "🎙️",
+                    },
+                    {
+                      id: "minimal",
+                      label: "Minimal",
+                      desc: "BG gelap + caption tipis",
+                      icon: "✨",
+                    },
                   ].map((t) => (
                     <button
                       key={t.id}
@@ -303,8 +368,12 @@ function GenerateContent() {
                       }`}
                     >
                       <span className="text-lg">{t.icon}</span>
-                      <p className="mt-1 text-xs font-medium text-white">{t.label}</p>
-                      <p className="mt-0.5 text-[10px] text-zinc-500">{t.desc}</p>
+                      <p className="mt-1 text-xs font-medium text-white">
+                        {t.label}
+                      </p>
+                      <p className="mt-0.5 text-[10px] text-zinc-500">
+                        {t.desc}
+                      </p>
                     </button>
                   ))}
                 </div>
@@ -320,14 +389,18 @@ function GenerateContent() {
           </div>
         )}
 
-        {(status === "exporting" || status === "queued" || status === "processing") && (
+        {(status === "exporting" ||
+          status === "queued" ||
+          status === "processing") && (
           <div className="space-y-4">
             <Skeleton className="aspect-[9/16] w-full max-w-xs mx-auto rounded-2xl" />
             <div className="text-center">
               <h2 className="text-lg font-semibold text-white">
-                {status === "exporting" ? "Membuat clip..."
-                  : status === "queued" ? "Clip dalam antrian..."
-                  : "Memproses clip..."}
+                {status === "exporting"
+                  ? "Membuat clip..."
+                  : status === "queued"
+                    ? "Clip dalam antrian..."
+                    : "Memproses clip..."}
               </h2>
               {status === "queued" && queueInfo ? (
                 <p className="text-sm text-zinc-500">
@@ -340,10 +413,14 @@ function GenerateContent() {
                   <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-800">
                     <div
                       className="h-full rounded-full bg-emerald-500 transition-all duration-500 ease-out"
-                      style={{ width: `${Math.min(100, Math.max(0, displayedProgress))}%` }}
+                      style={{
+                        width: `${Math.min(100, Math.max(0, displayedProgress))}%`,
+                      }}
                     />
                   </div>
-                  <p className="text-sm text-zinc-500">{Math.min(100, Math.max(0, displayedProgress))}%</p>
+                  <p className="text-sm text-zinc-500">
+                    {Math.round(Math.min(100, Math.max(0, displayedProgress)))}%
+                  </p>
                 </div>
               )}
             </div>

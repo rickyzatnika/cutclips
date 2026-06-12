@@ -79,9 +79,11 @@ export default function ChatAIListPage() {
 
   const [deleting, setDeleting] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [starting, setStarting] = useState(false);
 
   const handleNewChat = async (prompt?: string) => {
-    if (!email) return;
+    if (!email || starting) return;
+    setStarting(true);
     try {
       const id = await createConversation({
         userEmail: email,
@@ -101,7 +103,9 @@ export default function ChatAIListPage() {
       }
 
       router.push(`/chat-ai/${id}`);
-    } catch {}
+    } catch {
+      setStarting(false);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -122,7 +126,7 @@ export default function ChatAIListPage() {
   };
 
   return (
-    <div className="flex flex-col bg-[#050505] min-h-screen">
+    <div className={`flex flex-col bg-[#050505] min-h-screen ${starting ? "pointer-events-none opacity-70" : ""}`}>
 
       <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-4 sm:hidden">
         <h1 className="text-lg font-bold text-white">AI Analyze</h1>
