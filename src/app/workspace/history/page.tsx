@@ -45,7 +45,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   hook: "Hook",
 };
 
-type UnclippedItem = {
+type HistoryItem = {
   highlight: {
     _id: Id<"highlights">;
     title: string;
@@ -57,6 +57,7 @@ type UnclippedItem = {
     reasoning: string;
     createdAt: number;
   };
+  clipped: boolean;
   video: {
     _id: Id<"videos">;
     title: string;
@@ -78,9 +79,9 @@ export default function HistoryPage() {
   const deleteBatch = useMutation(api.highlights.removeBatch);
 
   const rawData = useQuery(
-    api.highlights.listUnclipped,
+    api.highlights.listAll,
     email ? { email } : "skip",
-  ) as UnclippedItem[] | undefined;
+  ) as HistoryItem[] | undefined;
 
   const [search, setSearch] = useState("");
   const [generating, setGenerating] = useState<Id<"highlights"> | null>(null);
@@ -109,8 +110,8 @@ export default function HistoryPage() {
     const map = new Map<
       Id<"videos">,
       {
-        video: UnclippedItem["video"];
-        highlights: UnclippedItem["highlight"][];
+        video: HistoryItem["video"];
+        highlights: { highlight: HistoryItem["highlight"]; clipped: boolean }[];
       }
     >();
     for (const item of data) {
@@ -118,7 +119,7 @@ export default function HistoryPage() {
       if (!map.has(key)) {
         map.set(key, { video: item.video, highlights: [] });
       }
-      map.get(key)!.highlights.push(item.highlight);
+      map.get(key)!.highlights.push({ highlight: item.highlight, clipped: item.clipped });
     }
     return Array.from(map.values());
   }, [data]);
@@ -226,11 +227,10 @@ export default function HistoryPage() {
     <div className="mx-auto max-w-5xl px-4 py-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-white">
-          Highlight Belum Di-Clip
+          Riwayat Highlight
         </h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Highlight yang belum kamu buat jadi clip. Klik &quot;Buat Clip&quot;
-          untuk mulai generate.
+          Semua highlight dari video yang pernah kamu analisis.
         </p>
       </div>
 
@@ -309,7 +309,7 @@ export default function HistoryPage() {
           <p className="text-sm text-zinc-500">
             {search
               ? "Tidak ditemukan"
-              : "Semua highlight sudah di-clip! Analisis video baru untuk mendapatkan lebih banyak highlight."}
+              : "Belum ada riwayat. Analisis video YouTube untuk mulai."}
           </p>
         </div>
       ) : (
@@ -346,7 +346,7 @@ export default function HistoryPage() {
                   </a>
                 </div>
                 <div className="space-y-2">
-                  {highlights.map((h) => {
+                  {highlights.map(({ highlight: h, clipped }) => {
                     const checked = selected.has(h._id);
                     return (
                       <div
@@ -398,29 +398,38 @@ export default function HistoryPage() {
                         </div>
                         <div className="mt-3 flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => handleGenerate(h._id)}
-                              disabled={generating === h._id}
-                              className="flex items-center gap-1.5 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-emerald-400 disabled:opacity-50 cursor-pointer"
-                            >
-                              {generating === h._id ? (
-                                <>
-                                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-black border-t-transparent" />
-                                  Memproses
-                                </>
-                              ) : (
-                                <>
-                                  <Zap className="h-4 w-4" />
-                                  Buat Clip
-                                </>
-                              )}
-                            </button>
-                            <button
-                              onClick={() => setConfirm({ type: "single", highlightId: h._id })}
-                              className="cursor-pointer rounded-lg p-2 text-zinc-600 transition-colors hover:bg-red-500/10 hover:text-red-400"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
+                            {clipped ? (
+                              <span className="flex items-center gap-1.5 rounded-lg bg-zinc-800 px-4 py-2 text-sm text-zinc-500">
+                                <CheckSquare className="h-4 w-4 text-emerald-400" />
+                                Sudah Di-Clip
+                              </span>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => handleGenerate(h._id)}
+                                  disabled={generating === h._id}
+                                  className="flex items-center gap-1.5 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-emerald-400 disabled:opacity-50 cursor-pointer"
+                                >
+                                  {generating === h._id ? (
+                                    <>
+                                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-black border-t-transparent" />
+                                      Memproses
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Zap className="h-4 w-4" />
+                                      Buat Clip
+                                    </>
+                                  )}
+                                </button>
+                                <button
+                                  onClick={() => setConfirm({ type: "single", highlightId: h._id })}
+                                  className="cursor-pointer rounded-lg p-2 text-zinc-600 transition-colors hover:bg-red-500/10 hover:text-red-400"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </>
+                            )}
                           </div>
                           <span className="text-xs text-zinc-600">{h.endTime - h.startTime}s</span>
                         </div>

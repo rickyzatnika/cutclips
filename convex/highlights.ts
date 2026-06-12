@@ -89,7 +89,7 @@ export const createBatch = mutation({
   },
 });
 
-export const listUnclipped = query({
+export const listAll = query({
   args: { email: v.string() },
   handler: async (ctx, args) => {
     const user = await ctx.db
@@ -111,6 +111,7 @@ export const listUnclipped = query({
 
     const result: {
       highlight: Doc<"highlights">;
+      clipped: boolean;
       video: { _id: Id<"videos">; title: string; youtubeUrl: string; thumbnailUrl?: string };
     }[] = [];
 
@@ -122,17 +123,16 @@ export const listUnclipped = query({
         .collect();
 
       for (const h of highlights) {
-        if (!exportedHighlightIds.has(h._id)) {
-          result.push({
-            highlight: h,
-            video: {
-              _id: video._id,
-              title: video.title,
-              youtubeUrl: video.youtubeUrl,
-              thumbnailUrl: video.thumbnailUrl,
-            },
-          });
-        }
+        result.push({
+          highlight: h,
+          clipped: exportedHighlightIds.has(h._id),
+          video: {
+            _id: video._id,
+            title: video.title,
+            youtubeUrl: video.youtubeUrl,
+            thumbnailUrl: video.thumbnailUrl,
+          },
+        });
       }
     }
 
