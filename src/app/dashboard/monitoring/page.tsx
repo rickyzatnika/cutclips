@@ -165,11 +165,19 @@ function DonutChart({
   );
 }
 
-function ProgressBar({ progress }: { progress: string | null }) {
-  if (!progress) return <span className="text-[11px] text-zinc-600">—</span>;
-  const steps = ["downloading", "cutting", "uploading", "completing"];
-  const idx = steps.indexOf(progress);
-  const pct = idx >= 0 ? ((idx + 1) / steps.length) * 100 : 0;
+function ProgressBar({ progress }: { progress: string | number | null }) {
+  if (progress == null) return <span className="text-[11px] text-zinc-600">—</span>;
+  let pct: number;
+  let label: string;
+  if (typeof progress === "number") {
+    pct = Math.min(100, Math.max(0, progress));
+    label = `${pct}%`;
+  } else {
+    const steps = ["downloading", "cutting", "uploading", "completing"];
+    const idx = steps.indexOf(progress);
+    pct = idx >= 0 ? ((idx + 1) / steps.length) * 100 : 0;
+    label = progressLabel[progress] || progress;
+  }
   return (
     <div className="flex items-center gap-2">
       <div className="h-1.5 w-16 overflow-hidden rounded-full bg-zinc-800">
@@ -178,9 +186,7 @@ function ProgressBar({ progress }: { progress: string | null }) {
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className="text-[11px] text-zinc-500">
-        {progressLabel[progress] || progress}
-      </span>
+      <span className="text-[11px] text-zinc-500">{label}</span>
     </div>
   );
 }
@@ -356,7 +362,7 @@ export default function MonitoringPage() {
                 </tr>
               </thead>
               <tbody>
-                {data.exports.recent.map((exp: { _id: Id<"exports">; status: string; progress: string | null; error: string | null; videoTitle: string | null; highlightTitle: string | null; userEmail: string | null; createdAt: number }) => (
+                {data.exports.recent.map((exp: { _id: Id<"exports">; status: string; progress: string | number | null; error: string | null; videoTitle: string | null; highlightTitle: string | null; userEmail: string | null; createdAt: number }) => (
                   <tr
                     key={exp._id}
                     className="border-b border-zinc-800/50 text-zinc-300"

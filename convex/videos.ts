@@ -100,6 +100,7 @@ export const listByUserWithClips = query({
       result.push({
         exportId: exp._id,
         status: exp.status,
+        progress: exp.progress ?? 0,
         downloadUrl: exp.downloadUrl,
         highlightId: highlight._id,
         highlightTitle: highlight.title,

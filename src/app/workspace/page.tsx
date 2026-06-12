@@ -12,11 +12,7 @@ import {
   Download,
   Trash2,
   Loader2,
-  CheckCircle2,
-  Cloud,
-  Film as FilmIcon,
   Video,
-  Timer,
   Clock,
   TrendingUp,
   List,
@@ -31,18 +27,15 @@ const BATCH_SIZE = 15;
 
 const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL;
 
-const PROGRESS_STEPS: Record<string, { label: string; icon: any }> = {
-  queued: { label: "Menunggu antrian", icon: Timer },
-  downloading: { label: "Mengunduh video", icon: Video },
-  cutting: { label: "Memotong clip", icon: FilmIcon },
-  uploading: { label: "Mengunggah ke Cloudinary", icon: Cloud },
-  completing: { label: "Finalisasi", icon: CheckCircle2 },
+const PROGRESS_LABELS: Record<string, string> = {
+  queued: "Menunggu antrian",
+  processing: "Memproses",
 };
 
 interface Clip {
   exportId: string;
   status: string;
-  progress?: string;
+  progress?: number;
   downloadUrl?: string;
   highlightId: string;
   highlightTitle: string;
@@ -516,10 +509,11 @@ export default function WorkspacePage() {
             </div>
             <div className="space-y-3">
               {filtered.map((clip) => {
-                const step =
-                  PROGRESS_STEPS[clip.progress || "queued"] ||
-                  PROGRESS_STEPS.queued;
-                const StepIcon = step.icon;
+                const pct = typeof clip.progress === "number" ? Math.min(100, Math.max(0, clip.progress)) : 0;
+                const label =
+                  clip.status === "queued"
+                    ? PROGRESS_LABELS.queued
+                    : `${pct}%`;
                 return (
                   <div
                     key={clip.exportId}
@@ -534,15 +528,17 @@ export default function WorkspacePage() {
                           {clip.video.title}
                         </p>
                       </div>
-                      <span className="shrink-0 rounded-full bg-zinc-800 px-3 py-1 text-xs capitalize text-zinc-400">
-                        {clip.progress || "queued"}
+                      <span className="shrink-0 rounded-full bg-zinc-800 px-3 py-1 text-xs text-zinc-400">
+                        {label}
                       </span>
                     </div>
-                    <div className="mt-3 flex items-center gap-2 text-xs text-zinc-600">
-                      <StepIcon className="h-3.5 w-3.5 animate-pulse text-emerald-400" />
-                      <span className="text-emerald-400/80">
-                        {step.label}...
-                      </span>
+                    <div className="mt-3">
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-800">
+                        <div
+                          className="h-full rounded-full bg-emerald-500 transition-all duration-500 ease-out"
+                          style={{ width: `${clip.status === "queued" ? 0 : pct}%` }}
+                        />
+                      </div>
                     </div>
                   </div>
                 );

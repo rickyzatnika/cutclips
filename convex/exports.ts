@@ -25,6 +25,7 @@ export const create = mutation({
     creditCost: v.number(),
     includeCaptions: v.optional(v.boolean()),
     template: v.optional(v.string()),
+    sumberVideo: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     return await ctx.db.insert("exports", {
@@ -34,18 +35,19 @@ export const create = mutation({
       creditCost: args.creditCost,
       includeCaptions: args.includeCaptions ?? true,
       template: args.template ?? "default",
+      sumberVideo: args.sumberVideo,
       createdAt: Date.now(),
     });
   },
 });
 
 export const updateProgress = mutation({
-  args: { exportId: v.id("exports"), workerSecret: v.string(), progress: v.string() },
+  args: { exportId: v.id("exports"), workerSecret: v.string(), progress: v.number() },
   handler: async (ctx, args) => {
     if (args.workerSecret !== process.env.WORKER_API_KEY) {
       throw new Error("Invalid worker secret");
     }
-    await ctx.db.patch(args.exportId, { progress: args.progress as any });
+    await ctx.db.patch(args.exportId, { progress: args.progress });
   },
 });
 
@@ -66,7 +68,7 @@ export const claimQueued = mutation({
 
     await ctx.db.patch(job._id, {
       status: "processing",
-      progress: "downloading",
+      progress: 0,
     });
 
     const highlight = await ctx.db.get(job.highlightId);
@@ -81,6 +83,7 @@ export const claimQueued = mutation({
       highlightId: job.highlightId,
       includeCaptions: job.includeCaptions ?? true,
       template: job.template ?? "default",
+      sumberVideo: job.sumberVideo,
       startTime: highlight?.startTime,
       endTime: highlight?.endTime,
       youtubeUrl: video?.youtubeUrl,
@@ -222,8 +225,8 @@ export const requeueExport = mutation({
     if (!admin || admin.role !== "admin") throw new Error("Not authorized");
 
     await ctx.db.patch(args.exportId, {
-      status: "queued",
-      progress: "queued",
+      status: "processing",
+      progress: 0,
       error: undefined,
       completedAt: undefined,
     });

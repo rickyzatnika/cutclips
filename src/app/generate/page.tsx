@@ -35,8 +35,10 @@ function GenerateContent() {
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [queueInfo, setQueueInfo] = useState<{ ahead: number; estimatedSeconds: number } | null>(null);
+  const [progress, setProgress] = useState(0);
   const [selectedTemplate, setSelectedTemplate] = useState("default");
   const [captionEnabled, setCaptionEnabled] = useState(true);
+  const [sumberVideo, setSumberVideo] = useState("");
   // Auto-save highlight on mount when logged in
   useEffect(() => {
     if (!session || !videoUrl || !startTime || !endTime) return;
@@ -78,7 +80,7 @@ function GenerateContent() {
       const res = await fetch("/api/genclip", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ highlightId, title, includeCaptions: captionEnabled, template: selectedTemplate }),
+        body: JSON.stringify({ highlightId, title, includeCaptions: captionEnabled, template: selectedTemplate, sumberVideo }),
       });
 
       const data = await res.json();
@@ -94,7 +96,7 @@ function GenerateContent() {
       setError(msg);
       setStatus("failed");
     }
-  }, [highlightId, title]);
+  }, [highlightId, title, captionEnabled, selectedTemplate, sumberVideo]);
 
   // Poll export status
   useEffect(() => {
@@ -111,6 +113,7 @@ function GenerateContent() {
         if (cancelled) return;
 
         setStatus(data.status);
+        if (data.progress != null) setProgress(data.progress);
         if (data.queue) setQueueInfo(data.queue);
 
         if (data.status === "completed") {
@@ -235,6 +238,20 @@ function GenerateContent() {
             </p>
 
             <div className="mb-6 space-y-3">
+              <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">📎</span>
+                  <span className="text-sm text-zinc-400">Nama Sumber</span>
+                  <span className="text-[10px] text-zinc-600">(opsional)</span>
+                </div>
+                <input
+                  type="text"
+                  value={sumberVideo}
+                  onChange={(e) => setSumberVideo(e.target.value)}
+                  placeholder="Contoh: Mas Aji / CNBC Indonesia"
+                  className="mt-1.5 w-full bg-transparent text-sm text-white placeholder-zinc-600 outline-none"
+                />
+              </div>
               <div className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3">
                 <span className="text-sm text-zinc-400">Caption TikTok Style</span>
                 <button
@@ -301,7 +318,15 @@ function GenerateContent() {
                     : "Kamu berikutnya! Sebentar lagi..."}
                 </p>
               ) : (
-                <p className="text-sm text-zinc-500">Biasanya memakan waktu 30-60 detik.</p>
+                <div className="mx-auto max-w-sm space-y-2">
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-800">
+                    <div
+                      className="h-full rounded-full bg-emerald-500 transition-all duration-500 ease-out"
+                      style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+                    />
+                  </div>
+                  <p className="text-sm text-zinc-500">{Math.min(100, Math.max(0, progress))}%</p>
+                </div>
               )}
             </div>
           </div>
