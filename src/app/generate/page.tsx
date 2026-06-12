@@ -142,8 +142,14 @@ function GenerateContent() {
       return;
     }
     const interval = setInterval(() => {
-      setDisplayedProgress((prev) => Math.min(prev + 1, progress));
-    }, 300);
+      setDisplayedProgress((prev) => {
+        if (prev < progress) {
+          const diff = progress - prev;
+          return Math.min(prev + Math.max(1, Math.ceil(diff * 0.12)), progress);
+        }
+        return Math.min(prev + 0.3, 98);
+      });
+    }, 400);
     return () => clearInterval(interval);
   }, [status, progress]);
 
