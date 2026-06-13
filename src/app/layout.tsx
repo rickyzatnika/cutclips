@@ -48,7 +48,7 @@ export default function RootLayout({
     >
       <body className="font-sans antialiased bg-[#050505] text-white">
         <Providers>
-          <div className="pb-20 sm:pb-0">{children}</div>
+          <div>{children}</div>
           <MobileNav />
           <Footer />
         </Providers>
