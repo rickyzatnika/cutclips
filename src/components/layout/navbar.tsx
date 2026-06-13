@@ -4,7 +4,7 @@ import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
 import { useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
-import { Scissors } from "lucide-react";
+import { CirclePlay } from "lucide-react";
 
 export function Navbar() {
   const { data: session } = useSession();
@@ -24,7 +24,7 @@ export function Navbar() {
           href={session ? "/workspace" : "/"}
           className="flex items-center gap-2"
         >
-          <Scissors className="h-7 w-7 text-emerald-400" />
+          <CirclePlay className="h-7 w-7 text-emerald-400" />
           <span className="text-lg font-bold text-white">CutClips</span>
         </Link>
 

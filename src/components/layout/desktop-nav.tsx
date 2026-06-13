@@ -6,7 +6,7 @@ import { signOut, useSession } from "next-auth/react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
 import {
-  Scissors,
+  CirclePlay,
   LogOut,
   LayoutDashboard,
   User,
@@ -44,7 +44,7 @@ export function DesktopNav() {
     <header className="py-4">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
         <Link href="/workspace" className="flex items-center gap-2">
-          <Scissors className="h-7 w-7 text-emerald-400" />
+          <CirclePlay className="h-7 w-7 text-emerald-400" />
           <span className="text-lg font-bold text-white">CutClips</span>
         </Link>
 

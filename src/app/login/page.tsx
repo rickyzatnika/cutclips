@@ -3,7 +3,7 @@
 import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { Scissors, Loader2 } from "lucide-react";
+import { CirclePlay, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   const { data: session, status } = useSession();
@@ -30,7 +30,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-black px-4">
       <div className="w-full max-w-sm text-center">
         <div className="mx-auto mb-8 flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/20">
-          <Scissors className="h-6 w-6 text-emerald-400" />
+          <CirclePlay className="h-6 w-6 text-emerald-400" />
         </div>
 
         <h1 className="text-2xl font-bold text-white">Selamat Datang di CutClips</h1>
