@@ -16,6 +16,7 @@ import {
   Calendar,
   TrendingDown,
 } from "lucide-react";
+import { InstallAppButton } from "@/components/install-app-button";
 
 export default function UserInfoPage() {
   const { data: session } = useSession();
@@ -150,6 +151,10 @@ export default function UserInfoPage() {
             </>
           )}
         </div>
+      </div>
+
+      <div className="mt-6">
+        <InstallAppButton />
       </div>
 
       <button
