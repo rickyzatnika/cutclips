@@ -392,8 +392,8 @@ function GenerateContent() {
         {(status === "exporting" ||
           status === "queued" ||
           status === "processing") && (
-          <div className="space-y-4">
-            <Skeleton className="aspect-[9/16] w-full max-w-xs mx-auto rounded-2xl" />
+          <div className="space-y-4 scale-90">
+            <Skeleton className="aspect-9/16 w-full max-w-xs mx-auto rounded-2xl" />
             <div className="text-center">
               <h2 className="text-lg font-semibold text-white">
                 {status === "exporting"
@@ -428,7 +428,7 @@ function GenerateContent() {
         )}
 
         {status === "completed" && downloadUrl && (
-          <div className="space-y-5">
+          <div className="space-y-5 scale-90">
             <div className="mx-auto max-w-xs overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
               <video
                 src={downloadUrl}

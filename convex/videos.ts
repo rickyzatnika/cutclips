@@ -107,6 +107,7 @@ export const listByUserWithClips = query({
         highlightId: highlight._id,
         highlightTitle: highlight.title,
         category: highlight.category,
+        viralityScore: highlight.viralityScore,
         startTime: highlight.startTime,
         endTime: highlight.endTime,
         createdAt: exp.createdAt,
@@ -115,6 +116,7 @@ export const listByUserWithClips = query({
           youtubeUrl: video.youtubeUrl,
           title: video.title,
           thumbnailUrl: video.thumbnailUrl,
+          duration: video.duration,
         },
       });
     }

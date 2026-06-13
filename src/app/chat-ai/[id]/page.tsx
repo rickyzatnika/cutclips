@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { useSession } from "next-auth/react";
 import { useQuery, useMutation } from "convex/react";
@@ -28,6 +28,60 @@ import {
   X,
   Square,
 } from "lucide-react";
+
+const URL_REGEX = /(https?:\/\/[^\s<]+)/g;
+
+function speakIndonesian(text: string) {
+  if (!("speechSynthesis" in window)) return;
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = "id-ID";
+  utterance.rate = 1;
+
+  const trySetVoice = () => {
+    const voices = window.speechSynthesis.getVoices();
+    if (voices.length === 0) return;
+    const idVoices = voices.filter((v) => v.lang.startsWith("id"));
+    const preferred = idVoices.find(
+      (v) =>
+        v.name.toLowerCase().includes("google") ||
+        v.name.toLowerCase().includes("microsoft") ||
+        v.name.toLowerCase().includes("natural") ||
+        v.name.toLowerCase().includes("online")
+    ) || idVoices[0];
+    if (preferred) utterance.voice = preferred;
+  };
+
+  trySetVoice();
+  if (window.speechSynthesis.getVoices().length === 0) {
+    window.speechSynthesis.onvoiceschanged = () => {
+      trySetVoice();
+      window.speechSynthesis.onvoiceschanged = null;
+    };
+  }
+
+  window.speechSynthesis.speak(utterance);
+}
+
+function linkifyText(text: string): React.ReactNode {
+  const parts = text.split(URL_REGEX);
+  return parts.map((part, i) => {
+    if (URL_REGEX.test(part)) {
+      return (
+        <a
+          key={i}
+          href={part}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-emerald-400 underline hover:text-emerald-300"
+        >
+          {part}
+        </a>
+      );
+    }
+    return part;
+  });
+}
 
 function TypewriterText({ text }: { text: string }) {
   const [displayed, setDisplayed] = useState("");
@@ -87,6 +141,7 @@ export default function ChatDetailPage() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const conversations = useQuery(
     api.conversations.list,
@@ -221,6 +276,8 @@ export default function ChatDetailPage() {
         if (blob.size < 1000) return;
 
         setSending(true);
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
         try {
           const formData = new FormData();
           formData.append("audio", blob, `voice.${ext}`);
@@ -230,22 +287,21 @@ export default function ChatDetailPage() {
           const res = await fetch("/api/chat", {
             method: "POST",
             body: formData,
+            signal: controller.signal,
           });
           const data = await res.json();
           if (!res.ok) throw new Error(data.error);
           if ((!messages || messages.length === 0) && conversationId) {
             if (convId) updateTitle({ conversationId: convId, title: (data.transcript || "").slice(0, 60) });
           }
-          if (data.content && "speechSynthesis" in window) {
-            const utterance = new SpeechSynthesisUtterance(data.content);
-            utterance.lang = "id-ID";
-            utterance.rate = 1;
-            window.speechSynthesis.cancel();
-            window.speechSynthesis.speak(utterance);
+          if (data.content) {
+            speakIndonesian(data.content);
           }
         } catch (err) {
+          if (err instanceof DOMException && err.name === "AbortError") return;
           console.error(err);
         } finally {
+          abortControllerRef.current = null;
           setSending(false);
         }
       };
@@ -270,16 +326,29 @@ export default function ChatDetailPage() {
     }
   };
 
+  const handleStop = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setSending(false);
+  };
+
   const handleSend = async () => {
     const text = input.trim();
     if (!text || sending || !email) return;
     setInput("");
     setSending(true);
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ conversationId, message: text, email }),
+        signal: controller.signal,
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -287,8 +356,10 @@ export default function ChatDetailPage() {
         updateTitle({ conversationId: convId, title: text.slice(0, 60) });
       }
     } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       console.error(err);
     } finally {
+      abortControllerRef.current = null;
       setSending(false);
     }
   };
@@ -456,10 +527,13 @@ export default function ChatDetailPage() {
                   {msg.role === "assistant" &&
                   i === (messages?.length ?? 0) - 1 ? (
                     <TypewriterText text={msg.content} />
+                  ) : msg.role === "assistant" ? (
+                    linkifyText(msg.content)
                   ) : (
                     msg.content
                   )}
                 </p>
+
                 {msg.images && msg.images.length > 0 && (
                   <LightGallery
                     elementClassNames="mt-3 grid grid-cols-2 gap-2"
@@ -587,17 +661,22 @@ export default function ChatDetailPage() {
                 >
                   <Mic className="h-5 w-5" />
                 </button>
-                <button
-                  onClick={handleSend}
-                  disabled={!input.trim() || sending}
-                  className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-emerald-500 text-black transition-colors hover:bg-emerald-400 disabled:opacity-40"
-                >
-                  {sending ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  ) : (
+                {sending ? (
+                  <button
+                    onClick={handleStop}
+                    className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-red-500 text-white transition-colors hover:bg-red-400"
+                  >
+                    <Square className="h-4 w-4" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleSend}
+                    disabled={!input.trim() || sending}
+                    className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-emerald-500 text-black transition-colors hover:bg-emerald-400 disabled:opacity-40"
+                  >
                     <Send className="h-5 w-5" />
-                  )}
-                </button>
+                  </button>
+                )}
               </>
             )}
           </div>

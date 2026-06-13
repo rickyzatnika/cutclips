@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { createApi } from "unsplash-js";
+import { YoutubeTranscript } from "youtube-transcript";
 
 const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL;
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY;
 const PEXELS_API_KEY = process.env.PEXELS_API_KEY;
 const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY;
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
+
+const YOUTUBE_REGEX = /(?:youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
 
 const MODELS = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
 
@@ -193,6 +196,101 @@ async function youtubeSearch(query: string, maxResults = 5) {
 	}
 }
 
+function extractYoutubeVideoId(text: string): string | null {
+	const match = text.match(YOUTUBE_REGEX);
+	return match ? match[1] : null;
+}
+
+async function fetchYoutubeTranscript(videoId: string): Promise<{
+	transcript: string;
+	segments: { start: number; end: number; text: string }[];
+} | null> {
+	try {
+		const entries = await YoutubeTranscript.fetchTranscript(videoId, {
+			lang: "id",
+		});
+		if (!entries || entries.length === 0) return null;
+		const transcript = entries.map((e) => e.text).join(" ");
+		const segments = entries.map((e) => ({
+			start: e.offset / 1000,
+			end: (e.offset + e.duration) / 1000,
+			text: e.text,
+		}));
+		return { transcript, segments };
+	} catch {
+		try {
+			const entries = await YoutubeTranscript.fetchTranscript(videoId);
+			if (!entries || entries.length === 0) return null;
+			const transcript = entries.map((e) => e.text).join(" ");
+			const segments = entries.map((e) => ({
+				start: e.offset / 1000,
+				end: (e.offset + e.duration) / 1000,
+				text: e.text,
+			}));
+			return { transcript, segments };
+		} catch {
+			return null;
+		}
+	}
+}
+
+async function fetchYoutubeVideoDetails(videoId: string): Promise<{
+	title: string;
+	thumbnail: string;
+	channelName: string;
+} | null> {
+	if (!YOUTUBE_API_KEY) {
+		try {
+			const res = await fetch(
+				`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`,
+				{ headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(5000) },
+			);
+			if (res.ok) {
+				const data = await res.json();
+				return {
+					title: data.title || "YouTube Video",
+					thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+					channelName: data.author_name || "",
+				};
+			}
+		} catch { /* fallback */ }
+		return {
+			title: "YouTube Video",
+			thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+			channelName: "",
+		};
+	}
+	try {
+		const res = await fetch(
+			`https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}&key=${YOUTUBE_API_KEY}`,
+		);
+		const data = await res.json();
+		const item = data?.items?.[0]?.snippet;
+		if (!item) {
+			return {
+				title: "YouTube Video",
+				thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+				channelName: "",
+			};
+		}
+		return {
+			title: item.title || "YouTube Video",
+			thumbnail:
+				item.thumbnails?.maxres?.url ||
+				item.thumbnails?.high?.url ||
+				item.thumbnails?.default?.url ||
+				`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+			channelName: item.channelTitle || "",
+		};
+	} catch {
+		return {
+			title: "YouTube Video",
+			thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+			channelName: "",
+		};
+	}
+}
+
 // --- Groq call with tool support ---
 
 async function callGroqWithTools(
@@ -265,9 +363,11 @@ async function callGroqWithTools(
 
 	function stripFunctionTags(text: string): string {
 		return text
-			.replace(/<function=\w+>.*?<\/function>/g, "")
+			.replace(/<[a-z_]+\s*>\s*\{[\s\S]*?\}\s*<\/[a-z_]+>/g, "")
+			.replace(/<[a-z_]+\s*>\s*\{[\s\S]*?\}\s*$/gm, "")
+			.replace(/<function=\w+>[\s\S]*?<\/function>/g, "")
 			.replace(/<function=\w+\/>/g, "")
-			.replace(/<function=\w+>.*/g, "")
+			.replace(/<function=\w+>[\s\S]*/g, "")
 			.trim();
 	}
 
@@ -452,25 +552,32 @@ async function callGroqWithTools(
 }
 
 class PaidUserError extends Error {
-  status = 403;
+	status = 403;
 }
 
 async function checkPaidUser(email: string) {
-  const user = await convexQuery("users:getByEmail", { email });
-  if (!user) throw new Error("User not found");
-  const totalReceived = (user.credits ?? 0) + (user.totalCreditsUsed ?? 0);
-  if (totalReceived <= 100) {
-    const err = new PaidUserError(
-      "Fitur Chat AI hanya untuk pengguna Starter & Kreator. Silakan isi credit terlebih dahulu.",
-    );
-    throw err;
-  }
+	const user = await convexQuery("users:getByEmail", { email });
+	if (!user) throw new Error("User not found");
+	const totalReceived = (user.credits ?? 0) + (user.totalCreditsUsed ?? 0);
+	if (totalReceived <= 100) {
+		const err = new PaidUserError(
+			"Fitur Chat AI hanya untuk pengguna Starter & Kreator. Silakan isi credit terlebih dahulu.",
+		);
+		throw err;
+	}
 }
 
 async function processWithLLM(
 	convId: string,
 	email: string,
 	userMessage: string,
+	youtubeContext?: {
+		title: string;
+		transcript: string;
+		url: string;
+		thumbnail: string;
+		channelName: string;
+	} | null,
 ) {
 	const allHistory = await convexQuery("messages:list", {
 		conversationId: convId,
@@ -544,7 +651,7 @@ Pake data, tren, dan tools buat ngasih saran yang actionable.
 PENTING — JANGAN ASAL JAWAB:
 - Kalo gak tau, bilang gak tau. Jangan ngelantur atau ngarang informasi.
 - Jangan bikin-bikin URL, data YouTube, hasil pencarian, atau data user.
-- Jangan nulis sintaks tool/function di chat. Langsung jawab isinya.
+- JANGAN PERNAH nulis <search_web>, <search_images>, <search_youtube>, <function=...>, atau tag XML/HTML apapun di chat. Langsung jawab isinya aja.
 - Kalo ditanya data user (kredit, clip, dll), pake DATA USER. Jangan ngarang angka.
 
 GAYA NGOMONG:
@@ -553,12 +660,14 @@ GAYA NGOMONG:
 - Jawab singkat aja, maks 4 kalimat. Gak usah pake poin-poin kalo gak perlu.
 - Jangan pake emoji berlebihan.
 - Jangan ngejelasin fitur CutClips kalo gak ditanya.
+- Jangan bilang "tidak bisa menampilkan gambar" — gambar SUDAH terkirim otomatis di samping teks ini, user bisa liat.
 - Jangan nyebut sumber gambar (Pexels/Unsplash) pas nampilin hasil.
 
-PAKE TOOLS KALAU PERLU:
-- search_web — nyari info
-- search_images — nyari gambar
-- search_youtube — nyari video
+HARUS PAKE TOOLS, JANGAN CUMA NULIS:
+- Kalo user minta cari info → WAJIB pake search_web. Jangan cuma nulis "Cari info tentang...".
+- Kalo user minta gambar/foto/ilustrasi → WAJIB pake search_images. Jangan cuma nulis "Cari gambar...".
+- Kalo user minta video YouTube → WAJIB pake search_youtube. Jangan cuma nulis "Cari video...".
+- Kalo lu cuma nulis "Cari ..." tanpa pake tools, berarti lu SALAH.
 
 BATASAN:
 - Kamu bukan admin, gak bisa approve pembayaran, gak bisa ngubah data user.
@@ -643,6 +752,39 @@ Asisten AI CutClips untuk membantu.
 
 ${userDataStr}
 `;
+	const YOUTUBE_CONTEXT = youtubeContext
+		? `
+# YOUTUBE VIDEO CONTEXT
+
+User mengirim link YouTube: ${youtubeContext.url}
+Judul Video: ${youtubeContext.title}
+Channel: ${youtubeContext.channelName}
+
+Transkrip Video (udah di-fetch sama sistem):
+${youtubeContext.transcript.slice(0, 12000)}
+
+	PENTING: Transkrip di atas CUMA KAMU yang bisa lihat, USER GAK BISA LIAT. Jadi:
+- Jangan bilang "maaf gak bisa buka link" atau "gak bisa akses YouTube"
+- Jangan bilang "lihat transkrip di atas" — karena user gak bisa lihat
+- Kalau user minta transkrip, sajikan dengan RAPI: bagi per segmen, kasih timestamp, ringkas kalau perlu
+- JANGAN dump transkrip mentah-mentah — format biar enak dibaca
+- Kalau user nanya tentang isi video, jawab berdasarkan transkrip
+- Langsung jawab pertanyaan user, jangan nanya "apa pertanyaanmu?"
+
+TUGAS TAMBAHAN — ANALISIS HOOK:
+Setiap kali user ngirim link YouTube, otomatis analisis transkrip dan cari 3-5 momen HOOK terbaik.
+Hook = momen paling menarik, lucu, shocking, emosional, atau viral-potential dari video.
+Untuk setiap hook, kasih:
+- ⏱ Timestamp (kira-kira menit:detik)
+- 📌 Judul hook singkat
+- 💬 Kutipan transkripnya (1-2 kalimat)
+- 🎯 Kenapa ini hook bagus (1 kalimat)
+- 🔥 Viral Score: [1-100] — seberapa viral potensial momen ini
+
+Sajikan hook-hook ini di awal respons, sebelum jawab pertanyaan user.
+Kalo user cuma kirim link tanpa teks, langsung kasih daftar hook nya.
+`
+		: "";
 	const needsKnowledge =
 		/(cutclips|analyze|generate|billing|credit|workspace|history)/i.test(
 			userMessage,
@@ -655,6 +797,8 @@ ${userDataStr}
           ${SYSTEM_PROMPT}
 
           ${needsKnowledge ? CUTCLIPS_KNOWLEDGE : ""}
+
+          ${YOUTUBE_CONTEXT}
 
           ${USER_CONTEXT}
       `,
@@ -776,24 +920,66 @@ export async function POST(req: Request) {
 			});
 		}
 
+		let youtubeContext: {
+			title: string;
+			transcript: string;
+			url: string;
+			thumbnail: string;
+			channelName: string;
+		} | null = null;
+		const videoId = extractYoutubeVideoId(message);
+		if (videoId) {
+			const [transcriptData, videoDetails] = await Promise.all([
+				fetchYoutubeTranscript(videoId),
+				fetchYoutubeVideoDetails(videoId),
+			]);
+			if (transcriptData && videoDetails) {
+				youtubeContext = {
+					title: videoDetails.title,
+					transcript: transcriptData.transcript,
+					url: `https://youtube.com/watch?v=${videoId}`,
+					thumbnail: videoDetails.thumbnail,
+					channelName: videoDetails.channelName,
+				};
+			}
+		}
+
 		await convexMutation("messages:send", {
 			conversationId: convId,
 			role: "user",
 			content: message,
 		});
 
+		let userMsgForLLM = message;
+		if (youtubeContext) {
+			userMsgForLLM = `${message}\n\n(Lihat transkrip video YouTube di system context untuk detail)`;
+		}
+
 		const {
 			content: aiResponse,
 			images,
 			videos,
-		} = await processWithLLM(convId, email, message);
+		} = await processWithLLM(convId, email, userMsgForLLM, youtubeContext);
+
+		const allVideos = [...videos];
+		if (youtubeContext) {
+			const exists = allVideos.some((v) => v.url === youtubeContext.url);
+			if (!exists) {
+				allVideos.push({
+					title: youtubeContext.title,
+					url: youtubeContext.url,
+					thumbnail: youtubeContext.thumbnail,
+					channelName: youtubeContext.channelName,
+				});
+			}
+		}
 
 		const saveArgs: Record<string, unknown> = {
 			conversationId: convId,
 			role: "assistant",
 			content: aiResponse,
 		};
-		if (videos.length > 0) saveArgs.videos = videos;
+		if (allVideos.length > 0) saveArgs.videos = allVideos;
 		if (images.length > 0) saveArgs.images = images;
 
 		const msgId = await convexMutation("messages:send", saveArgs);
@@ -803,7 +989,7 @@ export async function POST(req: Request) {
 			messageId: msgId,
 			content: aiResponse,
 			images,
-			videos,
+			videos: allVideos,
 		});
 	} catch (err) {
 		const status = err instanceof PaidUserError ? 403 : 500;

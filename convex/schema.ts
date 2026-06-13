@@ -159,6 +159,31 @@ export default defineSchema({
       .index("by_status", ["status"])
       .index("by_userId", ["userId"]),
 
+  dramas: defineTable({
+    source: v.string(),
+    externalId: v.string(),
+    title: v.string(),
+    cover: v.string(),
+    description: v.optional(v.string()),
+    totalEpisodes: v.number(),
+    cloudinaryUrl: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_source_external", ["source", "externalId"])
+    .index("by_source", ["source"]),
+
+  episodes: defineTable({
+    dramaId: v.id("dramas"),
+    episodeNumber: v.number(),
+    title: v.string(),
+    videoUrl: v.string(),
+    cloudinaryUrl: v.optional(v.string()),
+    status: v.union(v.literal("active"), v.literal("expired"), v.literal("uploaded")),
+    createdAt: v.number(),
+  })
+    .index("by_dramaId", ["dramaId"])
+    .index("by_dramaId_episode", ["dramaId", "episodeNumber"]),
+
   conversations: defineTable({
     userEmail: v.string(),
     title: v.string(),

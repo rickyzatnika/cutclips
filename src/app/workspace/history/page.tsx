@@ -88,15 +88,11 @@ export default function HistoryPage() {
   const [selected, setSelected] = useState<Set<Id<"highlights">>>(new Set());
   const [confirm, setConfirm] = useState<ConfirmAction | null>(null);
   const [visibleCount, setVisibleCount] = useState(BATCH_SIZE);
-  const [showAll, setShowAll] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   const data = useMemo(() => {
     if (!rawData) return undefined;
-    let list = [...rawData];
-    if (!showAll) {
-      list = list.filter((item) => !item.clipped);
-    }
+    let list = rawData.filter((item) => !item.clipped);
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(
@@ -107,7 +103,7 @@ export default function HistoryPage() {
     }
     list.sort((a, b) => b.highlight.createdAt - a.highlight.createdAt);
     return list;
-  }, [rawData, search, showAll]);
+  }, [rawData, search]);
 
   const grouped = useMemo(() => {
     if (!data) return [];
@@ -240,7 +236,7 @@ export default function HistoryPage() {
           Riwayat Highlight
         </h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Semua highlight dari video yang pernah kamu analisis.
+          Highlight yang belum dibuat clip.
         </p>
       </div>
 
@@ -256,16 +252,6 @@ export default function HistoryPage() {
           />
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowAll((v) => !v)}
-            className={`cursor-pointer rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
-              showAll
-                ? "bg-emerald-500/20 text-emerald-400"
-                : "text-zinc-500 hover:text-zinc-300"
-            }`}
-          >
-            {showAll ? "Semua" : "Belum di-clip"}
-          </button>
           {data && data.length > 0 && (
             <button
               onClick={toggleSelectAll}

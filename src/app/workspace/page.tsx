@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState, useMemo } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useMemo,
+} from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
@@ -19,6 +25,7 @@ import {
   AlertTriangle,
   Sparkles,
   Coins,
+  Play,
 } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -40,6 +47,7 @@ interface Clip {
   highlightId: string;
   highlightTitle: string;
   category: string;
+  viralityScore?: number;
   startTime: number;
   endTime: number;
   createdAt: number;
@@ -48,6 +56,7 @@ interface Clip {
     youtubeUrl: string;
     title: string;
     thumbnailUrl?: string;
+    duration?: number;
   };
 }
 
@@ -96,7 +105,7 @@ function MenuButton({
           e.stopPropagation();
           setOpen(!open);
         }}
-        className="rounded-lg bg-black/60 p-1.5 cursor-pointer text-white opacity-100 sm:opacity-0 transition-opacity group-hover:opacity-100 hover:bg-zinc-700"
+        className="rounded-lg bg-black/60 p-1.5 cursor-pointer text-white opacity-100 md:opacity-0 transition-opacity group-hover:opacity-100 hover:bg-zinc-700"
       >
         <MoreVertical className="h-4 w-4" />
       </button>
@@ -126,6 +135,24 @@ function MenuButton({
   );
 }
 
+const CATEGORY_STYLES: Record<string, string> = {
+  funny: "bg-yellow-500/20 text-yellow-400",
+  emotional: "bg-pink-500/20 text-pink-400",
+  inspirational: "bg-purple-500/20 text-purple-400",
+  shocking: "bg-red-500/20 text-red-400",
+  educational: "bg-blue-500/20 text-blue-400",
+  hook: "bg-emerald-500/20 text-emerald-400",
+};
+
+const CATEGORY_LABEL: Record<string, string> = {
+  funny: "Lucu",
+  emotional: "Emosional",
+  inspirational: "Inspiratif",
+  shocking: "Mengejutkan",
+  educational: "Edukatif",
+  hook: "Hook",
+};
+
 const ClipCard = React.memo(function ClipCard({
   clip,
   email,
@@ -136,8 +163,16 @@ const ClipCard = React.memo(function ClipCard({
   onRequestDelete: (id: string) => void;
 }) {
   const poster = clip.downloadUrl ? getClipThumbnail(clip.downloadUrl) : "";
+  const catStyle =
+    CATEGORY_STYLES[clip.category] || "bg-zinc-800 text-zinc-400";
+  const catLabel = CATEGORY_LABEL[clip.category] || clip.category;
+  const fmtDuration = (s: number) => {
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return `${m}:${sec.toString().padStart(2, "0")}`;
+  };
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 transition-colors hover:border-zinc-700">
+    <div className="group relative overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 transition-all hover:border-zinc-600 hover:shadow-lg hover:shadow-emerald-500/5">
       <div className="relative aspect-9/16 bg-zinc-950">
         <video
           src={clip.downloadUrl}
@@ -146,6 +181,11 @@ const ClipCard = React.memo(function ClipCard({
           preload="metadata"
           className="h-full w-full object-contain"
         />
+        <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none">
+          <div className="rounded-full bg-black/60 p-3">
+            <Play className="h-6 w-6 text-white" />
+          </div>
+        </div>
         <div className="absolute right-2 top-2">
           <MenuButton
             clip={clip}
@@ -154,29 +194,42 @@ const ClipCard = React.memo(function ClipCard({
             onRequestDelete={onRequestDelete}
           />
         </div>
-        <div className="absolute bottom-2 left-2 rounded-md bg-black/70 px-2 py-0.5 text-xs text-white">
-          {Math.floor(clip.startTime / 60)}:
-          {Math.floor(clip.startTime % 60)
-            .toString()
-            .padStart(2, "0")}
-          {" — "}
-          {Math.floor(clip.endTime / 60)}:
-          {Math.floor(clip.endTime % 60)
-            .toString()
-            .padStart(2, "0")}
+        <div className="absolute bottom-2 right-2">
+          <div className="flex items-center gap-1 rounded-md bg-black/80 px-2 py-1 text-[11px] text-white backdrop-blur-sm">
+            <Clock className="h-3 w-3" />
+            {clip.video.duration
+              ? fmtDuration(clip.video.duration)
+              : `${fmtDuration(clip.endTime - clip.startTime)}`}
+          </div>
         </div>
       </div>
       <div className="p-3">
-        <h3 className="truncate text-sm font-medium text-white">
-          {clip.highlightTitle}
-        </h3>
-        <p className="mt-1 truncate text-xs text-zinc-600">
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="min-w-0 flex-1 truncate text-sm font-medium text-white">
+            {clip.highlightTitle}
+          </h3>
+          <div className="flex shrink-0 flex-col items-end gap-0.5">
+            <span
+              className={`rounded-md px-1.5 py-0.5 text-[10px] font-medium ${catStyle}`}
+            >
+              {catLabel}
+            </span>
+            {clip.viralityScore != null && (
+              <span className="flex items-center gap-0.5 text-[10px] text-orange-400/70">
+                <TrendingUp className="h-3 w-3" />
+                {clip.viralityScore}
+              </span>
+            )}
+          </div>
+        </div>
+        <p className="mt-1.5 truncate text-xs text-zinc-500">
           {clip.video.title}
         </p>
-        <p className="mt-1 text-[11px] text-zinc-700">
+        <p className="mt-1 text-[10px] text-zinc-600">
           {new Date(clip.createdAt).toLocaleDateString("id-ID", {
             day: "numeric",
             month: "short",
+            year: "numeric",
           })}
         </p>
       </div>
@@ -243,9 +296,15 @@ export default function WorkspacePage() {
         if (data.value) {
           setClips((prev) => {
             const next = data.value as typeof prev;
-            if (prev.length === next.length && prev.every((c, i) =>
-              c.exportId === next[i].exportId && c.status === next[i].status && c.downloadUrl === next[i].downloadUrl
-            )) {
+            if (
+              prev.length === next.length &&
+              prev.every(
+                (c, i) =>
+                  c.exportId === next[i].exportId &&
+                  c.status === next[i].status &&
+                  c.downloadUrl === next[i].downloadUrl,
+              )
+            ) {
               return prev;
             }
             return next;
@@ -308,15 +367,23 @@ export default function WorkspacePage() {
     const processing = clips.filter(
       (x) => x.status === "queued" || x.status === "processing",
     ).length;
-    const credits = userData ? (userData as any).credits ?? 0 : 0;
+    const credits = userData ? ((userData as any).credits ?? 0) : 0;
     const cats = completed.map((x) => x.category);
-    const topCat = c > 0 && cats.length
-      ? cats
-          .filter((v, i, a) => a.indexOf(v) === i)
-          .sort((a, b) => cats.filter((v) => v === b).length - cats.filter((v) => v === a).length)[0]
-      : null;
+    const topCat =
+      c > 0 && cats.length
+        ? cats
+            .filter((v, i, a) => a.indexOf(v) === i)
+            .sort(
+              (a, b) =>
+                cats.filter((v) => v === b).length -
+                cats.filter((v) => v === a).length,
+            )[0]
+        : null;
     const topCatCount = topCat ? cats.filter((v) => v === topCat).length : 0;
-    const totalDur = completed.reduce((s, x) => s + (x.endTime - x.startTime), 0);
+    const totalDur = completed.reduce(
+      (s, x) => s + (x.endTime - x.startTime),
+      0,
+    );
     const avgDur = c > 0 ? Math.round(totalDur / c / 60) : 0;
     const latest =
       c > 0
@@ -340,7 +407,9 @@ export default function WorkspacePage() {
     }
 
     if (credits < 50 && !isNewbie) {
-      seeds.push(`Sisa ${credits} kredit. Isi ulang agar proses clip tidak terhenti.`);
+      seeds.push(
+        `Sisa ${credits} kredit. Isi ulang agar proses clip tidak terhenti.`,
+      );
     }
 
     if (c === 0) {
@@ -401,12 +470,19 @@ export default function WorkspacePage() {
       );
     }
 
-    if (latestVideo && latestVideo.length < 30 && latestVideo.length > 0 && c >= 2) {
+    if (
+      latestVideo &&
+      latestVideo.length < 30 &&
+      latestVideo.length > 0 &&
+      c >= 2
+    ) {
       seeds.push(`Clip terbaru dari: "${latestVideo}".`);
     }
 
     if (seeds.length === 0 && c > 0) {
-      seeds.push(`${c} clip berhasil dibuat. Tempel URL YouTube baru untuk menambah koleksi.`);
+      seeds.push(
+        `${c} clip berhasil dibuat. Tempel URL YouTube baru untuk menambah koleksi.`,
+      );
     }
 
     const insight = seeds.slice(0, 2).join(" ");
@@ -479,7 +555,7 @@ export default function WorkspacePage() {
           />
           <button
             type="submit"
-            className="cursor-pointer rounded-xl bg-emerald-500 px-6 py-4 text-base font-semibold text-black transition-colors hover:bg-emerald-400"
+            className="cursor-pointer rounded-xl bg-emerald-500 px-6 py-2 sm:py-4 text-base font-semibold text-black transition-colors hover:bg-emerald-400"
           >
             Analisis
           </button>
@@ -578,11 +654,12 @@ export default function WorkspacePage() {
             </div>
             <div className="space-y-3">
               {filtered.map((clip) => {
-                const pct = typeof clip.progress === "number" ? Math.min(100, Math.max(0, Math.round(clip.progress))) : 0;
+                const pct =
+                  typeof clip.progress === "number"
+                    ? Math.min(100, Math.max(0, Math.round(clip.progress)))
+                    : 0;
                 const label =
-                  clip.status === "queued"
-                    ? PROGRESS_LABELS.queued
-                    : `${pct}%`;
+                  clip.status === "queued" ? PROGRESS_LABELS.queued : `${pct}%`;
                 return (
                   <div
                     key={clip.exportId}
@@ -605,7 +682,9 @@ export default function WorkspacePage() {
                       <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-800">
                         <div
                           className="h-full rounded-full bg-emerald-500 transition-all duration-500 ease-out"
-                          style={{ width: `${clip.status === "queued" ? 0 : pct}%` }}
+                          style={{
+                            width: `${clip.status === "queued" ? 0 : pct}%`,
+                          }}
                         />
                       </div>
                     </div>
@@ -629,7 +708,7 @@ export default function WorkspacePage() {
           </h2>
 
           {loading ? (
-            <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
+            <div className="grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4">
               {Array.from({ length: 10 }).map((_, i) => (
                 <div
                   key={i}
@@ -655,7 +734,7 @@ export default function WorkspacePage() {
               </p>
             </div>
           ) : (
-            <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
+            <div className="scale-90 grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 ">
               {visibleClips.map((clip) => (
                 <ClipCard
                   key={clip.exportId}

@@ -65,10 +65,7 @@ export default function ChatAIListPage() {
   const router = useRouter();
   const { toast } = useToast();
 
-  const user = useQuery(
-    api.users.getByEmail,
-    email ? { email } : "skip",
-  );
+  const user = useQuery(api.users.getByEmail, email ? { email } : "skip");
   const conversations = useQuery(
     api.conversations.list,
     email ? { email } : "skip",
@@ -112,7 +109,9 @@ export default function ChatAIListPage() {
     setDeleting(id);
     setConfirmDelete(null);
     try {
-      await deleteConversation({ conversationId: id as unknown as Id<"conversations"> });
+      await deleteConversation({
+        conversationId: id as unknown as Id<"conversations">,
+      });
       toast({ title: "Percakapan dihapus", variant: "success" });
     } catch (err) {
       toast({
@@ -126,8 +125,9 @@ export default function ChatAIListPage() {
   };
 
   return (
-    <div className={`flex flex-col bg-[#050505] min-h-screen ${starting ? "pointer-events-none opacity-70" : ""}`}>
-
+    <div
+      className={`flex flex-col bg-[#050505] min-h-screen ${starting ? "pointer-events-none opacity-70" : ""}`}
+    >
       <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-4 sm:hidden">
         <h1 className="text-lg font-bold text-white">AI Analyze</h1>
         <button
@@ -140,7 +140,6 @@ export default function ChatAIListPage() {
       </div>
 
       <div className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10 pb-24">
-
         <div className="mb-8 sm:mb-10">
           <h2 className="text-xl sm:text-2xl font-bold text-white">
             Hai, {user?.name || "Kreator"}!
@@ -162,7 +161,9 @@ export default function ChatAIListPage() {
                 <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10 group-hover:bg-emerald-500/20 transition-colors">
                   <Icon className="h-4.5 w-4.5 text-emerald-400" />
                 </div>
-                <h3 className="font-semibold text-white text-sm">{cap.title}</h3>
+                <h3 className="font-semibold text-white text-sm">
+                  {cap.title}
+                </h3>
                 <p className="text-xs text-zinc-500 mt-1 leading-relaxed">
                   {cap.desc}
                 </p>
@@ -216,10 +217,14 @@ export default function ChatAIListPage() {
                       {conv.title || "Percakapan baru"}
                     </p>
                     <p className="mt-0.5 text-xs text-zinc-600">
-                      {new Date(conv.updatedAt || conv.createdAt).toLocaleDateString(
-                        "id-ID",
-                        { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" },
-                      )}
+                      {new Date(
+                        conv.updatedAt || conv.createdAt,
+                      ).toLocaleDateString("id-ID", {
+                        day: "numeric",
+                        month: "short",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </p>
                   </div>
                   <button
@@ -241,7 +246,8 @@ export default function ChatAIListPage() {
           <div className="flex flex-col items-center justify-center py-16 text-center border-t border-zinc-800/30 pt-10">
             <MessageCircle className="mb-3 h-7 w-7 text-zinc-700" />
             <p className="text-sm text-zinc-600">
-              Pilih salah satu di atas atau klik <span className="text-zinc-500">+Baru</span> untuk memulai
+              Pilih salah satu di atas atau klik{" "}
+              <span className="text-zinc-500">+Baru</span> untuk memulai
             </p>
           </div>
         )}
@@ -256,7 +262,9 @@ export default function ChatAIListPage() {
             className="w-full max-w-sm rounded-2xl border border-zinc-800 bg-zinc-900 p-6"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-lg font-semibold text-white">Hapus Percakapan?</h3>
+            <h3 className="text-lg font-semibold text-white">
+              Hapus Percakapan?
+            </h3>
             <p className="mt-2 text-sm text-zinc-400">
               Semua pesan dalam percakapan ini akan dihapus permanen.
             </p>
