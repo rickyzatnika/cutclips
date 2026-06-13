@@ -7,6 +7,7 @@ export const create = mutation({
     youtubeUrl: v.string(),
     title: v.optional(v.string()),
     duration: v.optional(v.number()),
+    userId: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
     return await ctx.db.insert("analyzeJobs", {
@@ -15,6 +16,7 @@ export const create = mutation({
       status: "queued",
       title: args.title,
       duration: args.duration,
+      userId: args.userId,
       createdAt: Date.now(),
     });
   },
@@ -71,6 +73,9 @@ export const complete = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    const job = await ctx.db.get(args.jobId);
+    if (!job) throw new Error("Job not found");
+
     await ctx.db.patch(args.jobId, {
       status: "completed",
       title: args.title,
@@ -80,6 +85,41 @@ export const complete = mutation({
       highlights: args.highlights as any,
       completedAt: Date.now(),
     });
+
+    // Create video + highlights in proper tables for history page
+    const existingVideo = await ctx.db
+      .query("videos")
+      .filter((q) => q.eq(q.field("youtubeUrl"), job.youtubeUrl))
+      .first();
+
+    let videoId: string;
+    if (existingVideo) {
+      videoId = existingVideo._id;
+    } else {
+      videoId = await ctx.db.insert("videos", {
+        youtubeUrl: job.youtubeUrl,
+        title: args.title,
+        duration: args.duration,
+        userId: job.userId,
+        status: "completed",
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+    }
+
+    for (const h of args.highlights) {
+      await ctx.db.insert("highlights", {
+        videoId: videoId as any,
+        startTime: h.startTime,
+        endTime: h.endTime,
+        title: h.title,
+        category: h.category as any,
+        confidenceScore: h.confidenceScore,
+        viralityScore: h.viralityScore,
+        reasoning: h.reasoning,
+        createdAt: Date.now(),
+      });
+    }
   },
 });
 

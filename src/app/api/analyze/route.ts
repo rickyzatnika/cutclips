@@ -1,10 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 const CONVEX_URL = process.env.CONVEX_URL || process.env.NEXT_PUBLIC_CONVEX_URL || "";
 const YOUTUBE_REGEX = /(?:youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
 
 async function convexMutation(path: string, args: Record<string, unknown>) {
   const res = await fetch(`${CONVEX_URL}/api/mutation`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path, args }),
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+  return data.value;
+}
+
+async function convexQuery(path: string, args: Record<string, unknown>) {
+  const res = await fetch(`${CONVEX_URL}/api/query`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ path, args }),
@@ -41,11 +54,19 @@ export async function POST(request: NextRequest) {
       }
     } catch { /* fallback */ }
 
+    const session = await getServerSession(authOptions);
+    let userId = undefined;
+    if (session?.user?.email) {
+      const user = await convexQuery("users:getByEmail", { email: session.user.email });
+      if (user) userId = user._id;
+    }
+
     const jobId = await convexMutation("analyzeJobs:create", {
       videoId,
       youtubeUrl: url,
       title,
       duration,
+      userId,
     });
 
     return NextResponse.json({ jobId, videoId });

@@ -102,6 +102,7 @@ export default defineSchema({
   analyzeJobs: defineTable({
     videoId: v.string(),
     youtubeUrl: v.string(),
+    userId: v.optional(v.id("users")),
     status: v.union(
       v.literal("queued"),
       v.literal("processing"),
@@ -129,7 +130,7 @@ export default defineSchema({
     createdAt: v.number(),
     startedAt: v.optional(v.number()),
     completedAt: v.optional(v.number()),
-  }).index("by_status", ["status"]).index("by_youtubeUrl", ["youtubeUrl"]),
+  }).index("by_status", ["status"]).index("by_youtubeUrl", ["youtubeUrl"]).index("by_userId", ["userId"]),
 
   notifications: defineTable({
     type: v.union(v.literal("login"), v.literal("logout"), v.literal("payment")),
