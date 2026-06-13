@@ -10,7 +10,7 @@ const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
 
 const YOUTUBE_REGEX = /(?:youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
 
-const MODELS = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
+	const MODELS = ["llama-3.3-70b-versatile"];
 
 function getApiKeys(): string[] {
 	const keys: string[] = [];
@@ -368,6 +368,8 @@ async function callGroqWithTools(
 			.replace(/<function=\w+>[\s\S]*?<\/function>/g, "")
 			.replace(/<function=\w+\/>/g, "")
 			.replace(/<function=\w+>[\s\S]*/g, "")
+			.replace(/function=(?:search_web|search_images|search_youtube)>\s*\{[^}]*\}/g, "")
+			.replace(/function=(?:search_web|search_images|search_youtube)>\s*\{[^}]*$/gm, "")
 			.trim();
 	}
 
@@ -687,6 +689,8 @@ HARUS PAKE TOOLS, JANGAN CUMA NULIS:
 - Kalo user minta video YouTube selain punya mereka → WAJIB pake search_youtube. 
 - Kalo lu cuma nulis "Cari ..." tanpa pake tools, berarti lu SALAH.
 - KALO PERTANYAAN BISA DIJAWAB DARI DATA YANG SUDAH DISEDIAKAN (data user, daftar clip, transkrip), JANGAN PAKE TOOLS.
+
+JANGAN PERNAH nulis function=search_web>, function=search_images>, function=search_youtube>, <function=...>, atau format function call apapun di teks. Kalo mau pake tools, pake tool calling bawaan model — jangan ditulis manual.
 
 BATASAN:
 - Kamu bukan admin, gak bisa approve pembayaran, gak bisa ngubah data user.
