@@ -141,6 +141,59 @@ export const listAll = query({
   },
 });
 
+export const listUnclipped = query({
+  args: { email: v.string() },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .unique();
+    if (!user) return [];
+
+    const videos = await ctx.db
+      .query("videos")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .collect();
+
+    const allExports = await ctx.db
+      .query("exports")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .collect();
+    const exportedHighlightIds = new Set(allExports.map((e) => e.highlightId));
+
+    const result: {
+      highlight: Doc<"highlights">;
+      clipped: boolean;
+      video: { _id: Id<"videos">; title: string; youtubeUrl: string; thumbnailUrl?: string };
+    }[] = [];
+
+    for (const video of videos) {
+      const highlights = await ctx.db
+        .query("highlights")
+        .withIndex("by_videoId_score", (q) => q.eq("videoId", video._id as any))
+        .order("desc")
+        .collect();
+
+      for (const h of highlights) {
+        const clipped = exportedHighlightIds.has(h._id);
+        if (clipped) continue;
+        result.push({
+          highlight: h,
+          clipped: false,
+          video: {
+            _id: video._id,
+            title: video.title,
+            youtubeUrl: video.youtubeUrl,
+            thumbnailUrl: video.thumbnailUrl,
+          },
+        });
+      }
+    }
+
+    return result;
+  },
+});
+
 export const remove = mutation({
   args: { highlightId: v.id("highlights") },
   handler: async (ctx, args) => {

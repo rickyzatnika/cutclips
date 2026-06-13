@@ -29,6 +29,7 @@ const CATEGORY_EMOJIS: Record<string, string> = {
   shocking: "😱",
   educational: "📚",
   hook: "🎣",
+  sports: "⚽",
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -38,6 +39,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   shocking: "Mengejutkan",
   educational: "Edukatif",
   hook: "Hook Kuat",
+  sports: "Olahraga",
 };
 
 interface Highlight {
