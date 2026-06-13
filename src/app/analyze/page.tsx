@@ -1,8 +1,10 @@
 "use client";
 
-import { Suspense, useEffect, useState, useRef } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { useQuery } from "convex/react";
+import { api } from "@convex/_generated/api";
 import Link from "next/link";
 import UpgradeModal from "@/components/ui/upgrade-modal";
 import {
@@ -18,6 +20,7 @@ import {
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { convexQuery } from "@/lib/convex-rest";
+import type { Id } from "@convex/_generated/dataModel";
 
 const CATEGORY_EMOJIS: Record<string, string> = {
   funny: "😂",
@@ -74,7 +77,7 @@ function AnalyzeContent() {
   const [creditsBlocked, setCreditsBlocked] = useState(false);
   const [creditsChecking, setCreditsChecking] = useState(true);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [jobId, setJobId] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === "loading") return;
@@ -95,107 +98,89 @@ function AnalyzeContent() {
       .finally(() => setCreditsChecking(false));
   }, [session, status]);
 
+  // Start analysis job
   useEffect(() => {
     if (status === "loading") return;
-
     if (!url) {
       setError("No URL provided");
       setPollStatus("error");
       return;
     }
-
     if (creditsChecking) return;
     if (creditsBlocked) return;
+    if (jobId) return;
+    if (pollStatus === "done" || pollStatus === "error") return;
 
     let cancelled = false;
 
-    const startAnalysis = async () => {
-      try {
-        setStatusMessage("Mengirim video untuk dianalisis...");
+    setStatusMessage("Mengirim video untuk dianalisis...");
 
-        const res = await fetch("/api/analyze", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url }),
-        });
-
+    fetch("/api/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    })
+      .then(async (res) => {
         if (!res.ok) {
           const data = await res.json();
           throw new Error(data.error || "Gagal memulai analisis");
         }
-
-        const { jobId } = await res.json();
-        if (cancelled) return;
-
-        setStatusMessage("Menunggu antrian analisis...");
-
-        intervalRef.current = setInterval(async () => {
-          try {
-            const pollRes = await fetch(`/api/analyze-status/${jobId}`);
-            if (!pollRes.ok) {
-              const data = await pollRes.json();
-              throw new Error(data.error || "Gagal mendapat status");
-            }
-
-            const job = await pollRes.json();
-            if (cancelled) return;
-
-            if (job.status === "processing") {
-              setPollStatus("processing");
-              setStatusMessage("Menganalisis video...");
-            } else if (job.status === "completed") {
-              if (intervalRef.current) clearInterval(intervalRef.current);
-
-              setVideoInfo({
-                title: job.title || "YouTube Video",
-                duration: job.duration || 600,
-              });
-
-              const detectedHighlights: Highlight[] = (job.highlights || []).map(
-                (h: Record<string, unknown>) => ({
-                  _id: `h-${Math.random().toString(36).slice(2)}`,
-                  startTime: h.startTime as number,
-                  endTime: h.endTime as number,
-                  title: String(h.title || ""),
-                  category: String(h.category || "hook"),
-                  confidenceScore: Number(h.confidenceScore) || 0,
-                  viralityScore: Number(h.viralityScore) || 0,
-                  reasoning: String(h.reasoning || ""),
-                }),
-              );
-
-              setHighlights(detectedHighlights);
-              setPollStatus("done");
-            } else if (job.status === "failed") {
-              if (intervalRef.current) clearInterval(intervalRef.current);
-              throw new Error(job.error || "Analisis gagal");
-            }
-          } catch (pollErr) {
-            if (intervalRef.current) clearInterval(intervalRef.current);
-            if (!cancelled) {
-              const msg = pollErr instanceof Error ? pollErr.message : "Gagal memeriksa status";
-              setError(msg);
-              setPollStatus("error");
-            }
-          }
-        }, 2000);
-
-      } catch (err) {
+        return res.json();
+      })
+      .then((data) => {
         if (!cancelled) {
-          const msg = err instanceof Error ? err.message : "Analysis failed";
-          setError(msg);
+          setJobId(data.jobId);
+          setStatusMessage("Menunggu antrian analisis...");
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(err.message);
           setPollStatus("error");
         }
-      }
-    };
+      });
 
-    startAnalysis();
+    return () => { cancelled = true; };
+  }, [url, creditsChecking, creditsBlocked, session, status, jobId, pollStatus]);
 
-    return () => {
-      cancelled = true;
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [url, creditsChecking, creditsBlocked, session, status]);
+  // Reactive job status via Convex
+  const jobDoc = useQuery(
+    api.analyzeJobs.getById,
+    jobId ? { jobId: jobId as Id<"analyzeJobs"> } : "skip",
+  );
+
+  useEffect(() => {
+    if (!jobDoc) return;
+
+    if (jobDoc.status === "processing") {
+      setPollStatus("processing");
+      setStatusMessage("Menganalisis video...");
+    } else if (jobDoc.status === "completed") {
+      setVideoInfo({
+        title: jobDoc.title || "YouTube Video",
+        duration: jobDoc.duration || 600,
+      });
+
+      const detectedHighlights: Highlight[] = (jobDoc.highlights || []).map(
+        (h: Record<string, unknown>) => ({
+          _id: `h-${Math.random().toString(36).slice(2)}`,
+          startTime: h.startTime as number,
+          endTime: h.endTime as number,
+          title: String(h.title || ""),
+          category: String(h.category || "hook"),
+          confidenceScore: Number(h.confidenceScore) || 0,
+          viralityScore: Number(h.viralityScore) || 0,
+          reasoning: String(h.reasoning || ""),
+        }),
+      );
+
+      setHighlights(detectedHighlights);
+      setPollStatus("done");
+    } else if (jobDoc.status === "failed") {
+      setError(jobDoc.error || "Analisis gagal");
+      setPollStatus("error");
+    }
+  }, [jobDoc]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);

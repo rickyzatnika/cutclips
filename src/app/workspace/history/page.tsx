@@ -20,7 +20,6 @@ import {
   Trash2,
   CheckSquare,
   Square,
-  X,
   AlertTriangle,
 } from "lucide-react";
 import { useToast } from "@/components/ui/toast";

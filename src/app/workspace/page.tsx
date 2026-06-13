@@ -32,8 +32,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 const BATCH_SIZE = 15;
 
-const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL;
-
 const PROGRESS_LABELS: Record<string, string> = {
   queued: "Menunggu antrian",
   processing: "Memproses",
@@ -242,8 +240,6 @@ export default function WorkspacePage() {
   const { data: session } = useSession();
   const { toast } = useToast();
   const [url, setUrl] = useState("");
-  const [clips, setClips] = useState<Clip[]>([]);
-  const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("newest");
   const [visibleCount, setVisibleCount] = useState(BATCH_SIZE);
@@ -254,6 +250,10 @@ export default function WorkspacePage() {
     api.users.getByEmail,
     userEmail ? { email: userEmail } : "skip",
   );
+  const clips = useQuery(
+    api.videos.listByUserWithClips,
+    userEmail ? { email: userEmail } : "skip",
+  ) as Clip[] | undefined;
   const latestPayment = useQuery(
     api.payments.getLatestByUser,
     userEmail ? { email: userEmail } : "skip",
@@ -281,55 +281,6 @@ export default function WorkspacePage() {
     prevStatus.current = current;
   }, [latestPayment]);
 
-  const fetchClips = useCallback(() => {
-    if (!session?.user?.email || !CONVEX_URL) return;
-    fetch(`${CONVEX_URL}/api/query`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        path: "videos:listByUserWithClips",
-        args: { email: session.user.email },
-      }),
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.value) {
-          setClips((prev) => {
-            const next = data.value as typeof prev;
-            if (
-              prev.length === next.length &&
-              prev.every(
-                (c, i) =>
-                  c.exportId === next[i].exportId &&
-                  c.status === next[i].status &&
-                  c.downloadUrl === next[i].downloadUrl,
-              )
-            ) {
-              return prev;
-            }
-            return next;
-          });
-        }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [session]);
-
-  useEffect(() => {
-    setLoading(true);
-    fetchClips();
-  }, [fetchClips]);
-
-  // Smart poll: every 3s while processing, stop when all done
-  const hasProcessing = clips.some(
-    (c) => c.status === "queued" || c.status === "processing",
-  );
-  useEffect(() => {
-    if (!hasProcessing) return;
-    const interval = setInterval(fetchClips, 3000);
-    return () => clearInterval(interval);
-  }, [hasProcessing, fetchClips]);
-
   const executeDelete = async () => {
     if (!confirmDeleteId) return;
     const exportId = confirmDeleteId;
@@ -342,7 +293,6 @@ export default function WorkspacePage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Delete failed");
-      setClips((prev) => prev.filter((c) => c.exportId !== exportId));
       toast({ title: "Clip dihapus", variant: "success" });
     } catch {}
   };
@@ -357,14 +307,15 @@ export default function WorkspacePage() {
     setVisibleCount(BATCH_SIZE);
   }, [sortBy]);
 
+  const clipsSafe = clips || [];
   const completed = useMemo(
-    () => clips.filter((c) => c.status === "completed"),
-    [clips],
+    () => clipsSafe.filter((c) => c.status === "completed"),
+    [clipsSafe],
   );
 
   const aiInsightEl = useMemo(() => {
     const c = completed.length;
-    const processing = clips.filter(
+    const processing = clipsSafe.filter(
       (x) => x.status === "queued" || x.status === "processing",
     ).length;
     const credits = userData ? ((userData as any).credits ?? 0) : 0;
@@ -497,12 +448,12 @@ export default function WorkspacePage() {
         <p className="mt-1 text-sm text-zinc-400">{insight}</p>
       </div>
     );
-  }, [completed, clips, userData]);
+  }, [completed, clipsSafe, userData]);
 
   const filtered = useMemo(() => {
     let list =
       filterStatus === "processing"
-        ? clips.filter(
+        ? clipsSafe.filter(
             (c) => c.status === "queued" || c.status === "processing",
           )
         : completed;
@@ -515,7 +466,7 @@ export default function WorkspacePage() {
         a.highlightTitle.localeCompare(b.highlightTitle),
       );
     return list;
-  }, [clips, filterStatus, sortBy]);
+  }, [clipsSafe, filterStatus, sortBy]);
 
   const visibleClips = useMemo(
     () => filtered.slice(0, visibleCount),
@@ -575,7 +526,7 @@ export default function WorkspacePage() {
           <p className="text-xs text-zinc-500">Total Clip</p>
           <p className="mt-1 flex items-center gap-1.5 text-lg font-bold text-white">
             <Video className="h-4 w-4 text-emerald-400" />
-            {clips.length || "..."}
+            {clips?.length ?? "..."}
           </p>
         </div>
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3">
@@ -612,11 +563,9 @@ export default function WorkspacePage() {
           >
             <Loader2 className="mr-1 inline h-3 w-3" />
             Proses (
-            {
-              clips.filter(
+            {clipsSafe.filter(
                 (c) => c.status === "queued" || c.status === "processing",
-              ).length
-            }
+              ).length}
             )
           </button>
           <Link
@@ -707,7 +656,7 @@ export default function WorkspacePage() {
             )}
           </h2>
 
-          {loading ? (
+          {clips === undefined ? (
             <div className="grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4">
               {Array.from({ length: 10 }).map((_, i) => (
                 <div

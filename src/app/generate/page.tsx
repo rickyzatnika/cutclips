@@ -13,6 +13,9 @@ import {
   XCircle,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useQuery } from "convex/react";
+import { api } from "@convex/_generated/api";
+import type { Id } from "@convex/_generated/dataModel";
 
 type ExportStatus =
   | "idle"
@@ -42,10 +45,6 @@ function GenerateContent() {
   const [exportId, setExportId] = useState<string | null>(null);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
-  const [queueInfo, setQueueInfo] = useState<{
-    ahead: number;
-    estimatedSeconds: number;
-  } | null>(null);
   const [progress, setProgress] = useState(0);
   const [displayedProgress, setDisplayedProgress] = useState(0);
   const [selectedTemplate, setSelectedTemplate] = useState("default");
@@ -127,45 +126,22 @@ function GenerateContent() {
     }
   }, [highlightId, title, captionEnabled, selectedTemplate, sumberVideo]);
 
-  // Poll export status
+  // Reactive export status via Convex
+  const exportDoc = useQuery(
+    api.exports.getById,
+    exportId ? { exportId: exportId as Id<"exports"> } : "skip",
+  );
+
   useEffect(() => {
-    if (!exportId || status === "completed" || status === "failed") return;
-
-    let cancelled = false;
-
-    const poll = async () => {
-      try {
-        const res = await fetch(`/api/export-status/${exportId}`);
-        const data = await res.json();
-
-        if (!res.ok) throw new Error(data.error || "Failed to check status");
-        if (cancelled) return;
-
-        setStatus(data.status);
-        if (data.progress != null) setProgress(data.progress);
-        if (data.queue) setQueueInfo(data.queue);
-
-        if (data.status === "completed") {
-          setDownloadUrl(data.downloadUrl);
-        } else if (data.status === "failed") {
-          setError(data.error || "Clip generation failed");
-        }
-      } catch (err) {
-        if (!cancelled) {
-          const msg = err instanceof Error ? err.message : "Polling failed";
-          setError(msg);
-          setStatus("failed");
-        }
-      }
-    };
-
-    poll();
-    const interval = setInterval(poll, 3000);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, [exportId, status]);
+    if (!exportDoc) return;
+    setStatus(exportDoc.status);
+    if (exportDoc.progress != null) setProgress(Number(exportDoc.progress));
+    if (exportDoc.status === "completed" && exportDoc.downloadUrl) {
+      setDownloadUrl(exportDoc.downloadUrl);
+    } else if (exportDoc.status === "failed" && exportDoc.error) {
+      setError(exportDoc.error);
+    }
+  }, [exportDoc]);
 
   useEffect(() => {
     if (status !== "processing") {
@@ -402,12 +378,8 @@ function GenerateContent() {
                     ? "Clip dalam antrian..."
                     : "Memproses clip..."}
               </h2>
-              {status === "queued" && queueInfo ? (
-                <p className="text-sm text-zinc-500">
-                  {queueInfo.ahead > 0
-                    ? `${queueInfo.ahead} antrian di depan. Estimasi ${Math.ceil(queueInfo.estimatedSeconds / 60)} menit.`
-                    : "Kamu berikutnya! Sebentar lagi..."}
-                </p>
+              {status === "queued" ? (
+                <p className="text-sm text-zinc-500">Clip dalam antrian, sebentar lagi...</p>
               ) : (
                 <div className="mx-auto max-w-sm space-y-2">
                   <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-800">
