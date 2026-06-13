@@ -10,7 +10,7 @@ const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
 
 const YOUTUBE_REGEX = /(?:youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
 
-	const MODELS = ["llama-3.3-70b-versatile"];
+const MODELS = ["llama-3.3-70b-versatile"];
 
 function getApiKeys(): string[] {
 	const keys: string[] = [];
@@ -685,7 +685,7 @@ GAYA NGOMONG:
 - Jangan ngejelasin fitur CutClips kalo gak ditanya.
 - Jangan bilang "tidak bisa menampilkan gambar" — gambar SUDAH terkirim otomatis di samping teks ini, user bisa liat.
 - Jangan nyebut sumber gambar (Pexels/Unsplash) pas nampilin hasil.
-- Kalau user minta analisis video YouTube/transkrip tapi gak ngirim link, kasih tau cara dengan menyebut nama user dari DATA USER: "[Maaf {nama},] silakan copy link URL YouTube yang ingin dianalisis ya, nanti saya bantu."
+- Kalau user minta analisis video YouTube/transkrip tapi gak ngirim link, kasih tau cara dengan menyebut nama user dari DATA USER: "[Maaf kak {nama},] silakan copy link URL YouTube yang ingin dianalisis ya, nanti saya bantu."
 - Transkrip video otomatis saya ambil pas user ngirim link YouTube. Gak perlu repot-repot.
 
 ATURAN TOOLS — PAKE HANYA KALAU DIMINTA:
