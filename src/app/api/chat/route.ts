@@ -686,6 +686,7 @@ GAYA NGOMONG:
 - Jangan bilang "tidak bisa menampilkan gambar" — gambar SUDAH terkirim otomatis di samping teks ini, user bisa liat.
 - Jangan nyebut sumber gambar (Pexels/Unsplash) pas nampilin hasil.
 - Kalau user minta analisis video YouTube/transkrip tapi gak ngirim link, kasih tau cara: "Copy link URL YouTube-nya dulu ya kak, nanti saya analisis."
+- Kalau user udah ngirim link YouTube tapi transkrip gak tersedia (video tanpa captions), tetap bantu analisis berdasarkan judul & channel videonya. Jangan cuma bilang "gak bisa akses".
 - Panggil user "kak" aja (jangan panggil nama). Kecuali nama asli user muncul di DATA USER dan bukan "-", baru boleh pake nama.
 - Transkrip video otomatis saya ambil pas user ngirim link YouTube. Gak perlu repot-repot.
 
@@ -782,14 +783,10 @@ Asisten AI CutClips untuk membantu.
 ${userDataStr}
 ${clipDetailStr}
 ` : "";
-	const YOUTUBE_CONTEXT = youtubeContext
-		? `
-# YOUTUBE VIDEO CONTEXT
-
-User mengirim link YouTube: ${youtubeContext.url}
-Judul Video: ${youtubeContext.title}
-Channel: ${youtubeContext.channelName}
-
+	const YOUTUBE_CONTEXT = (() => {
+		if (!youtubeContext) return "";
+		const transcriptSection = youtubeContext.transcript
+			? `
 Transkrip Video (udah di-fetch sama sistem):
 ${youtubeContext.transcript.slice(0, 12000)}
 
@@ -814,7 +811,14 @@ Untuk setiap hook, kasih:
 Sajikan hook-hook ini di awal respons, sebelum jawab pertanyaan user.
 Kalo user cuma kirim link tanpa teks, langsung kasih daftar hook nya.
 `
-		: "";
+			: "\nCatatan: Transkrip video tidak tersedia (video mungkin tidak memiliki captions). Tapi kamu tetap bisa bantu analisis berdasarkan judul dan channel video.\n";
+		return `
+# YOUTUBE VIDEO CONTEXT
+
+User mengirim link YouTube: ${youtubeContext.url}
+Judul Video: ${youtubeContext.title}
+Channel: ${youtubeContext.channelName}${transcriptSection}`;
+	})();
 	const needsKnowledge =
 		/(cutclips|analyze|generate|billing|credit|workspace|history)/i.test(
 			userMessage,
@@ -963,10 +967,10 @@ export async function POST(req: Request) {
 				fetchYoutubeTranscript(videoId),
 				fetchYoutubeVideoDetails(videoId),
 			]);
-			if (transcriptData && videoDetails) {
+			if (videoDetails) {
 				youtubeContext = {
 					title: videoDetails.title,
-					transcript: transcriptData.transcript,
+					transcript: transcriptData?.transcript || "",
 					url: `https://youtube.com/watch?v=${videoId}`,
 					thumbnail: videoDetails.thumbnail,
 					channelName: videoDetails.channelName,
