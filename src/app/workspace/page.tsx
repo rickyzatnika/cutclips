@@ -11,6 +11,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useQuery, usePaginatedQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
+import type { Id } from "@convex/_generated/dataModel";
 import {
   Film,
   MoreVertical,
@@ -25,6 +26,10 @@ import {
   Sparkles,
   Coins,
   Play,
+  Zap,
+  MessageCircle,
+  ChevronRight,
+  Search,
 } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -153,6 +158,27 @@ const CATEGORY_LABEL: Record<string, string> = {
   hook: "Hook",
 };
 
+type HistoryItem = {
+  highlight: {
+    _id: Id<"highlights">;
+    title: string;
+    startTime: number;
+    endTime: number;
+    category: string;
+    confidenceScore: number;
+    viralityScore: number;
+    reasoning: string;
+    createdAt: number;
+  };
+  clipped: boolean;
+  video: {
+    _id: Id<"videos">;
+    title: string;
+    youtubeUrl: string;
+    thumbnailUrl?: string;
+  };
+};
+
 const ClipCard = React.memo(function ClipCard({
   clip,
   email,
@@ -250,6 +276,7 @@ export default function WorkspacePage() {
   const sentinelRef = useRef<HTMLDivElement>(null);
   const [batchSize] = useState(getInitialBatchSize);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [generating, setGenerating] = useState<Id<"highlights"> | null>(null);
   const userEmail = session?.user?.email;
   const userData = useQuery(
     api.users.getByEmail,
@@ -273,6 +300,18 @@ export default function WorkspacePage() {
     userEmail ? { email: userEmail } : "skip",
   );
   const prevStatus = useRef<string | null>(null);
+
+  const highlightsData = useQuery(
+    api.highlights.listAll,
+    userEmail ? { email: userEmail } : "skip",
+  ) as HistoryItem[] | undefined;
+
+  const recentHighlights = useMemo(() => {
+    if (!highlightsData) return undefined;
+    return [...highlightsData]
+      .sort((a, b) => b.highlight.createdAt - a.highlight.createdAt)
+      .slice(0, 5);
+  }, [highlightsData]);
 
   useEffect(() => {
     if (!latestPayment) return;
@@ -315,6 +354,27 @@ export default function WorkspacePage() {
     e.preventDefault();
     if (!url.trim()) return;
     router.push(`/analyze?url=${encodeURIComponent(url.trim())}`);
+  };
+
+  const handleGenerate = async (highlightId: Id<"highlights">) => {
+    setGenerating(highlightId);
+    try {
+      const res = await fetch("/api/genclip", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ highlightId }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Gagal");
+      toast({ title: "Clip sedang dibuat!", variant: "success" });
+      router.push("/workspace?tab=processing");
+    } catch (err) {
+      toast({
+        title: err instanceof Error ? err.message : "Gagal",
+        variant: "error",
+      });
+      setGenerating(null);
+    }
   };
 
   const clipsSafe = clips || [];
@@ -570,26 +630,32 @@ export default function WorkspacePage() {
             }
             )
           </button>
-          <Link
-            href="/workspace/history"
-            className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-300"
+          <button
+            onClick={() => setFilterStatus("history")}
+            className={`cursor-pointer rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+              filterStatus === "history"
+                ? "bg-emerald-500/20 text-emerald-400"
+                : "text-zinc-500 hover:text-zinc-300"
+            }`}
           >
-            <List className="h-3 w-3" />
+            <List className="mr-1 inline h-3 w-3" />
             Riwayat
-          </Link>
+          </button>
         </div>
-        <div className="flex items-center gap-2">
-          <Clock className="h-3.5 w-3.5 text-zinc-600" />
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="cursor-pointer rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-400 outline-none transition-colors focus:border-emerald-500"
-          >
-            <option value="newest">Terbaru</option>
-            <option value="oldest">Terlama</option>
-            <option value="title">A-Z</option>
-          </select>
-        </div>
+        {filterStatus !== "history" && (
+          <div className="flex items-center gap-2">
+            <Clock className="h-3.5 w-3.5 text-zinc-600" />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="cursor-pointer rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-400 outline-none transition-colors focus:border-emerald-500"
+            >
+              <option value="newest">Terbaru</option>
+              <option value="oldest">Terlama</option>
+              <option value="title">A-Z</option>
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Processing clips */}
@@ -646,8 +712,129 @@ export default function WorkspacePage() {
           </div>
         )}
 
+      {/* History tab */}
+      {filterStatus === "history" && (
+        <div>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-white">
+              Riwayat Terbaru
+            </h2>
+            <Link
+              href="/workspace/history"
+              className="flex items-center gap-1 text-xs font-medium text-emerald-400 hover:text-emerald-300 transition-colors"
+            >
+              Lihat selengkapnya
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+
+          {highlightsData === undefined ? (
+            <div className="space-y-2">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4">
+                  <div className="flex items-start gap-3">
+                    <Skeleton className="mt-0.5 h-4 w-4 shrink-0" />
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <Skeleton className="h-4 w-40" />
+                      <Skeleton className="h-3 w-24" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : recentHighlights!.length === 0 ? (
+            <div className="rounded-2xl border border-zinc-800 px-6 py-14 text-center">
+              <Search className="mx-auto mb-4 h-8 w-8 text-zinc-700" />
+              <h3 className="text-base font-semibold text-white">
+                Belum Ada Riwayat
+              </h3>
+              <p className="mx-auto mt-1 max-w-sm text-sm text-zinc-500">
+                Analisis video YouTube untuk mulai melihat highlight.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {recentHighlights!.map((item) => {
+                const h = item.highlight;
+                const catLabel = CATEGORY_LABEL[h.category] || h.category;
+                const catStyle = CATEGORY_STYLES[h.category] || "bg-zinc-800 text-zinc-400";
+                const fmtTime = (s: number) => {
+                  const m = Math.floor(s / 60);
+                  const sec = Math.floor(s % 60);
+                  return `${m}:${sec.toString().padStart(2, "0")}`;
+                };
+                return (
+                  <div
+                    key={h._id}
+                    className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 transition-colors hover:border-zinc-700"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="truncate text-sm font-medium text-white">
+                            {h.title}
+                          </h3>
+                          <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${catStyle}`}>
+                            {catLabel}
+                          </span>
+                        </div>
+                        <p className="mt-0.5 truncate text-xs text-zinc-500">
+                          {item.video.title}
+                        </p>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-zinc-500">
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {fmtTime(h.startTime)} &mdash; {fmtTime(h.endTime)}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <TrendingUp className="h-3 w-3" />
+                            {h.viralityScore}
+                          </span>
+                        </div>
+                        {h.reasoning && (
+                          <p className="mt-1 text-xs text-zinc-600 line-clamp-1">
+                            <MessageCircle className="mr-1 inline h-3 w-3" />
+                            {h.reasoning}
+                          </p>
+                        )}
+                      </div>
+                      <div className="shrink-0">
+                        {item.clipped ? (
+                          <span className="flex items-center gap-1 rounded-lg bg-zinc-800 px-3 py-2 text-xs text-zinc-400">
+                            <Zap className="h-3.5 w-3.5" />
+                            Sudah
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => handleGenerate(h._id)}
+                            disabled={generating === h._id}
+                            className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-emerald-400 disabled:opacity-50"
+                          >
+                            {generating === h._id ? (
+                              <>
+                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-black border-t-transparent" />
+                                Memproses
+                              </>
+                            ) : (
+                              <>
+                                <Zap className="h-4 w-4" />
+                                Buat Clip
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Completed clips */}
-      {filterStatus !== "processing" && (
+      {filterStatus === "all" && (
         <div>
           <h2 className="mb-4 text-lg font-semibold text-white">
             Clip Terbaru
@@ -696,12 +883,12 @@ export default function WorkspacePage() {
               ))}
             </div>
           )}
-          {filterStatus !== "processing" && (paginationStatus === "CanLoadMore" || paginationStatus === "LoadingMore") && (
+          {(paginationStatus === "CanLoadMore" || paginationStatus === "LoadingMore") && (
             <div ref={paginationStatus === "CanLoadMore" ? sentinelRef : undefined} className="flex justify-center py-6">
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-600 border-t-emerald-400" />
             </div>
           )}
-          {filterStatus !== "processing" && paginationStatus === "Exhausted" && filtered.length > 0 && (
+          {paginationStatus === "Exhausted" && filtered.length > 0 && (
             <div className="flex justify-center py-6 text-xs text-zinc-600">
               Semua clip dimuat
             </div>
