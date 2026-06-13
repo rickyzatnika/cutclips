@@ -91,7 +91,7 @@ export default function HistoryPage() {
 
   const data = useMemo(() => {
     if (!rawData) return undefined;
-    let list = rawData.filter((item) => !item.clipped);
+    let list = rawData;
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(
@@ -235,7 +235,7 @@ export default function HistoryPage() {
           Riwayat Highlight
         </h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Highlight yang belum dibuat clip.
+          Semua hasil analisis highlight.
         </p>
       </div>
 
