@@ -29,7 +29,10 @@ import {
 import { useToast } from "@/components/ui/toast";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const BATCH_SIZE = 15;
+function getInitialBatchSize() {
+  if (typeof window !== "undefined" && window.innerWidth < 640) return 2;
+  return 15;
+}
 
 const PROGRESS_LABELS: Record<string, string> = {
   queued: "Menunggu antrian",
@@ -242,6 +245,7 @@ export default function WorkspacePage() {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("newest");
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const [batchSize] = useState(getInitialBatchSize);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const userEmail = session?.user?.email;
   const userData = useQuery(
@@ -255,7 +259,7 @@ export default function WorkspacePage() {
   } = usePaginatedQuery(
     api.videos.listByUserWithClipsPaginated as any,
     userEmail ? { email: userEmail } : "skip",
-    { initialNumItems: BATCH_SIZE },
+    { initialNumItems: batchSize },
   ) as unknown as {
     results: Clip[] | undefined;
     status: "Loading" | "LoadingMore" | "CanLoadMore" | "Exhausted";
@@ -477,7 +481,7 @@ export default function WorkspacePage() {
     if (!el) return;
     const obs = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting) loadMoreClips?.(BATCH_SIZE);
+        if (entry.isIntersecting) loadMoreClips?.(batchSize);
       },
       { rootMargin: "300px" },
     );
