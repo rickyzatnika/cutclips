@@ -1,11 +1,6 @@
 "use client";
 
-import React, {
-  useEffect,
-  useRef,
-  useState,
-  useMemo,
-} from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
@@ -220,8 +215,7 @@ const ClipCard = React.memo(function ClipCard({
             onRequestDelete={onRequestDelete}
           />
         </div>
-        <div className="absolute bottom-2 right-2">
-        </div>
+        <div className="absolute bottom-2 right-2"></div>
       </div>
       <div className="p-3">
         <div className="flex items-start justify-between gap-2">
@@ -264,7 +258,7 @@ export default function WorkspacePage() {
   const { toast } = useToast();
   const [url, setUrl] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>(
-    searchParams.get("tab") || "all"
+    searchParams.get("tab") || "all",
   );
   const [sortBy, setSortBy] = useState<string>("newest");
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -533,7 +527,8 @@ export default function WorkspacePage() {
   }, [clipsSafe, filterStatus, sortBy]);
 
   useEffect(() => {
-    if (paginationStatus !== "CanLoadMore" || filterStatus === "processing") return;
+    if (paginationStatus !== "CanLoadMore" || filterStatus === "processing")
+      return;
     const el = sentinelRef.current;
     if (!el) return;
     const obs = new IntersectionObserver(
@@ -720,7 +715,10 @@ export default function WorkspacePage() {
           {highlightsData === undefined ? (
             <div className="space-y-2">
               {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4">
+                <div
+                  key={i}
+                  className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4"
+                >
                   <div className="flex items-start gap-3">
                     <Skeleton className="mt-0.5 h-4 w-4 shrink-0" />
                     <div className="min-w-0 flex-1 space-y-2">
@@ -746,7 +744,8 @@ export default function WorkspacePage() {
               {recentHighlights!.map((item) => {
                 const h = item.highlight;
                 const catLabel = CATEGORY_LABEL[h.category] || h.category;
-                const catStyle = CATEGORY_STYLES[h.category] || "bg-zinc-800 text-zinc-400";
+                const catStyle =
+                  CATEGORY_STYLES[h.category] || "bg-zinc-800 text-zinc-400";
                 const fmtTime = (s: number) => {
                   const m = Math.floor(s / 60);
                   const sec = Math.floor(s % 60);
@@ -763,7 +762,9 @@ export default function WorkspacePage() {
                           <h3 className="truncate text-sm font-medium text-white">
                             {h.title}
                           </h3>
-                          <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${catStyle}`}>
+                          <span
+                            className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${catStyle}`}
+                          >
                             {catLabel}
                           </span>
                         </div>
@@ -871,15 +872,17 @@ export default function WorkspacePage() {
               ))}
             </div>
           )}
-          {(paginationStatus === "CanLoadMore" || paginationStatus === "LoadingMore") && (
-            <div ref={paginationStatus === "CanLoadMore" ? sentinelRef : undefined} className="flex justify-center py-6">
+          {(paginationStatus === "CanLoadMore" ||
+            paginationStatus === "LoadingMore") && (
+            <div
+              ref={paginationStatus === "CanLoadMore" ? sentinelRef : undefined}
+              className="flex justify-center py-6"
+            >
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-600 border-t-emerald-400" />
             </div>
           )}
           {paginationStatus === "Exhausted" && filtered.length > 0 && (
-            <div className="flex justify-center py-6 text-xs text-zinc-600">
-              Semua clip dimuat
-            </div>
+            <div className="flex justify-center py-3 text-xs text-zinc-600"></div>
           )}
         </div>
       )}
