@@ -193,12 +193,12 @@ const ClipCard = React.memo(function ClipCard({
           />
         </div>
         <div className="absolute bottom-2 right-2">
-          <div className="flex items-center gap-1 rounded-md bg-black/80 px-2 py-1 text-[11px] text-white backdrop-blur-sm">
+          {/* <div className="flex items-center gap-1 rounded-md bg-black/80 px-2 py-1 text-[11px] text-white backdrop-blur-sm">
             <Clock className="h-3 w-3" />
             {clip.video.duration
               ? fmtDuration(clip.video.duration)
               : `${fmtDuration(clip.endTime - clip.startTime)}`}
-          </div>
+          </div> */}
         </div>
       </div>
       <div className="p-3">
@@ -563,9 +563,11 @@ export default function WorkspacePage() {
           >
             <Loader2 className="mr-1 inline h-3 w-3" />
             Proses (
-            {clipsSafe.filter(
+            {
+              clipsSafe.filter(
                 (c) => c.status === "queued" || c.status === "processing",
-              ).length}
+              ).length
+            }
             )
           </button>
           <Link
