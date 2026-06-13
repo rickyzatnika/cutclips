@@ -6,7 +6,7 @@ import React, {
   useState,
   useMemo,
 } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useQuery, usePaginatedQuery } from "convex/react";
@@ -239,10 +239,13 @@ const ClipCard = React.memo(function ClipCard({
 
 export default function WorkspacePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session } = useSession();
   const { toast } = useToast();
   const [url, setUrl] = useState("");
-  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>(
+    searchParams.get("tab") || "all"
+  );
   const [sortBy, setSortBy] = useState<string>("newest");
   const sentinelRef = useRef<HTMLDivElement>(null);
   const [batchSize] = useState(getInitialBatchSize);

@@ -212,7 +212,7 @@ export default function HistoryPage() {
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || "Gagal");
       toast({ title: "Clip sedang dibuat!", variant: "success" });
-      router.push("/workspace");
+      router.push("/workspace?tab=processing");
     } catch (err) {
       toast({
         title: err instanceof Error ? err.message : "Gagal",
