@@ -1,7 +1,6 @@
 "use client";
 
 import React, {
-  useCallback,
   useEffect,
   useRef,
   useState,
@@ -10,7 +9,7 @@ import React, {
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { useQuery } from "convex/react";
+import { useQuery, usePaginatedQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import {
   Film,
@@ -242,7 +241,6 @@ export default function WorkspacePage() {
   const [url, setUrl] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("newest");
-  const [visibleCount, setVisibleCount] = useState(BATCH_SIZE);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const userEmail = session?.user?.email;
@@ -250,10 +248,19 @@ export default function WorkspacePage() {
     api.users.getByEmail,
     userEmail ? { email: userEmail } : "skip",
   );
-  const clips = useQuery(
-    api.videos.listByUserWithClips,
+  const {
+    results: clips,
+    status: paginationStatus,
+    loadMore: loadMoreClips,
+  } = usePaginatedQuery(
+    api.videos.listByUserWithClipsPaginated as any,
     userEmail ? { email: userEmail } : "skip",
-  ) as Clip[] | undefined;
+    { initialNumItems: BATCH_SIZE },
+  ) as unknown as {
+    results: Clip[] | undefined;
+    status: "Loading" | "LoadingMore" | "CanLoadMore" | "Exhausted";
+    loadMore: (n: number) => void;
+  };
   const latestPayment = useQuery(
     api.payments.getLatestByUser,
     userEmail ? { email: userEmail } : "skip",
@@ -302,10 +309,6 @@ export default function WorkspacePage() {
     if (!url.trim()) return;
     router.push(`/analyze?url=${encodeURIComponent(url.trim())}`);
   };
-
-  useEffect(() => {
-    setVisibleCount(BATCH_SIZE);
-  }, [sortBy]);
 
   const clipsSafe = clips || [];
   const completed = useMemo(
@@ -468,29 +471,19 @@ export default function WorkspacePage() {
     return list;
   }, [clipsSafe, filterStatus, sortBy]);
 
-  const visibleClips = useMemo(
-    () => filtered.slice(0, visibleCount),
-    [filtered, visibleCount],
-  );
-  const hasMore = visibleCount < filtered.length;
-
-  const loadMore = useCallback(() => {
-    setVisibleCount((prev) => Math.min(prev + BATCH_SIZE, filtered.length));
-  }, [filtered.length]);
-
   useEffect(() => {
-    if (!hasMore || filterStatus === "processing") return;
+    if (paginationStatus !== "CanLoadMore" || filterStatus === "processing") return;
     const el = sentinelRef.current;
     if (!el) return;
     const obs = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting) loadMore();
+        if (entry.isIntersecting) loadMoreClips?.(BATCH_SIZE);
       },
       { rootMargin: "300px" },
     );
     obs.observe(el);
     return () => obs.disconnect();
-  }, [hasMore, filterStatus, loadMore]);
+  }, [paginationStatus, filterStatus, loadMoreClips]);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
@@ -685,8 +678,8 @@ export default function WorkspacePage() {
               </p>
             </div>
           ) : (
-            <div className="scale-90 grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 ">
-              {visibleClips.map((clip) => (
+            <div className="scale-90 grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4">
+              {filtered.map((clip) => (
                 <ClipCard
                   key={clip.exportId}
                   clip={clip}
@@ -696,9 +689,14 @@ export default function WorkspacePage() {
               ))}
             </div>
           )}
-          {filterStatus !== "processing" && hasMore && (
-            <div ref={sentinelRef} className="flex justify-center py-6">
+          {filterStatus !== "processing" && (paginationStatus === "CanLoadMore" || paginationStatus === "LoadingMore") && (
+            <div ref={paginationStatus === "CanLoadMore" ? sentinelRef : undefined} className="flex justify-center py-6">
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-600 border-t-emerald-400" />
+            </div>
+          )}
+          {filterStatus !== "processing" && paginationStatus === "Exhausted" && filtered.length > 0 && (
+            <div className="flex justify-center py-6 text-xs text-zinc-600">
+              Semua clip dimuat
             </div>
           )}
         </div>

@@ -585,13 +585,11 @@ async function processWithLLM(
 	const history = allHistory.slice(-15);
 
 	let userDataStr = "";
-	// const needsUserData = /kredit|saldo|clip|video|highlight|user|akun|profil|data/i.test(
-	//   userMessage,
-	// );
+	let clipDetailStr = "";
 	const needsUserData =
-		/(kredit|credit|saldo|clip|video|highlight|akun|profil|user|data|statistik|generate|riwayat|hasil|sisa)/i.test(
+		/(kredit|credit|saldo|clip|video|highlight|akun|profil|user|data|statistik|generate|riwayat|hasil|sisa|nama|bagus|menarik|rekomendasi|saran|pilih|hook|viral|favorit|terbaik|populer|tayang|view|punya|saya)/i.test(
 			userMessage,
-		);
+		) || history.length > 1;
 	if (needsUserData) {
 		try {
 			const user = await convexQuery("users:getByEmail", { email });
@@ -613,18 +611,34 @@ async function processWithLLM(
 			const totalHighlights = unclipped.length;
 
 			userDataStr =
-				"\n\n== DATA USER (hanya info user ini) ==\n" +
-				`Nama: ${user?.name || "-"}\n` +
-				`Email: ${user?.email || email}\n` +
-				`Sisa Kredit: ${user?.credits ?? 0}\n` +
-				`Total Kredit Terpakai: ${user?.totalCreditsUsed ?? 0}\n` +
-				`Total Video Dianalisis: ${totalVideos}\n` +
-				`Total Highlight: ${totalHighlights}\n` +
-				`Total Clip Dibuat: ${totalClips}\n` +
-				`Bergabung Sejak: ${user?.joinedAt ? new Date(user.joinedAt).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : "-"}\n` +
-				`Role: ${user?.role || "user"}\n`;
+				"Nama: " + (user?.name || "-") + "\n" +
+				"Email: " + (user?.email || email) + "\n" +
+				"Sisa Kredit: " + (user?.credits ?? 0) + "\n" +
+				"Total Kredit Terpakai: " + (user?.totalCreditsUsed ?? 0) + "\n" +
+				"Total Video Dianalisis: " + totalVideos + "\n" +
+				"Total Highlight: " + totalHighlights + "\n" +
+				"Total Clip Dibuat: " + totalClips + "\n" +
+				"Bergabung Sejak: " + (user?.joinedAt ? new Date(user.joinedAt).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : "-") + "\n" +
+				"Role: " + (user?.role || "user") + "\n";
+
+			const sortedClips = [...(clips as any[])]
+				.filter((c) => c.status === "completed")
+				.sort((a, b) => b.viralityScore - a.viralityScore);
+
+			if (sortedClips.length > 0) {
+				clipDetailStr = "\n\nDAFTAR CLIP YANG SUDAH DIBUAT (diurutkan viralityScore tertinggi):\n";
+				sortedClips.slice(0, 20).forEach((c, i) => {
+					clipDetailStr +=
+						(i + 1) + ". \"" + c.highlightTitle + "\"" +
+						" — Video: \"" + c.video.title + "\"" +
+						" | Kategori: " + (c.category || "-") +
+						" | Virality: " + (c.viralityScore ?? 0) +
+						" | Durasi: " + Math.round((c.endTime - c.startTime) / 60) + "m" +
+						"\n";
+				});
+			}
 		} catch {
-			userDataStr = "\n\n(Gagal memuat data user)";
+			userDataStr = "Gagal memuat data user";
 		}
 	}
 
@@ -648,11 +662,15 @@ Pakar dalam: analisa video YouTube/Youtube shorts/TikTok/Instagram, strategi kon
 riset tren, optimasi judul & thumbnail, dan insight audiens.
 Pake data, tren, dan tools buat ngasih saran yang actionable.
 
-PENTING — JANGAN ASAL JAWAB:
-- Kalo gak tau, bilang gak tau. Jangan ngelantur atau ngarang informasi.
-- Jangan bikin-bikin URL, data YouTube, hasil pencarian, atau data user.
-- JANGAN PERNAH nulis <search_web>, <search_images>, <search_youtube>, <function=...>, atau tag XML/HTML apapun di chat. Langsung jawab isinya aja.
-- Kalau ditanya data user (kredit, clip, jumlah video, info user), pake DATA USER cari di ${userDataStr}. Jangan ngarang .
+PENTING — PRIORITAS JAWAB:
+1. DATA USER & DATA CLIP (disediakan di bawah) — jawab LANGSUNG, jangan cari di web/youtube.
+2. DATA YOUTUBE (transkrip video) — jawab dari transkrip, jangan cari eksternal.
+3. TREN / INFO UMUM — baru pake tools pencarian.
+
+ATURAN DATA USER & CLIP:
+- Kalau ditanya data user (kredit, clip, jumlah video, info user), JAWAB LANGSUNG. Jangan pake tools.
+- Kalau ditanya "video/clip mana yang bagus/menarik/terbaik", lihat DAFTAR CLIP di bawah. Analisis virality score, kategori, judul — kasih rekomendasi berdasarkan DATA TERSEBUT. Bukan cari di web/youtube.
+- Kalo data user kosong/error, bilang "Maaf, data user tidak tersedia."
 
 GAYA NGOMONG:
 - Santai, natural, kayak chat sama temen. Gak usah kaku atau formal.
@@ -664,10 +682,11 @@ GAYA NGOMONG:
 - Jangan nyebut sumber gambar (Pexels/Unsplash) pas nampilin hasil.
 
 HARUS PAKE TOOLS, JANGAN CUMA NULIS:
-- Kalo user minta cari info → WAJIB pake search_web. Jangan cuma nulis "Cari info tentang...".
+- Kalo user minta cari info TREN / BERITA / TOPIK UMUM → WAJIB pake search_web. Jangan cuma nulis "Cari info tentang...".
 - Kalo user minta gambar/foto/ilustrasi → WAJIB pake search_images. Jangan cuma nulis "Cari gambar...".
-- Kalo user minta video YouTube → WAJIB pake search_youtube. Jangan cuma nulis "Cari video...".
+- Kalo user minta video YouTube selain punya mereka → WAJIB pake search_youtube. 
 - Kalo lu cuma nulis "Cari ..." tanpa pake tools, berarti lu SALAH.
+- KALO PERTANYAAN BISA DIJAWAB DARI DATA YANG SUDAH DISEDIAKAN (data user, daftar clip, transkrip), JANGAN PAKE TOOLS.
 
 BATASAN:
 - Kamu bukan admin, gak bisa approve pembayaran, gak bisa ngubah data user.
@@ -747,11 +766,11 @@ Menampilkan:
 
 Asisten AI CutClips untuk membantu.
 `;
-	const USER_CONTEXT = `
+	const USER_CONTEXT = userDataStr ? `
 # DATA USER
-
 ${userDataStr}
-`;
+${clipDetailStr}
+` : "";
 	const YOUTUBE_CONTEXT = youtubeContext
 		? `
 # YOUTUBE VIDEO CONTEXT

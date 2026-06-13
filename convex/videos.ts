@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { paginationOptsValidator } from "convex/server";
 
 export const listByUser = query({
   args: {},
@@ -122,6 +123,65 @@ export const listByUserWithClips = query({
     }
 
     return result;
+  },
+});
+
+export const listByUserWithClipsPaginated = query({
+  args: {
+    email: v.string(),
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .unique();
+    if (!user) {
+      return { page: [], continueCursor: "", isDone: true };
+    }
+
+    const exportsPage = await ctx.db
+      .query("exports")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .order("desc")
+      .paginate(args.paginationOpts);
+
+    const page = [];
+    for (const exp of exportsPage.page) {
+      const highlight = await ctx.db.get(exp.highlightId);
+      if (!highlight) continue;
+      const video = await ctx.db.get(highlight.videoId);
+      if (!video) continue;
+
+      page.push({
+        exportId: exp._id,
+        status: exp.status,
+        progress: typeof exp.progress === "number"
+          ? exp.progress <= 1 ? Math.round(exp.progress * 100) : Math.round(exp.progress)
+          : 0,
+        downloadUrl: exp.downloadUrl,
+        highlightId: highlight._id,
+        highlightTitle: highlight.title,
+        category: highlight.category,
+        viralityScore: highlight.viralityScore,
+        startTime: highlight.startTime,
+        endTime: highlight.endTime,
+        createdAt: exp.createdAt,
+        video: {
+          _id: video._id,
+          youtubeUrl: video.youtubeUrl,
+          title: video.title,
+          thumbnailUrl: video.thumbnailUrl,
+          duration: video.duration,
+        },
+      });
+    }
+
+    return {
+      page,
+      continueCursor: exportsPage.continueCursor,
+      isDone: exportsPage.isDone,
+    };
   },
 });
 
