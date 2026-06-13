@@ -426,43 +426,47 @@ async function callGroqWithTools(
 									: []
 							) as Record<string, unknown>[];
 
-							toolResult = {};
+							const foundImages: { url: string; alt: string }[] = [];
 
 							let remaining = 6;
 							if (pexelPhotos.length > 0) {
 								const take = Math.min(pexelPhotos.length, remaining);
-								extraImages.push(
-									...pexelPhotos
-										.slice(0, take)
-										.map((p: Record<string, unknown>) => {
-											const psrc = p.src as Record<string, string>;
-											return {
-												url:
-													psrc?.medium ||
-													psrc?.original ||
-													(p as Record<string, string>).url,
-												alt: (p as Record<string, string>).alt || args.query,
-											};
-										}),
-								);
+								const pexelItems = pexelPhotos
+									.slice(0, take)
+									.map((p: Record<string, unknown>) => {
+										const psrc = p.src as Record<string, string>;
+										return {
+											url:
+												psrc?.medium ||
+												psrc?.original ||
+												(p as Record<string, string>).url,
+											alt: (p as Record<string, string>).alt || args.query,
+										};
+									});
+								extraImages.push(...pexelItems);
+								foundImages.push(...pexelItems);
 								remaining -= take;
 							}
 							if (remaining > 0 && unsplashPhotos.length > 0) {
 								const take = Math.min(unsplashPhotos.length, remaining);
-								extraImages.push(
-									...unsplashPhotos
-										.slice(0, take)
-										.map((p: Record<string, unknown>) => ({
-											url:
-												(p.urls as Record<string, string>)?.regular ||
-												(p.urls as Record<string, string>)?.small ||
-												"",
-											alt:
-												(p as Record<string, string>).alt_description ||
-												args.query,
-										})),
-								);
+								const unsplashItems = unsplashPhotos
+									.slice(0, take)
+									.map((p: Record<string, unknown>) => ({
+										url:
+											(p.urls as Record<string, string>)?.regular ||
+											(p.urls as Record<string, string>)?.small ||
+											"",
+										alt:
+											(p as Record<string, string>).alt_description ||
+											args.query,
+									}));
+								extraImages.push(...unsplashItems);
+								foundImages.push(...unsplashItems);
 							}
+
+							toolResult = {
+								images: foundImages.map((img) => img.alt),
+							};
 							break;
 						}
 						case "search_youtube": {
@@ -542,9 +546,8 @@ async function callGroqWithTools(
 			currentMessages = toolMessages;
 		} else {
 			finalContent = stripFunctionTags(result.content || "").trim();
-			if (!finalContent && round === maxRounds - 1) {
-				finalContent =
-					"Coba ulangi pertanyaannya dengan cara yang berbeda ya, biar saya bisa bantu.";
+			if (!finalContent) {
+				finalContent = "Maaf, saya lagi error. Coba tanya lagi ya.";
 			}
 			break;
 		}
@@ -682,12 +685,15 @@ GAYA NGOMONG:
 - Jangan ngejelasin fitur CutClips kalo gak ditanya.
 - Jangan bilang "tidak bisa menampilkan gambar" — gambar SUDAH terkirim otomatis di samping teks ini, user bisa liat.
 - Jangan nyebut sumber gambar (Pexels/Unsplash) pas nampilin hasil.
+- Kalau user minta analisis video YouTube/transkrip tapi gak ngirim link, kasih tau cara dengan menyebut nama user dari DATA USER: "[Maaf {nama},] silakan copy link URL YouTube yang ingin dianalisis ya, nanti saya bantu."
+- Transkrip video otomatis saya ambil pas user ngirim link YouTube. Gak perlu repot-repot.
 
-HARUS PAKE TOOLS, JANGAN CUMA NULIS:
-- Kalo user minta cari info TREN / BERITA / TOPIK UMUM → WAJIB pake search_web. Jangan cuma nulis "Cari info tentang...".
-- Kalo user minta gambar/foto/ilustrasi → WAJIB pake search_images. Jangan cuma nulis "Cari gambar...".
-- Kalo user minta video YouTube selain punya mereka → WAJIB pake search_youtube. 
-- Kalo lu cuma nulis "Cari ..." tanpa pake tools, berarti lu SALAH.
+ATURAN TOOLS — PAKE HANYA KALAU DIMINTA:
+- JANGAN iniciatif manggil tools kalo user gak minta. Ngobrol biasa aja.
+- Kalo user minta cari info TREN / BERITA / TOPIK UMUM → pake search_web.
+- Kalo user minta gambar/foto/ilustrasi → pake search_images.
+- Kalo user minta video YouTube (bukan punya mereka) → pake search_youtube.
+- Kalo user cuma ngobrol/nanya biasa, JAWAB LANGSUNG. Jangan pake tools.
 - KALO PERTANYAAN BISA DIJAWAB DARI DATA YANG SUDAH DISEDIAKAN (data user, daftar clip, transkrip), JANGAN PAKE TOOLS.
 
 JANGAN PERNAH nulis function=search_web>, function=search_images>, function=search_youtube>, <function=...>, atau format function call apapun di teks. Kalo mau pake tools, pake tool calling bawaan model — jangan ditulis manual.
