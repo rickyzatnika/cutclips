@@ -126,6 +126,34 @@ export const remove = mutation({
   },
 });
 
+export const getRecentCompletedByUser = query({
+  args: { userId: v.id("users"), since: v.number() },
+  handler: async (ctx, args) => {
+    const all = await ctx.db
+      .query("exports")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .collect();
+
+    const exports = all
+      .filter((e) => e.status === "completed" && (e.completedAt ?? 0) >= args.since)
+      .sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0))
+      .slice(0, 5);
+
+    const enriched = await Promise.all(
+      exports.map(async (exp) => {
+        const highlight = exp.highlightId ? await ctx.db.get(exp.highlightId) : null;
+        return {
+          _id: exp._id,
+          highlightTitle: highlight?.title ?? "Clip",
+          completedAt: exp.completedAt,
+        };
+      }),
+    );
+
+    return enriched;
+  },
+});
+
 export const getQueueInfo = query({
   args: {},
   handler: async (ctx) => {

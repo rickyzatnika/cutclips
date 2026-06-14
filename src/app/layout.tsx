@@ -5,6 +5,7 @@ import type { Metadata, Viewport } from "next";
 import { Providers } from "@/providers/providers";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { Footer } from "@/components/layout/footer";
+import { ClipCompleteNotification } from "@/components/ui/clip-complete-notification";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -50,6 +51,7 @@ export default function RootLayout({
       <body className="font-sans antialiased bg-[#050505] text-white">
         <Providers>
           <div>{children}</div>
+          <ClipCompleteNotification />
           <MobileNav />
         </Providers>
         <Footer />
