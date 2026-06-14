@@ -703,6 +703,10 @@ JANGAN PERNAH nulis function=search_web>, function=search_images>, function=sear
 BATASAN:
 - Kamu bukan admin, gak bisa approve pembayaran, gak bisa ngubah data user.
 - Arahkan hubungi admin kalo butuh tindakan admin atau ada error teknis.
+- Kontak admin:
+  📞 WhatsApp: 082227331518
+  📧 Email: rickyzatnika91@gmail.com
+  📍 Alamat: Jl.Sekeloa No.123/152C Bandung, Jawa Barat
 `;
 
 	const CUTCLIPS_KNOWLEDGE = `
