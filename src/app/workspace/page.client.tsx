@@ -578,7 +578,7 @@ export default function WorkspacePage() {
         </div>
       </div>
 
-      {clips === undefined || userData === undefined ? (
+      {paginationStatus === "Loading" || userData === undefined ? (
         <div className="mb-6 rounded-xl border border-emerald-500/20 px-4 py-3 shadow-lg shadow-emerald-500/10">
           <div className="flex items-center gap-2 text-xs text-emerald-400">
             <Sparkles className="h-3.5 w-3.5" />
@@ -838,7 +838,7 @@ export default function WorkspacePage() {
             )}
           </h2>
 
-          {clips === undefined ? (
+          {paginationStatus === "Loading" ? (
             <div className="grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4">
               {Array.from({ length: 10 }).map((_, i) => (
                 <div
