@@ -330,13 +330,13 @@ function GreetingText({
     <div>
       <h2 className="text-xl sm:text-2xl font-bold text-white">
         {typedGreeting}
-        {!showSub && (
+        {!greetingDone && (
           <span className="inline-block w-0.5 h-5 bg-emerald-400 ml-0.5 animate-pulse" />
         )}
       </h2>
       <p className="text-sm text-zinc-400 mt-1.5 min-h-5">
         {typedSubtitle}
-        {showSub && (
+        {showSub && typedSubtitle.length < subtitle.length && (
           <span className="inline-block w-0.5 h-4 bg-emerald-400 ml-0.5 animate-pulse" />
         )}
       </p>

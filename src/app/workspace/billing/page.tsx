@@ -71,7 +71,7 @@ export default function BillingPage() {
     <div className="mx-auto max-w-7xl px-4 py-8">
       <div className="mb-8">
         <div className="mx-auto max-w-xs rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 text-center sm:max-w-sm">
-          <p className="text-sm text-zinc-400">Sisa Kredit</p>
+          <p className="text-sm text-zinc-400">Kredit Anda :</p>
           <div className="mt-1 text-4xl font-bold text-white">
             {isLoading ? (
               <Skeleton className="inline-block h-9 w-20 align-middle" />

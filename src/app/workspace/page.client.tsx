@@ -185,16 +185,16 @@ const ClipCard = React.memo(function ClipCard({
   onRequestDelete: (id: string) => void;
 }) {
   const poster = clip.downloadUrl ? getClipThumbnail(clip.downloadUrl) : "";
-  const catStyle =
-    CATEGORY_STYLES[clip.category] || "bg-zinc-800 text-zinc-400";
-  const catLabel = CATEGORY_LABEL[clip.category] || clip.category;
-  const fmtDuration = (s: number) => {
-    const m = Math.floor(s / 60);
-    const sec = Math.floor(s % 60);
-    return `${m}:${sec.toString().padStart(2, "0")}`;
-  };
+  // const catStyle =
+  //   CATEGORY_STYLES[clip.category] || "bg-zinc-800 text-zinc-400";
+  // const catLabel = CATEGORY_LABEL[clip.category] || clip.category;
+  // const fmtDuration = (s: number) => {
+  //   const m = Math.floor(s / 60);
+  //   const sec = Math.floor(s % 60);
+  //   return `${m}:${sec.toString().padStart(2, "0")}`;
+  // };
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 transition-all hover:border-zinc-600 hover:shadow-lg hover:shadow-emerald-500/5">
+    <div className="group relative overflow-hidden cursor-pointer rounded-2xl border border-zinc-800 bg-zinc-900 transition-all hover:border-zinc-600 hover:shadow-lg hover:shadow-emerald-500/5">
       <div className="relative aspect-9/16 bg-zinc-950">
         <video
           src={clip.downloadUrl}
@@ -205,7 +205,7 @@ const ClipCard = React.memo(function ClipCard({
         />
         <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none">
           <div className="rounded-full bg-black/60 p-3">
-            <Play className="h-6 w-6 text-white" />
+            <Play className="h-6 w-6 text-emerald-500" />
           </div>
         </div>
         <div className="absolute right-2 top-2">
@@ -495,6 +495,10 @@ export default function WorkspacePage() {
       );
     }
 
+    if (seeds.length === 0 && c === 0) {
+      seeds.push("Tempel URL YouTube pertama untuk mulai membuat highlight.");
+    }
+
     const insight = seeds.slice(0, 2).join(" ");
     if (!insight) return null;
 
@@ -578,8 +582,8 @@ export default function WorkspacePage() {
         </div>
       </div>
 
-      {paginationStatus === "Loading" || userData === undefined ? (
-        <div className="mb-6 rounded-xl border border-emerald-500/20 px-4 py-3 shadow-lg shadow-emerald-500/10">
+      {userData === undefined ? (
+        <div className="mb-6 rounded-xl border border-emerald-500/20 px-4 py-3  shadow-md shadow-emerald-500/10">
           <div className="flex items-center gap-2 text-xs text-emerald-400">
             <Sparkles className="h-3.5 w-3.5" />
             AI Insight
@@ -934,16 +938,19 @@ export default function WorkspacePage() {
 
 function AIInsightCard({ insight }: { insight: string }) {
   const typedInsight = useTypewriter(insight, 50);
+  const done = typedInsight.length === insight.length;
 
   return (
-    <div className="mb-6 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
+    <div className="mb-6 rounded-xl border border-emerald-500/20 shadow-md shadow-emerald-500/10 px-4 py-3">
       <div className="flex items-center gap-2 text-xs text-emerald-400">
         <Sparkles className="h-3.5 w-3.5" />
         AI Insight
       </div>
       <p className="mt-1 text-sm text-zinc-400">
         {typedInsight}
-        <span className="inline-block w-0.5 h-4 bg-emerald-400 ml-0.5 animate-pulse" />
+        {!done && (
+          <span className="inline-block w-0.5 h-4 bg-emerald-400 ml-0.5 animate-pulse" />
+        )}
       </p>
     </div>
   );
