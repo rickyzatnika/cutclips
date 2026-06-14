@@ -456,7 +456,7 @@ export default function HistoryPage() {
 
       {confirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-          <div className="w-full max-w-sm rounded-2xl border border-zinc-700 bg-zinc-900 p-6 shadow-xl">
+          <div className="w-full max-w-sm rounded-2xl border border-emerald-500 bg-zinc-900/50 backdrop-blur-lg p-6 shadow-xl shadow-emerald-500/20">
             <div className="mb-4 flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500/10">
                 <AlertTriangle className="h-5 w-5 text-red-400" />

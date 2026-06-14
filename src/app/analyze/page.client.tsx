@@ -273,7 +273,7 @@ function AnalyzeContent() {
   if (creditsBlocked) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4">
-        <div className="w-full max-w-sm rounded-2xl border border-zinc-800 bg-zinc-900 p-6 text-center">
+        <div className="w-full max-w-sm rounded-2xl border border-emerald-500 bg-zinc-900/50 backdrop-blur-lg p-6 shadow-xl shadow-emerald-500/20 text-center">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-500/10">
             <Coins className="h-7 w-7 text-amber-400" />
           </div>

@@ -9,7 +9,6 @@ import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import {
   Film,
-  MoreVertical,
   Download,
   Trash2,
   Loader2,
@@ -21,6 +20,7 @@ import {
   Sparkles,
   Coins,
   Play,
+  Pause,
   Zap,
   MessageCircle,
   ChevronRight,
@@ -69,71 +69,32 @@ function getYoutubeThumbnail(url: string): string {
   return "";
 }
 
+function formatDuration(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
 function getClipThumbnail(downloadUrl: string): string {
   return downloadUrl
     .replace(/\.mp4$/, ".jpg")
     .replace("/upload/", "/upload/so_0/");
 }
 
-function MenuButton({
-  clip,
-  email,
-  onDeleted,
-  onRequestDelete,
-}: {
-  clip: Clip;
-  email?: string | null;
-  onDeleted: () => void;
-  onRequestDelete: (exportId: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node))
-        setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          setOpen(!open);
-        }}
-        className="rounded-lg bg-black/60 p-1.5 cursor-pointer text-white opacity-100 md:opacity-0 transition-opacity group-hover:opacity-100 hover:bg-zinc-700"
-      >
-        <MoreVertical className="h-4 w-4" />
-      </button>
-      {open && (
-        <div className="absolute right-0 top-full z-50 mt-1 w-40 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 shadow-xl">
-          <a
-            href={clip.downloadUrl}
-            download
-            className="flex items-center gap-2 px-4 py-2.5 text-sm text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-white"
-          >
-            <Download className="h-4 w-4" />
-            Unduh
-          </a>
-          <button
-            onClick={() => {
-              setOpen(false);
-              onRequestDelete(clip.exportId);
-            }}
-            className="flex w-full cursor-pointer items-center gap-2 px-4 py-2.5 text-sm text-red-400 transition-colors hover:bg-zinc-800 hover:text-red-300"
-          >
-            <Trash2 className="h-4 w-4" />
-            Hapus
-          </button>
-        </div>
-      )}
-    </div>
-  );
+async function downloadFile(url: string | undefined, name: string) {
+  if (!url) return;
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = `${name.replace(/[^a-zA-Z0-9 _-]/g, "").slice(0, 80) || "clip"}.mp4`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(blobUrl);
+  } catch {}
 }
 
 const CATEGORY_STYLES: Record<string, string> = {
@@ -184,70 +145,101 @@ const ClipCard = React.memo(function ClipCard({
   email?: string | null;
   onRequestDelete: (id: string) => void;
 }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [playing, setPlaying] = useState(false);
+
+  const togglePlay = () => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (v.paused) {
+      v.play();
+      setPlaying(true);
+    } else {
+      v.pause();
+      setPlaying(false);
+    }
+  };
+
   const poster = clip.downloadUrl ? getClipThumbnail(clip.downloadUrl) : "";
-  // const catStyle =
-  //   CATEGORY_STYLES[clip.category] || "bg-zinc-800 text-zinc-400";
-  // const catLabel = CATEGORY_LABEL[clip.category] || clip.category;
-  // const fmtDuration = (s: number) => {
-  //   const m = Math.floor(s / 60);
-  //   const sec = Math.floor(s % 60);
-  //   return `${m}:${sec.toString().padStart(2, "0")}`;
-  // };
   return (
-    <div className="group relative overflow-hidden cursor-pointer rounded-2xl border border-zinc-800 bg-zinc-900 transition-all hover:border-zinc-600 hover:shadow-lg hover:shadow-emerald-500/5">
-      <div className="relative aspect-9/16 bg-zinc-950">
+    <div className="overflow-hidden group cursor-pointer rounded-2xl  transition-all bg-zinc-600/10 md:bg-transparent hover:bg-zinc-600/10">
+      <div
+        className="relative w-full sm:w-[50%] mx-auto aspect-9/16 bg-zinc-950"
+        onClick={togglePlay}
+      >
         <video
-          src={clip.downloadUrl}
+          ref={videoRef}
+          src={
+            clip.downloadUrl?.includes("cloudinary")
+              ? clip.downloadUrl.replace(
+                  "/upload/",
+                  "/upload/q_auto:eco,f_auto,vc_auto/",
+                )
+              : clip.downloadUrl
+          }
           poster={poster}
-          controls
-          preload="metadata"
-          className="h-full w-full object-contain"
+          loop
+          playsInline
+          preload="none"
+          onPlay={() => setPlaying(true)}
+          onPause={() => setPlaying(false)}
+          className="h-full w-full object-contain pointer-events-none"
         />
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none">
-          <div className="rounded-full bg-black/60 p-3">
-            <Play className="h-6 w-6 text-emerald-500" />
-          </div>
-        </div>
-        <div className="absolute right-2 top-2">
-          <MenuButton
-            clip={clip}
-            email={email}
-            onDeleted={() => {}}
-            onRequestDelete={onRequestDelete}
-          />
-        </div>
-      </div>
-      {/* <div className="p-3 relative">
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="min-w-0 flex-1 truncate text-sm font-medium text-white">
-            {clip.highlightTitle}
-          </h3>
-          <div className="flex shrink-0 flex-col items-end gap-0.5">
-            <span
-              className={`rounded-md px-1.5 py-0.5 text-[10px] font-medium ${catStyle}`}
-            >
-              {catLabel}
-            </span>
-            {clip.viralityScore != null && (
-              <span className="flex items-center gap-0.5 text-[10px] text-orange-400/70">
-                <TrendingUp className="h-3 w-3" />
-                {clip.viralityScore}
-              </span>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div
+            className={`rounded-full bg-black/60 p-3 transition-opacity ${
+              playing ? "opacity-0 md:group-hover:opacity-100" : "opacity-100"
+            }`}
+          >
+            {playing ? (
+              <Pause className="h-6 w-6 text-white" />
+            ) : (
+              <Play className="h-6 w-6 text-white" />
             )}
           </div>
         </div>
-        <p className="mt-1.5 truncate text-xs text-zinc-500">
-          {clip.video.title}
+        <span className="text-xs text-zinc-400 absolute top-2 right-2 bg-black/50 px-1.5 py-0.5 rounded">
+          {formatDuration(clip.endTime - clip.startTime)}
+        </span>
+      </div>
+      <div className="p-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5">
+            <TrendingUp className="h-4 w-4 text-orange-500" />
+            <span className="text-md font-semibold text-orange-500">
+              {clip.viralityScore ?? "-"}
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              title="Unduh"
+              onClick={(e) => {
+                e.stopPropagation();
+                downloadFile(clip.downloadUrl, clip.highlightTitle);
+              }}
+              className="rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
+            >
+              <Download className="h-4 w-4" />
+            </button>
+            <button
+              title="Hapus"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRequestDelete(clip.exportId);
+              }}
+              className="rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-red-400"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+        <p
+          className="mt-1 truncate text-sm text-zinc-300"
+          title={clip.highlightTitle}
+        >
+          {clip.highlightTitle || "Untitled"}
         </p>
-        <p className="mt-1 text-[10px] text-zinc-600">
-          {new Date(clip.createdAt).toLocaleDateString("id-ID", {
-            day: "numeric",
-            month: "short",
-            year: "numeric",
-          })}
-        </p>
-        <div className="absolute bottom-2 right-2"></div>
-      </div> */}
+      </div>
     </div>
   );
 });
@@ -897,7 +889,7 @@ export default function WorkspacePage() {
 
       {confirmDeleteId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-          <div className="w-full max-w-sm rounded-2xl border border-zinc-700 bg-zinc-900 p-6 shadow-xl">
+          <div className="w-full max-w-sm rounded-2xl border border-emerald-500 bg-zinc-900/50 backdrop-blur-lg p-6 shadow-xl shadow-emerald-500/20">
             <div className="mb-4 flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500/10">
                 <AlertTriangle className="h-5 w-5 text-red-400" />

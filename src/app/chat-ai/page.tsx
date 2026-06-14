@@ -263,7 +263,7 @@ export default function ChatAIListPage() {
           onClick={() => setConfirmDelete(null)}
         >
           <div
-            className="w-full max-w-sm rounded-2xl border border-zinc-800 bg-zinc-900 p-6"
+            className="w-full max-w-sm rounded-2xl border border-emerald-500 bg-zinc-900/50 backdrop-blur-lg p-6 shadow-xl shadow-emerald-500/20"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-semibold text-white">

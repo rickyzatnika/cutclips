@@ -410,14 +410,28 @@ function GenerateContent() {
               />
             </div>
             <div className="flex items-center justify-center gap-3">
-              <a
-                href={downloadUrl}
-                download
-                className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-6 py-3 text-sm font-semibold text-black transition-colors hover:bg-emerald-400"
+              <button
+                onClick={() => {
+                  if (!downloadUrl) return;
+                  fetch(downloadUrl)
+                    .then((r) => r.blob())
+                    .then((blob) => {
+                      const blobUrl = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = blobUrl;
+                      a.download = `${title.replace(/[^a-zA-Z0-9 _-]/g, "").slice(0, 80) || "clip"}.mp4`;
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      URL.revokeObjectURL(blobUrl);
+                    })
+                    .catch(() => {});
+                }}
+                className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-emerald-500 px-6 py-3 text-sm font-semibold text-black transition-colors hover:bg-emerald-400"
               >
                 <Download className="h-4 w-4" />
                 Unduh Clip
-              </a>
+              </button>
             </div>
             <p className="text-center text-xs text-zinc-600">
               Clip tersimpan ke workspace kamu.
