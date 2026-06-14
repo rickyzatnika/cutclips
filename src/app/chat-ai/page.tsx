@@ -3,14 +3,13 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useTypewriter } from "@/hooks/use-typewriter";
-import { CirclePlay } from "lucide-react";
+import { CirclePlay, PencilLineIcon } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { useRouter } from "next/navigation";
 import {
-  Plus,
   Trash2,
   Loader2,
   Youtube,
@@ -144,15 +143,13 @@ export default function ChatAIListPage() {
 
       <div className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10 pb-24">
         <div className="flex mb-8 sm:mb-10 item-start justify-between">
-          <div>
-            <GreetingText user={user} />
-          </div>
+          <GreetingText user={user} />
           <button
             onClick={() => handleNewChat()}
             className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-2 text-sm font-semibold text-black transition-colors hover:bg-emerald-400"
           >
-            <Plus className="h-4 w-4" />
-            Baru
+            <PencilLineIcon className="h-4 w-4" />
+            Tulis
           </button>
         </div>
 
@@ -297,11 +294,15 @@ export default function ChatAIListPage() {
   );
 }
 
-function GreetingText({ user }: { user: { name?: string } | null | undefined }) {
+function GreetingText({
+  user,
+}: {
+  user: { name?: string } | null | undefined;
+}) {
   const isLoading = user === undefined;
 
   const greeting = `Hai, ${user?.name || "Kreator"}..`;
-  const subtitle = "Saya AI Assistant Analis, apa yang bisa saya bantu ?";
+  const subtitle = "apa yang bisa saya bantu ?";
 
   const [showSub, setShowSub] = useState(false);
   const typedGreeting = useTypewriter(isLoading ? "" : greeting, 80);
@@ -333,7 +334,7 @@ function GreetingText({ user }: { user: { name?: string } | null | undefined }) 
           <span className="inline-block w-0.5 h-5 bg-emerald-400 ml-0.5 animate-pulse" />
         )}
       </h2>
-      <p className="text-sm text-zinc-400 mt-1.5 min-h-[1.25rem]">
+      <p className="text-sm text-zinc-400 mt-1.5 min-h-5">
         {typedSubtitle}
         {showSub && (
           <span className="inline-block w-0.5 h-4 bg-emerald-400 ml-0.5 animate-pulse" />
