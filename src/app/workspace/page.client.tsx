@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useTypewriter } from "@/hooks/use-typewriter";
 
 function getInitialBatchSize() {
   if (typeof window !== "undefined" && window.innerWidth < 640) return 2;
@@ -216,7 +217,7 @@ const ClipCard = React.memo(function ClipCard({
           />
         </div>
       </div>
-      <div className="p-3 relative">
+      {/* <div className="p-3 relative">
         <div className="flex items-start justify-between gap-2">
           <h3 className="min-w-0 flex-1 truncate text-sm font-medium text-white">
             {clip.highlightTitle}
@@ -246,7 +247,7 @@ const ClipCard = React.memo(function ClipCard({
           })}
         </p>
         <div className="absolute bottom-2 right-2"></div>
-      </div>
+      </div> */}
     </div>
   );
 });
@@ -411,7 +412,7 @@ export default function WorkspacePage() {
       seeds.push(
         processing === 1
           ? `${processing} clip sedang diproses — akan muncul otomatis setelah selesai.`
-          : `${processing} clip sedang diproses — bersabar sebentar ya.`,
+          : `${processing} clip sedang diproses — tunggu sebentar ya.`,
       );
     }
 
@@ -497,15 +498,7 @@ export default function WorkspacePage() {
     const insight = seeds.slice(0, 2).join(" ");
     if (!insight) return null;
 
-    return (
-      <div className="mb-6 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
-        <div className="flex items-center gap-2 text-xs text-emerald-400">
-          <Sparkles className="h-3.5 w-3.5" />
-          AI Insight
-        </div>
-        <p className="mt-1 text-sm text-zinc-400">{insight}</p>
-      </div>
-    );
+    return <AIInsightCard insight={insight} />;
   }, [completed, clipsSafe, userData]);
 
   const filtered = useMemo(() => {
@@ -585,7 +578,18 @@ export default function WorkspacePage() {
         </div>
       </div>
 
-      {aiInsightEl}
+      {clips === undefined || userData === undefined ? (
+        <div className="mb-6 rounded-xl border border-emerald-500/20 px-4 py-3 shadow-lg shadow-emerald-500/10">
+          <div className="flex items-center gap-2 text-xs text-emerald-400">
+            <Sparkles className="h-3.5 w-3.5" />
+            AI Insight
+          </div>
+          <Skeleton className="mt-2 h-4 w-full" />
+          <Skeleton className="mt-1.5 h-4 w-3/4" />
+        </div>
+      ) : (
+        aiInsightEl
+      )}
 
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
@@ -924,6 +928,23 @@ export default function WorkspacePage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function AIInsightCard({ insight }: { insight: string }) {
+  const typedInsight = useTypewriter(insight, 50);
+
+  return (
+    <div className="mb-6 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
+      <div className="flex items-center gap-2 text-xs text-emerald-400">
+        <Sparkles className="h-3.5 w-3.5" />
+        AI Insight
+      </div>
+      <p className="mt-1 text-sm text-zinc-400">
+        {typedInsight}
+        <span className="inline-block w-0.5 h-4 bg-emerald-400 ml-0.5 animate-pulse" />
+      </p>
     </div>
   );
 }

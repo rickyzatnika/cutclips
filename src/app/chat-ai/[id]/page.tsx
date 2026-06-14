@@ -42,13 +42,14 @@ function speakIndonesian(text: string) {
     const voices = window.speechSynthesis.getVoices();
     if (voices.length === 0) return;
     const idVoices = voices.filter((v) => v.lang.startsWith("id"));
-    const preferred = idVoices.find(
-      (v) =>
-        v.name.toLowerCase().includes("google") ||
-        v.name.toLowerCase().includes("microsoft") ||
-        v.name.toLowerCase().includes("natural") ||
-        v.name.toLowerCase().includes("online")
-    ) || idVoices[0];
+    const preferred =
+      idVoices.find(
+        (v) =>
+          v.name.toLowerCase().includes("google") ||
+          v.name.toLowerCase().includes("microsoft") ||
+          v.name.toLowerCase().includes("natural") ||
+          v.name.toLowerCase().includes("online"),
+      ) || idVoices[0];
     if (preferred) utterance.voice = preferred;
   };
 
@@ -128,7 +129,9 @@ export default function ChatDetailPage() {
   const router = useRouter();
   const params = useParams();
   const conversationId = params.id as string;
-  const convId = conversationId ? (conversationId as unknown as Id<"conversations">) : undefined;
+  const convId = conversationId
+    ? (conversationId as unknown as Id<"conversations">)
+    : undefined;
 
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -172,7 +175,9 @@ export default function ChatDetailPage() {
     let rafId = 0;
 
     const onScroll = () => {
-      const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 50;
+      const atBottom =
+        container.scrollHeight - container.scrollTop - container.clientHeight <
+        50;
       userScrolledUp = !atBottom;
     };
     container.addEventListener("scroll", onScroll, { passive: true });
@@ -189,7 +194,11 @@ export default function ChatDetailPage() {
     };
 
     const observer = new MutationObserver(schedule);
-    observer.observe(container, { childList: true, subtree: true, characterData: true });
+    observer.observe(container, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
     // Catch image/video load events that change scrollHeight after element is in DOM
     container.addEventListener("load", schedule, true);
 
@@ -292,7 +301,11 @@ export default function ChatDetailPage() {
           const data = await res.json();
           if (!res.ok) throw new Error(data.error);
           if ((!messages || messages.length === 0) && conversationId) {
-            if (convId) updateTitle({ conversationId: convId, title: (data.transcript || "").slice(0, 60) });
+            if (convId)
+              updateTitle({
+                conversationId: convId,
+                title: (data.transcript || "").slice(0, 60),
+              });
           }
           if (data.content) {
             speakIndonesian(data.content);
@@ -372,7 +385,9 @@ export default function ChatDetailPage() {
   };
 
   const handleDelete = async (id: string) => {
-    await deleteConversation({ conversationId: id as unknown as Id<"conversations"> });
+    await deleteConversation({
+      conversationId: id as unknown as Id<"conversations">,
+    });
     if (id === conversationId) {
       router.push("/chat-ai");
     }
@@ -486,7 +501,10 @@ export default function ChatDetailPage() {
       )}
 
       {/* Messages area */}
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto pt-14 pb-20">
+      <div
+        ref={messagesContainerRef}
+        className="flex-1 overflow-y-auto pt-14 pb-20"
+      >
         <div className="mx-auto max-w-3xl space-y-4 p-4">
           {!messages && (
             <div className="flex items-center justify-center pt-20">

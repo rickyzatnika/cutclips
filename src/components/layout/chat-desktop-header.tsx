@@ -38,7 +38,7 @@ export default function ChatDesktopHeader() {
   };
 
   return (
-    <div className="hidden sm:flex items-center justify-between border-b border-zinc-800 px-6 py-3">
+    <div className="hidden sm:flex items-center justify-between border-b border-zinc-800 px-6 py-6">
       <div className="flex items-center gap-2">
         <MessageCircle className="h-5 w-5 text-emerald-400" />
         <span className="font-bold text-white">AI Analyze</span>
@@ -102,14 +102,6 @@ export default function ChatDesktopHeader() {
           </Link>
         )}
       </nav>
-
-      <button
-        onClick={handleNewChat}
-        className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-2 text-sm font-semibold text-black transition-colors hover:bg-emerald-400"
-      >
-        <Plus className="h-4 w-4" />
-        Baru
-      </button>
     </div>
   );
 }

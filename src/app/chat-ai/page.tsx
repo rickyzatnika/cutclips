@@ -1,6 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { useTypewriter } from "@/hooks/use-typewriter";
+import { CirclePlay } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
@@ -19,6 +22,7 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const capabilities = [
   {
@@ -129,24 +133,27 @@ export default function ChatAIListPage() {
       className={`flex flex-col bg-[#050505] min-h-screen ${starting ? "pointer-events-none opacity-70" : ""}`}
     >
       <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-4 sm:hidden">
-        <h1 className="text-lg font-bold text-white">AI Analyze</h1>
-        <button
-          onClick={() => handleNewChat()}
-          className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-2 text-sm font-semibold text-black transition-colors hover:bg-emerald-400"
+        <Link
+          href={session ? "/workspace" : "/"}
+          className="flex items-center gap-2"
         >
-          <Plus className="h-4 w-4" />
-          Baru
-        </button>
+          <CirclePlay className="h-7 w-7 text-emerald-400" />
+          <span className="text-lg font-bold text-white">CutClips</span>
+        </Link>
       </div>
 
       <div className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10 pb-24">
-        <div className="mb-8 sm:mb-10">
-          <h2 className="text-xl sm:text-2xl font-bold text-white">
-            Hai, {user?.name || "Kreator"}!
-          </h2>
-          <p className="text-sm text-zinc-400 mt-1.5">
-            Apa yang ingin kamu analisis hari ini?
-          </p>
+        <div className="flex mb-8 sm:mb-10 item-start justify-between">
+          <div>
+            <GreetingText user={user} />
+          </div>
+          <button
+            onClick={() => handleNewChat()}
+            className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-2 text-sm font-semibold text-black transition-colors hover:bg-emerald-400"
+          >
+            <Plus className="h-4 w-4" />
+            Baru
+          </button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 mb-8 sm:mb-10">
@@ -286,6 +293,52 @@ export default function ChatAIListPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function GreetingText({ user }: { user: { name?: string } | null | undefined }) {
+  const isLoading = user === undefined;
+
+  const greeting = `Hai, ${user?.name || "Kreator"}..`;
+  const subtitle = "Saya AI Assistant Analis, apa yang bisa saya bantu ?";
+
+  const [showSub, setShowSub] = useState(false);
+  const typedGreeting = useTypewriter(isLoading ? "" : greeting, 80);
+  const typedSubtitle = useTypewriter(showSub ? subtitle : "", 40);
+
+  const greetingDone = typedGreeting.length === greeting.length;
+
+  useEffect(() => {
+    if (greetingDone) {
+      const t = setTimeout(() => setShowSub(true), 400);
+      return () => clearTimeout(t);
+    }
+  }, [greetingDone]);
+
+  if (isLoading) {
+    return (
+      <div>
+        <Skeleton className="h-7 sm:h-8 w-52 mb-2" />
+        <Skeleton className="h-4 w-72" />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h2 className="text-xl sm:text-2xl font-bold text-white">
+        {typedGreeting}
+        {!showSub && (
+          <span className="inline-block w-0.5 h-5 bg-emerald-400 ml-0.5 animate-pulse" />
+        )}
+      </h2>
+      <p className="text-sm text-zinc-400 mt-1.5 min-h-[1.25rem]">
+        {typedSubtitle}
+        {showSub && (
+          <span className="inline-block w-0.5 h-4 bg-emerald-400 ml-0.5 animate-pulse" />
+        )}
+      </p>
     </div>
   );
 }
