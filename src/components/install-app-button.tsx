@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Download, Smartphone, X } from "lucide-react";
+import { CirclePlay } from "lucide-react";
 
 const LS_KEY = "cutclips_install_dismissed";
 
@@ -54,30 +55,20 @@ export function InstallAppButton() {
   if (hidden) return null;
 
   return (
-    <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4">
-      <div className="flex items-start gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/20 shrink-0">
-          <Smartphone className="h-5 w-5 text-emerald-400" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-white">Install Aplikasi</p>
-          <p className="text-xs text-zinc-500">
-            Pasang CutClips di layar utama untuk akses lebih cepat.
-          </p>
-        </div>
-        <button
-          onClick={handleDismiss}
-          className="shrink-0 cursor-pointer rounded-lg p-1 text-zinc-600 hover:text-zinc-400 transition-colors"
-        >
-          <X className="h-4 w-4" />
-        </button>
-      </div>
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-emerald-500/20 p-3 shadow-lg shadow-emerald-500/10">
       <button
         onClick={handleInstall}
-        className="mt-3 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-emerald-400"
+        className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-emerald-500 transition-colors "
       >
-        <Download className="h-4 w-4" />
-        Install
+        <Download className="h-4 w-4 animate-bounce" />
+        Install Aplikasi
+      </button>
+      <button
+        onClick={handleInstall}
+        className="cursor-pointer flex items-center justify-center gap-3 text-sm text-white mb-2"
+      >
+        <CirclePlay className="h-5 w-5 text-emerald-400" />
+        <span className="text-lg font-bold text-white">CutClips</span>
       </button>
     </div>
   );

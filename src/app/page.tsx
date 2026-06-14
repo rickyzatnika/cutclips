@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { Navbar } from "@/components/layout/navbar";
-import { Footer } from "@/components/layout/footer";
 import { Hero } from "@/components/landing/hero";
 
 export const metadata: Metadata = {
@@ -28,7 +27,6 @@ export default async function Home() {
       <main>
         <Hero />
       </main>
-      <Footer />
     </>
   );
 }

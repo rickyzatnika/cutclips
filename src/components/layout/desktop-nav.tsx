@@ -2,14 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOut, useSession } from "next-auth/react";
-import { useQuery, useMutation } from "convex/react";
+import { useSession } from "next-auth/react";
+import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import {
   CirclePlay,
-  LogOut,
   LayoutDashboard,
-  User,
   History,
   Film,
   CreditCard,
@@ -17,11 +15,12 @@ import {
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AiAnalyzeLink } from "@/components/chat-ai/ai-analyze-link";
+import Image from "next/image";
 
 export function DesktopNav() {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const setOffline = useMutation(api.users.setOffline);
+
   const user = useQuery(
     api.users.getByEmail,
     session?.user?.email ? { email: session.user.email } : "skip",
@@ -30,13 +29,6 @@ export function DesktopNav() {
   const credits = user?.credits;
   const isAdmin = user?.role === "admin";
   const isLoading = user === undefined;
-
-  const handleSignOut = async () => {
-    if (session?.user?.email) {
-      await setOffline({ email: session.user.email }).catch(() => {});
-    }
-    signOut({ callbackUrl: "/" });
-  };
 
   if (!session) return null;
 
@@ -111,31 +103,56 @@ export function DesktopNav() {
               href="/workspace/billing"
               className="text-sm text-zinc-400 hover:text-white"
             >
-              Credits = {isLoading ? <Skeleton className="inline-block h-4 w-10 align-middle" /> : credits ?? 0}
+              Credits ={" "}
+              {isLoading ? (
+                <Skeleton className="inline-block h-4 w-10 align-middle" />
+              ) : (
+                (credits ?? 0)
+              )}
             </Link>
-            <button
-              onClick={handleSignOut}
+            <Link
+              href="/workspace/user-info"
               className="cursor-pointer text-sm text-zinc-500 hover:text-white"
             >
-              <LogOut className="h-5 w-5" />
-            </button>
+              <Image
+                src={session?.user?.image || "/avatar.png"}
+                alt=""
+                width={32}
+                height={32}
+                className="object-cover rounded-full"
+                unoptimized
+              />
+            </Link>
           </div>
         </nav>
 
-        {/* Mobile credits */}
+        {/* Mobile */}
         <Link
           href="/workspace/user-info"
-          className="flex sm:hidden items-center gap-2 text-xs text-zinc-400"
+          className="flex sm:hidden items-center gap-1 text-xs font-medium text-zinc-200"
         >
-          {!isLoading && user?.name && (
-            <span className="max-w-[100px] truncate text-right text-white font-medium">
-              {user.name}
-            </span>
-          )}
-          <User className="h-3.5 w-3.5 shrink-0" />
-          <span className="font-semibold text-white">
-            {isLoading ? <Skeleton className="inline-block h-4 w-8 align-middle" /> : credits ?? 0}
-          </span>
+          {isLoading ? (
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-7 w-7 rounded-full" />
+              <Skeleton className="h-3 w-16" />
+            </div>
+          ) : user?.name ? (
+            <>
+              <Image
+                src={user.image || "/avatar.png"}
+                alt=""
+                width={28}
+                height={28}
+                className="object-cover rounded-full"
+                unoptimized
+              />
+              <p>
+                {user.name.length > 6
+                  ? user.name.slice(0, 5) + "..."
+                  : user.name}
+              </p>
+            </>
+          ) : null}
         </Link>
       </div>
     </header>

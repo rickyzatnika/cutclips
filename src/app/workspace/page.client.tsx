@@ -215,9 +215,8 @@ const ClipCard = React.memo(function ClipCard({
             onRequestDelete={onRequestDelete}
           />
         </div>
-        <div className="absolute bottom-2 right-2"></div>
       </div>
-      <div className="p-3">
+      <div className="p-3 relative">
         <div className="flex items-start justify-between gap-2">
           <h3 className="min-w-0 flex-1 truncate text-sm font-medium text-white">
             {clip.highlightTitle}
@@ -246,6 +245,7 @@ const ClipCard = React.memo(function ClipCard({
             year: "numeric",
           })}
         </p>
+        <div className="absolute bottom-2 right-2"></div>
       </div>
     </div>
   );
@@ -861,7 +861,7 @@ export default function WorkspacePage() {
               </p>
             </div>
           ) : (
-            <div className="scale-90 grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4">
+            <div className="grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4">
               {filtered.map((clip) => (
                 <ClipCard
                   key={clip.exportId}

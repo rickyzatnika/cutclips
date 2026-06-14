@@ -50,8 +50,8 @@ export default function RootLayout({
         <Providers>
           <div>{children}</div>
           <MobileNav />
-          <Footer />
         </Providers>
+        <Footer />
       </body>
     </html>
   );
