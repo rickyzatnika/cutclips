@@ -205,8 +205,8 @@ const ClipCard = React.memo(function ClipCard({
       <div className="p-3">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5">
-            <TrendingUp className="h-4 w-4 text-orange-500" />
-            <span className="text-md font-semibold text-orange-500">
+            <TrendingUp className="h-5 w-5 text-emerald-400" />
+            <span className="text-lg  font-bold text-emerald-400">
               {clip.viralityScore ?? "-"}
             </span>
           </div>
