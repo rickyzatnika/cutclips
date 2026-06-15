@@ -127,7 +127,7 @@ DATA YANG BISA KAMU AKSES:
 - Video: total video yang udah dianalisis
 - Exports: antrian export clip (queued, processing)
 - Payments: daftar pembayaran pending (lengkap dengan email user)
-- Credits: total credits beredar
+- Credits: credits masing-masing user
 - Detail user spesifik (kalo dikasih email)
 
 KARENA ITU:
@@ -229,7 +229,8 @@ async function buildDataContext(text: string): Promise<string> {
 - Online hari ini (${active.length}): ${active.map((u: any) => u.name || u.email).join(", ") || "-"}
 - User baru hari ini (${newToday.length}): ${newToday.map((u: any) => u.name || u.email).join(", ") || "-"}
 - Admin: ${admins.map((u: any) => u.name || u.email).join(", ")}
-- Total credits beredar: ${totalCredits}`);
+- Credits per user:
+${users.map((u: any) => `  • ${u.name || u.email}: ${u.credits || 0} credits`).join("\n")}`);
   } catch { }
 
   try {
