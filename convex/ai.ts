@@ -50,11 +50,11 @@ Setiap momen harus terasa lengkap — jangan memotong di tengah kalimat atau taw
 
 Untuk setiap momen, berikan:
 - startTime dan endTime dalam detik (sesuaikan dengan timestamp transkrip)
-- Judul pendek yang menarik dalam Bahasa Indonesia
+- Judul: deskripsi APA YANG TERJADI di momen itu, jangan ngarang nama/karakter
 - Kategori: funny, emotional, horror, seram, inspirational, shocking, educational, atau hook
 - confidenceScore (0-100): seberapa yakin kamu ini adalah highlight asli
 - viralityScore (0-100): seberapa besar kemungkinan momen ini viral sebagai Short/Reel/TikTok
-- reasoning: 1 kalimat dalam Bahasa Indonesia menjelaskan KENAPA momen ini bagus
+- reasoning: 1 kalimat dalam Bahasa Indonesia menjelaskan KENAPA momen ini bagus, berdasarkan isi transkrip
 
 Aturan:
 - Kembalikan 5-12 momen
@@ -64,7 +64,12 @@ Aturan:
 - Hindari 15 detik pertama (intro/pemanasan)
 - Urutkan berdasarkan viralityScore descending
 - SEMUA teks output harus dalam Bahasa Indonesia
-- Kembalikan ONLY JSON array of objects, tanpa markdown. Contoh: [{"startTime":15,"endTime":45,"title":"Reaksi lucu","category":"funny","confidenceScore":85,"viralityScore":90,"reasoning":"Penjelasan dalam bahasa Indonesia..."}]`;
+- Kembalikan ONLY JSON array of objects, tanpa markdown. Contoh: [{"startTime":15,"endTime":45,"title":"Adegan ibu mertua ngomel karena menantu telat pulang","category":"funny","confidenceScore":85,"viralityScore":90,"reasoning":"Penjelasan dalam bahasa Indonesia..."}]
+
+⚠️ LARANGAN:
+- JANGAN ngarang nama, karakter, atau istilah yang tidak ada di transkrip
+- Judul harus berdasarkan isi transkrip secara LITERAL
+- Kalo tokoh/karakter disebut "dia" di transkrip, jangan dikasih nama "King Aloy"`;
 }
 
 function buildUserPrompt(context: TranscriptContext): string {
