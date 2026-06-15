@@ -66,36 +66,14 @@ export const sendPendingNotifications = internalAction({
             });
           }
         } else {
-          const label = n.type === "login" ? "login" : "logout";
-          const prompt = `Ada user yang ${label} nih bro.\nNama: ${n.userName || "-"}\nEmail: ${n.userEmail}\nWaktu: ${new Date(n.createdAt).toLocaleString("id-ID")}\n\nBuat notifikasi singkat, santai, dan seru buat admin. MAKSIMAL 2 kalimat.`;
-
-          const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${process.env.GROQ_API_KEY_3}`,
-            },
-            body: JSON.stringify({
-              model: "llama-3.3-70b-versatile",
-              messages: [
-                {
-                  role: "system",
-                  content: `Kamu adalah asisten AI yang kasih notifikasi real-time ke admin aplikasi CutClips. Santai, asik, panggil admin dengan "bro" atau "bos". Semangat. Pakai bahasa Indonesia gaul sehari-hari. Jawab MAKSIMAL 2 kalimat — to the point.`,
-                },
-                { role: "user", content: prompt },
-              ],
-              temperature: 0.8,
-              max_tokens: 256,
-            }),
-          });
-          let reply = "Ada notifikasi baru bro.";
-          if (groqRes.ok) {
-            const groqData = await groqRes.json();
-            reply = groqData.choices?.[0]?.message?.content || reply;
-          }
+          const icon = n.type === "login" ? "🟢" : "🔴";
+          const d = new Date(n.createdAt);
+          const jam = `${String(d.getHours()).padStart(2, "0")}.${String(d.getMinutes()).padStart(2, "0")}`;
+          const nama = n.userName || n.userEmail;
           await tgFetch(botToken, "sendMessage", {
             chat_id: adminId,
-            text: reply,
+            text: `${icon} *${nama}* ${n.type === "login" ? "login" : "logout"} bos, jam ${jam} barusan.`,
+            parse_mode: "Markdown",
           });
         }
 
