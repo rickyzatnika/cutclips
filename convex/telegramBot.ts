@@ -67,8 +67,8 @@ export const sendPendingNotifications = internalAction({
           }
         } else {
           const icon = n.type === "login" ? "🟢" : "🔴";
-          const d = new Date(n.createdAt);
-          const jam = `${String(d.getHours()).padStart(2, "0")}.${String(d.getMinutes()).padStart(2, "0")}`;
+          const wib = new Date(n.createdAt + 7 * 3600 * 1000);
+          const jam = `${String(wib.getUTCHours()).padStart(2, "0")}.${String(wib.getUTCMinutes()).padStart(2, "0")}`;
           const nama = n.userName || n.userEmail;
           await tgFetch(botToken, "sendMessage", {
             chat_id: adminId,

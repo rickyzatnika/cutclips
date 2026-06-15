@@ -210,9 +210,9 @@ async function buildDataContext(text: string): Promise<string> {
 
     parts.push(`USERS:
 - Total: ${users.length}
-- Online hari ini: ${active.length}
-- User baru hari ini: ${newToday.length}
-- Admin: ${admins.length}
+- Online hari ini (${active.length}): ${active.map((u: any) => u.name || u.email).join(", ") || "-"}
+- User baru hari ini (${newToday.length}): ${newToday.map((u: any) => u.name || u.email).join(", ") || "-"}
+- Admin: ${admins.map((u: any) => u.name || u.email).join(", ")}
 - Total credits beredar: ${totalCredits}`);
   } catch { }
 
@@ -429,8 +429,8 @@ async function drainNotifications() {
           }
         } else {
           const icon = n.type === "login" ? "🟢" : "🔴";
-          const d = new Date(n.createdAt);
-          const jam = `${String(d.getHours()).padStart(2, "0")}.${String(d.getMinutes()).padStart(2, "0")}`;
+          const wib = new Date(n.createdAt + 7 * 3600 * 1000);
+          const jam = `${String(wib.getUTCHours()).padStart(2, "0")}.${String(wib.getUTCMinutes()).padStart(2, "0")}`;
           const nama = n.userName || n.userEmail;
           await sendMessage(ADMIN_ID, `${icon} *${nama}* ${n.type === "login" ? "login" : "logout"} bos, jam ${jam} barusan.`, { parse_mode: "Markdown" });
         }
