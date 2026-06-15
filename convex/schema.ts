@@ -192,6 +192,17 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_email", ["userEmail"]),
 
+  telegramMemory: defineTable({
+    chatId: v.string(),
+    history: v.array(
+      v.object({
+        role: v.string(),
+        text: v.string(),
+        ts: v.number(),
+      }),
+    ),
+  }).index("by_chatId", ["chatId"]),
+
   messages: defineTable({
     conversationId: v.id("conversations"),
     role: v.union(v.literal("user"), v.literal("assistant")),
