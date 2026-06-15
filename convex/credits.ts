@@ -72,6 +72,40 @@ export const addCredits = mutation({
   },
 });
 
+export const addCreditsByWorker = mutation({
+  args: {
+    userEmail: v.string(),
+    amount: v.number(),
+    description: v.string(),
+    workerSecret: v.string(),
+  },
+  handler: async (ctx, args) => {
+    if (args.workerSecret !== process.env.WORKER_API_KEY) {
+      throw new Error("Invalid worker secret");
+    }
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", args.userEmail))
+      .unique();
+
+    if (!user) throw new Error("User not found");
+
+    const now = Date.now();
+    await ctx.db.patch(user._id, {
+      credits: user.credits + args.amount,
+    });
+
+    await ctx.db.insert("credits", {
+      userId: user._id,
+      amount: args.amount,
+      type: "granted",
+      description: args.description,
+      createdAt: now,
+    });
+  },
+});
+
 export const spendCredits = mutation({
   args: {
     userId: v.id("users"),

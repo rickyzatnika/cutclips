@@ -144,7 +144,12 @@ KEPRIBADIAN:
 - Punya ingatan — lo ingat obrolan sebelumnya sama admin
 - Kalo ngasih saran, kasih alasan yang masuk akal
 
-PENTING: Jangan pernah bilang "udah di approve" atau "udah di reject" kalo lo sendiri nggak bisa proses. Itu tugas sistem, bukan lo.`;
+CAMAN:
+- "approve email@example.com" → nge-approve pembayaran pending
+- "reject email@example.com" → nge-reject pembayaran pending
+- "tambahin credit 500 ke nama/email" → nambah credits user
+
+PENTING: Jangan pernah bilang "udah di approve" atau "udah di reject" atau "udah ditambahin" kalo lo sendiri nggak bisa proses. Itu tugas sistem, bukan lo.`;
 
 // ─── Groq AI ──────────────────────────────────────────────
 
@@ -222,7 +227,6 @@ async function buildDataContext(text: string): Promise<string> {
     const active = users.filter((u) => (u.lastActive || 0) > dayAgo);
     const newToday = users.filter((u) => (u.joinedAt || 0) > dayAgo);
     const admins = users.filter((u) => u.role === "admin");
-    const totalCredits = users.reduce((s: number, u: any) => s + (u.credits || 0), 0);
 
     parts.push(`USERS:
 - Total: ${users.length}
@@ -305,6 +309,48 @@ async function handleChat(chatId: number, text: string) {
         await handleRejectPayment(chatId, payment, reason);
       } else {
         await sendMessage(chatId, `Nggak ada pembayaran pending dari *${email}* bro.`, { parse_mode: "Markdown" });
+      }
+      return;
+    }
+
+    // Natural language add credits
+    const creditMatch = text.match(
+      /(?:tambah|add)\w*\s*(?:credit|credits|kredit)?\s*(\d+)\s*(?:credit|credits|kredit)?\s*(?:ke|untuk|buat|pada|kepada)\s*(.+)/i
+    );
+    if (creditMatch) {
+      const amount = parseInt(creditMatch[1], 10);
+      const target = creditMatch[2].trim().replace(/^[^a-zA-Z0-9]+/, "");
+      if (!amount || amount <= 0) {
+        await sendMessage(chatId, "Jumlah credit harus angka positif bro.");
+        return;
+      }
+      try {
+        const allUsers: any[] = await convexQuery("users:list", {});
+        const isEmail = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(target);
+        let user: any;
+        if (isEmail) {
+          user = allUsers.find((u: any) => u.email.toLowerCase() === target.toLowerCase());
+        } else {
+          user = allUsers.find((u: any) =>
+            (u.name || "").toLowerCase().includes(target.toLowerCase())
+          );
+        }
+        if (!user) {
+          await sendMessage(chatId, `User *${target}* nggak ditemukan bro.`, { parse_mode: "Markdown" });
+          return;
+        }
+        await convexMutation("credits:addCreditsByWorker", {
+          userEmail: user.email,
+          amount,
+          description: `Ditambahkan oleh admin via Telegram`,
+          workerSecret: WORKER_SECRET,
+        });
+        await sendMessage(chatId,
+          `✅ *${amount}* credits udah ditambahin ke *${user.name || user.email}* bos! Total jadi *${(user.credits || 0) + amount}* credits.`,
+          { parse_mode: "Markdown" }
+        );
+      } catch (err: any) {
+        await sendMessage(chatId, `Gagal nambah credit bro: ${err.message}`);
       }
       return;
     }
