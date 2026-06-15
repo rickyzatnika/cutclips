@@ -8,6 +8,26 @@ function formatRp(n: number): string {
   return new Intl.NumberFormat("id-ID").format(n);
 }
 
+function timeWIB(ts: number): string {
+  return new Intl.DateTimeFormat("id-ID", {
+    hour: "2-digit", minute: "2-digit", hour12: false,
+    timeZone: "Asia/Jakarta",
+  }).format(new Date(ts));
+}
+
+function dateTimeWIB(ts: number): string {
+  const d = new Date(ts);
+  const jam = new Intl.DateTimeFormat("id-ID", {
+    hour: "2-digit", minute: "2-digit", hour12: false,
+    timeZone: "Asia/Jakarta",
+  }).format(d);
+  const tgl = new Intl.DateTimeFormat("id-ID", {
+    day: "numeric", month: "numeric", year: "numeric",
+    timeZone: "Asia/Jakarta",
+  }).format(d);
+  return `${tgl} ${jam}`;
+}
+
 async function tgFetch(token: string, method: string, body: Record<string, unknown>) {
   const res = await fetch(`${TG_API}${token}/${method}`, {
     method: "POST",
@@ -40,7 +60,7 @@ export const sendPendingNotifications = internalAction({
             `*Email:* ${n.userEmail}\n` +
             `*Paket:* ${data.packId || "-"} (${data.credits || 0} credits)\n` +
             `*Total:* Rp${formatRp(data.amount as number || 0)}\n` +
-            `*Tgl:* ${new Date(n.createdAt).toLocaleString("id-ID")}`;
+            `*Tgl:* ${dateTimeWIB(n.createdAt)}`;
 
           const keyboard = {
             inline_keyboard: [[
@@ -67,8 +87,7 @@ export const sendPendingNotifications = internalAction({
           }
         } else {
           const icon = n.type === "login" ? "🟢" : "🔴";
-          const wib = new Date(n.createdAt + 7 * 3600 * 1000);
-          const jam = `${String(wib.getUTCHours()).padStart(2, "0")}.${String(wib.getUTCMinutes()).padStart(2, "0")}`;
+          const jam = timeWIB(n.createdAt);
           const nama = n.userName || n.userEmail;
           await tgFetch(botToken, "sendMessage", {
             chat_id: adminId,

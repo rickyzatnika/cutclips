@@ -15,8 +15,21 @@ if (!ADMIN_ID) console.error("[TelegramBot] TELEGRAM_ADMIN_ID not set");
 
 // ─── Helpers ─────────────────────────────────────────────
 
+const TZ = "Asia/Jakarta";
+
 function formatRp(n: number): string {
   return new Intl.NumberFormat("id-ID").format(n);
+}
+
+function timeWIB(ts?: number): { jam: string; tgl: string } {
+  const d = ts ? new Date(ts) : new Date();
+  const jam = new Intl.DateTimeFormat("id-ID", {
+    hour: "2-digit", minute: "2-digit", hour12: false, timeZone: TZ,
+  }).format(d);
+  const tgl = new Intl.DateTimeFormat("id-ID", {
+    day: "numeric", month: "numeric", year: "numeric", timeZone: TZ,
+  }).format(d);
+  return { jam, tgl };
 }
 
 // ─── Telegram API helpers ────────────────────────────────
@@ -110,10 +123,10 @@ const SYSTEM_PROMPT = `Kamu adalah asisten AI untuk admin aplikasi CutClips — 
 Tugasmu bantu admin ngelola aplikasi. Kamu punya akses data REAL-TIME dari database.
 
 DATA YANG BISA KAMU AKSES:
-- Users: total user, yang online hari ini, user baru, admin
+- Users: total, daftar nama yang online hari ini, user baru, admin
 - Video: total video yang udah dianalisis
 - Exports: antrian export clip (queued, processing)
-- Payments: pembayaran pending
+- Payments: daftar pembayaran pending (lengkap dengan email user)
 - Credits: total credits beredar
 - Detail user spesifik (kalo dikasih email)
 
@@ -198,6 +211,9 @@ async function tavilySearch(query: string): Promise<string | null> {
 
 async function buildDataContext(text: string): Promise<string> {
   const parts: string[] = [];
+
+  const { jam, tgl } = timeWIB();
+  parts.push(`SEKARANG: Jam ${jam} WIB, tanggal ${tgl}`);
 
   try {
     const users: any[] = await convexQuery("users:list", {});
@@ -429,9 +445,8 @@ async function drainNotifications() {
           }
         } else {
           const icon = n.type === "login" ? "🟢" : "🔴";
-          const wib = new Date(n.createdAt + 7 * 3600 * 1000);
-          const jam = `${String(wib.getUTCHours()).padStart(2, "0")}.${String(wib.getUTCMinutes()).padStart(2, "0")}`;
           const nama = n.userName || n.userEmail;
+          const { jam } = timeWIB(n.createdAt);
           await sendMessage(ADMIN_ID, `${icon} *${nama}* ${n.type === "login" ? "login" : "logout"} bos, jam ${jam} barusan.`, { parse_mode: "Markdown" });
         }
         await convexMutation("notifications:markSent", { notificationId: n._id });
