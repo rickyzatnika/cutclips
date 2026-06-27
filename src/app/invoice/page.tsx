@@ -5,7 +5,13 @@ import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
-import { Loader2, ArrowLeft, CheckCircle, AlertCircle, Upload } from "lucide-react";
+import {
+  Loader2,
+  ArrowLeft,
+  CheckCircle,
+  AlertCircle,
+  Upload,
+} from "lucide-react";
 
 const PACK_LABELS: Record<string, string> = {
   starter: "Paket Starter",
@@ -64,7 +70,11 @@ function InvoiceContent() {
         <div className="w-full max-w-md text-center">
           <AlertCircle className="mx-auto h-10 w-10 text-zinc-500" />
           <p className="mt-4 text-sm text-zinc-400">
-            Silakan <Link href="/login" className="text-emerald-400 hover:underline">masuk</Link> terlebih dahulu.
+            Silakan{" "}
+            <Link href="/login" className="text-emerald-400 hover:underline">
+              masuk
+            </Link>{" "}
+            terlebih dahulu.
           </p>
         </div>
       </div>
@@ -76,9 +86,12 @@ function InvoiceContent() {
       <div className="flex min-h-screen items-center justify-center bg-black px-4">
         <div className="w-full max-w-md text-center">
           <CheckCircle className="mx-auto h-12 w-12 text-emerald-400" />
-          <h2 className="mt-4 text-lg font-semibold text-white">Bukti Terkirim!</h2>
+          <h2 className="mt-4 text-lg font-semibold text-white">
+            Bukti Terkirim!
+          </h2>
           <p className="mt-2 text-sm text-zinc-400">
-            Bukti pembayaran akan diverifikasi oleh admin. Kredit akan masuk setelah disetujui.
+            Bukti pembayaran akan diverifikasi oleh admin. Kredit akan masuk
+            setelah disetujui.
           </p>
           <Link
             href="/workspace"
@@ -109,7 +122,9 @@ function InvoiceContent() {
           <div className="mt-6 space-y-3 border-t border-zinc-800 pt-6">
             <div className="flex justify-between text-sm">
               <span className="text-zinc-400">Paket</span>
-              <span className="text-white">{PACK_LABELS[packId] || packId}</span>
+              <span className="text-white">
+                {PACK_LABELS[packId] || packId}
+              </span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-zinc-400">Kredit</span>
@@ -117,21 +132,25 @@ function InvoiceContent() {
             </div>
             <div className="flex justify-between text-sm border-t border-zinc-800 pt-3">
               <span className="text-zinc-300 font-semibold">Total</span>
-              <span className="text-emerald-400 font-bold">{formatPrice(amount)}</span>
+              <span className="text-emerald-400 font-bold">
+                {formatPrice(amount)}
+              </span>
             </div>
           </div>
 
           <div className="mt-6 rounded-xl border border-zinc-700 bg-zinc-800/50 p-4 text-center">
-            <p className="mb-3 text-sm text-zinc-400">Scan QRIS untuk membayar</p>
+            <p className="mb-3 text-sm text-zinc-400">
+              Scan QRIS untuk membayar
+            </p>
             <div className="mx-auto flex items-center justify-center">
               <Image
-                src="/QRIS.jpeg"
+                src="/qris-new.jpeg"
                 alt="QRIS"
                 width={200}
                 height={200}
                 className="max-w-50 rounded-lg"
                 onError={(e) => {
-                  (e.currentTarget).style.display = "none";
+                  e.currentTarget.style.display = "none";
                 }}
               />
             </div>
@@ -141,7 +160,9 @@ function InvoiceContent() {
           </div>
 
           <div className="mt-6">
-            <p className="mb-2 text-sm text-zinc-400">Upload Bukti Pembayaran</p>
+            <p className="mb-2 text-sm text-zinc-400">
+              Upload Bukti Pembayaran
+            </p>
             <input
               ref={fileInputRef}
               type="file"
@@ -157,11 +178,7 @@ function InvoiceContent() {
               {selectedFile ? selectedFile.name : "Pilih file bukti bayar"}
             </button>
           </div>
-
-          {error && (
-            <p className="mt-3 text-sm text-red-400">{error}</p>
-          )}
-
+          {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
           <button
             onClick={handleUpload}
             disabled={!selectedFile || uploading}
