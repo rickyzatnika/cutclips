@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useQuery } from "convex/react";
@@ -70,7 +70,7 @@ function AnalyzeContent() {
     thumbnailUrl?: string;
   } | null>(null);
   const [error, setError] = useState("");
-  const [generating, setGenerating] = useState(false);
+  const [generatingId, setGeneratingId] = useState<string | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState("default");
   const [captionEnabled, setCaptionEnabled] = useState(true);
   const [hooksMap, setHooksMap] = useState<Record<string, string[]>>({});
@@ -80,9 +80,11 @@ function AnalyzeContent() {
   const [creditsChecking, setCreditsChecking] = useState(true);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
+  const submittingRef = useRef(false);
 
   useEffect(() => {
     if (status === "loading") return;
+    if (submittingRef.current) return;
 
     if (status === "unauthenticated" || !session?.user?.email) {
       setCreditsChecking(false);
@@ -115,6 +117,7 @@ function AnalyzeContent() {
     let cancelled = false;
 
     setStatusMessage("Mengirim video untuk dianalisis...");
+    submittingRef.current = true;
 
     fetch("/api/analyze", {
       method: "POST",
@@ -141,7 +144,7 @@ function AnalyzeContent() {
         }
       });
 
-    return () => { cancelled = true; };
+    return () => { cancelled = true; submittingRef.current = false; };
   }, [url, creditsChecking, creditsBlocked, session, status, jobId, pollStatus]);
 
   const jobDoc = useQuery(
@@ -189,8 +192,8 @@ function AnalyzeContent() {
   };
 
   const generateAll = async () => {
-    if (!highlights.length || generating) return;
-    setGenerating(true);
+    if (!highlights.length || generatingId) return;
+    setGeneratingId("all");
     try {
       const res = await fetch("/api/genclip/batch", {
         method: "POST",
@@ -213,11 +216,11 @@ function AnalyzeContent() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Batch generation failed");
-      router.push("/workspace");
+      router.push("/workspace?tab=processing");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed";
       setError(msg);
-      setGenerating(false);
+      setGeneratingId(null);
     }
   };
 
@@ -256,18 +259,37 @@ function AnalyzeContent() {
     } catch {}
   };
 
-  const generateClipUrl = (highlight: Highlight) => {
-    const params = new URLSearchParams({
-      videoUrl: url || "",
-      start: String(highlight.startTime),
-      end: String(highlight.endTime),
-      title: highlight.title,
-      category: highlight.category,
-      confidence: String(highlight.confidenceScore),
-      virality: String(highlight.viralityScore),
-      reasoning: highlight.reasoning,
-    });
-    return `/generate?${params.toString()}`;
+  const generateSingle = async (highlight: Highlight) => {
+    if (generatingId) return;
+    setGeneratingId(`s-${highlight.startTime}`);
+    try {
+      const res = await fetch("/api/genclip/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          youtubeUrl: url,
+          videoTitle: videoInfo?.title,
+          includeCaptions: captionEnabled,
+          template: selectedTemplate,
+          highlights: [{
+            startTime: highlight.startTime,
+            endTime: highlight.endTime,
+            title: highlight.title,
+            category: highlight.category,
+            confidenceScore: highlight.confidenceScore,
+            viralityScore: highlight.viralityScore,
+            reasoning: highlight.reasoning,
+          }],
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Gagal membuat clip");
+      router.push("/workspace?tab=processing");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed";
+      setError(msg);
+      setGeneratingId(null);
+    }
   };
 
   if (creditsBlocked) {
@@ -429,17 +451,18 @@ function AnalyzeContent() {
                     </div>
                   </div>
                 </div>
+
                 <button
                   onClick={generateAll}
-                  disabled={generating}
+                  disabled={generatingId !== null}
                   className="mb-6 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-5 py-4 text-sm font-semibold text-black transition-colors hover:bg-emerald-400 disabled:opacity-50"
                 >
-                  {generating ? (
+                  {generatingId === "all" ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <Sparkles className="h-4 w-4" />
                   )}
-                  {generating
+                  {generatingId === "all"
                     ? `Membuat ${highlights.length} clip...`
                     : `Generate Semua ${highlights.length} Clip (${highlights.length * 20} kredit)`}
                 </button>
@@ -515,13 +538,14 @@ function AnalyzeContent() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <Link
-                      href={generateClipUrl(h)}
-                      className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-black transition-colors hover:bg-emerald-400"
+                    <button
+                      onClick={() => generateSingle(h)}
+                      disabled={generatingId !== null}
+                      className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-black transition-colors hover:bg-emerald-400 disabled:opacity-50"
                     >
                       <Flame className="h-4 w-4" />
                       Buat Clip
-                    </Link>
+                    </button>
                     <button
                       onClick={() => generateHooks(h)}
                       disabled={loadingHooks[`${h.startTime}-${h.endTime}`]}
@@ -553,6 +577,7 @@ function AnalyzeContent() {
           </div>
         )}
       </div>
+
       <UpgradeModal open={upgradeModalOpen} onClose={() => setUpgradeModalOpen(false)} />
     </div>
   );

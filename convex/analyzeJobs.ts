@@ -10,6 +10,17 @@ export const create = mutation({
     userId: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
+    // Cegah duplikat: cek apakah sudah ada job queued/processing untuk URL yang sama
+    const existing = await ctx.db
+      .query("analyzeJobs")
+      .withIndex("by_youtubeUrl", (q) => q.eq("youtubeUrl", args.youtubeUrl))
+      .filter((q) =>
+        q.or(q.eq(q.field("status"), "queued"), q.eq(q.field("status"), "processing")),
+      )
+      .first();
+    if (existing) {
+      return existing._id;
+    }
     return await ctx.db.insert("analyzeJobs", {
       videoId: args.videoId,
       youtubeUrl: args.youtubeUrl,

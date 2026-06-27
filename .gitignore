@@ -30,7 +30,7 @@ nul
 
 # env files
 .env*.local
-.env
+.env.local
 .env.example
 
 # vercel
@@ -41,4 +41,5 @@ nul
 next-env.d.ts
 
 /docs
-worker/
+/worker
+/backup-sebelum-imagekit

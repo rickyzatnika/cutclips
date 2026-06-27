@@ -2,6 +2,15 @@ import type { NextConfig } from "next";
 import withSerwist from "@serwist/next";
 
 const nextConfig: NextConfig = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "res.cloudinary.com",
+        pathname: "/**",
+      },
+    ],
+  },
   webpack: (config) => {
     config.watchOptions = {
       ...config.watchOptions,

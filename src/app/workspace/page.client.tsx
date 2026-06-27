@@ -76,9 +76,10 @@ function formatDuration(seconds: number): string {
 }
 
 function getClipThumbnail(downloadUrl: string): string {
+  if (!downloadUrl) return "";
   return downloadUrl
-    .replace(/\.mp4$/, ".jpg")
-    .replace("/upload/", "/upload/so_0/");
+    .replace("/upload/", "/upload/so_0/")
+    .replace(/\.mp4(\?.*)?$/, ".jpg");
 }
 
 async function downloadFile(url: string | undefined, name: string) {
@@ -152,11 +153,9 @@ const ClipCard = React.memo(function ClipCard({
     const v = videoRef.current;
     if (!v) return;
     if (v.paused) {
-      v.play();
-      setPlaying(true);
+      v.play().catch(() => {});
     } else {
       v.pause();
-      setPlaying(false);
     }
   };
 
@@ -169,20 +168,14 @@ const ClipCard = React.memo(function ClipCard({
       >
         <video
           ref={videoRef}
-          src={
-            clip.downloadUrl?.includes("cloudinary")
-              ? clip.downloadUrl.replace(
-                  "/upload/",
-                  "/upload/q_auto:eco,f_auto,vc_auto/",
-                )
-              : clip.downloadUrl
-          }
+          src={clip.downloadUrl}
           poster={poster}
           loop
           playsInline
           preload="none"
           onPlay={() => setPlaying(true)}
           onPause={() => setPlaying(false)}
+
           className="h-full w-full object-contain pointer-events-none"
         />
         <div className="absolute inset-0 flex items-center justify-center">
@@ -656,37 +649,57 @@ export default function WorkspacePage() {
             </div>
             <div className="space-y-3">
               {filtered.map((clip) => {
-                const pct =
-                  typeof clip.progress === "number"
-                    ? Math.min(100, Math.max(0, Math.round(clip.progress)))
-                    : 0;
-                const label =
-                  clip.status === "queued" ? PROGRESS_LABELS.queued : `${pct}%`;
+                const catStyle =
+                  CATEGORY_STYLES[clip.category] || "bg-zinc-800 text-zinc-400";
+                const catLabel = CATEGORY_LABEL[clip.category] || clip.category;
+                const fmtTime = (s: number) => {
+                  const m = Math.floor(s / 60);
+                  const sec = Math.floor(s % 60);
+                  return `${m}:${sec.toString().padStart(2, "0")}`;
+                };
                 return (
                   <div
                     key={clip.exportId}
-                    className="rounded-2xl border border-zinc-800 bg-zinc-900/50 px-5 py-4 transition-all duration-500"
+                    className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 transition-all duration-500"
                   >
-                    <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
-                        <h3 className="truncate text-sm font-medium text-white">
-                          {clip.highlightTitle}
-                        </h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="truncate text-sm font-medium text-white">
+                            {clip.highlightTitle}
+                          </h3>
+                          <span
+                            className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${catStyle}`}
+                          >
+                            {catLabel}
+                          </span>
+                        </div>
                         <p className="mt-0.5 truncate text-xs text-zinc-500">
-                          {clip.video.title}
+                          {clip.video?.title}
                         </p>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-zinc-500">
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {fmtTime(clip.startTime)} &mdash; {fmtTime(clip.endTime)}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <TrendingUp className="h-3 w-3" />
+                            {clip.viralityScore}
+                          </span>
+                        </div>
                       </div>
-                      <span className="shrink-0 rounded-full bg-zinc-800 px-3 py-1 text-xs text-zinc-400">
-                        {label}
-                      </span>
+                      <div className="shrink-0">
+                        <span className="flex items-center gap-1 rounded-lg bg-blue-500/10 px-3 py-2 text-xs text-blue-400">
+                          <div className="h-3 w-3 animate-spin rounded-full border-2 border-blue-400 border-t-transparent" />
+                          Memproses
+                        </span>
+                      </div>
                     </div>
                     <div className="mt-3">
                       <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-800">
                         <div
-                          className="h-full rounded-full bg-emerald-500 transition-all duration-500 ease-out"
-                          style={{
-                            width: `${clip.status === "queued" ? 0 : pct}%`,
-                          }}
+                          className="h-full rounded-full bg-emerald-500 transition-all duration-700"
+                          style={{ width: `${clip.progress ?? 0}%` }}
                         />
                       </div>
                     </div>
