@@ -1,5 +1,17 @@
 @import "tailwindcss";
 
+::-webkit-scrollbar {
+  display: none;
+}
+
+::-webkit-scrollbar-thumb {
+  display: none;
+}
+
+::-webkit-scrollbar-track {
+  display: none;
+}
+
 @variant dark (&:where(.dark, .dark *));
 
 @theme {
