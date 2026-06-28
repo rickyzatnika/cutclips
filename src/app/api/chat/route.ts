@@ -642,6 +642,23 @@ async function processWithLLM(
 						"\n";
 				});
 			}
+
+			const sortedUnclipped = [...(unclipped as any[])]
+				.sort((a, b) => b.viralityScore - a.viralityScore);
+
+			if (sortedUnclipped.length > 0) {
+				clipDetailStr += "\n\nDAFTAR HIGHLIGHT YANG BELUM DIBUAT CLIP (diurutkan viralityScore tertinggi):\n";
+				sortedUnclipped.slice(0, 20).forEach((h, i) => {
+					clipDetailStr +=
+						(i + 1) + ". \"" + (h.title || "-") + "\"" +
+						" | Kategori: " + (h.category || "-") +
+						" | Virality: " + (h.viralityScore ?? 0) +
+						" | Durasi: " + Math.round((h.endTime - h.startTime) / 60) + "m" +
+						" | Waktu: " + Math.floor(h.startTime / 60) + ":" + String(Math.floor(h.startTime % 60)).padStart(2, "0") +
+						" - " + Math.floor(h.endTime / 60) + ":" + String(Math.floor(h.endTime % 60)).padStart(2, "0") +
+						"\n";
+				});
+			}
 		} catch {
 			userDataStr = "Gagal memuat data user";
 		}
