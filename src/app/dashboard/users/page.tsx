@@ -148,7 +148,9 @@ export default function UsersPage() {
     if (diff === 0) { setEditCredit(null); return; }
     setBusy(`credit-${userId}`);
     try {
-      await addCredits({ userId: userId as any, amount: diff, description: "Admin adjustment" });
+      const adminEmail = session?.user?.email;
+      if (!adminEmail) return;
+      await addCredits({ userId: userId as any, amount: diff, description: "Admin adjustment", adminEmail });
       setEditCredit(null);
     } catch (err) {
       toast({ title: "Gagal update kredit", description: err instanceof Error ? err.message : String(err), variant: "error" });

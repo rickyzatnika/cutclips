@@ -46,12 +46,10 @@ export const addCredits = mutation({
     userId: v.id("users"),
     amount: v.number(),
     description: v.string(),
+    adminEmail: v.string(),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
-
-    const admin = await getUserByEmail(ctx, identity.email ?? "");
+    const admin = await getUserByEmail(ctx, args.adminEmail);
     if (admin?.role !== "admin") throw new Error("Not authorized");
 
     const user = await ctx.db.get(args.userId);
