@@ -50,10 +50,12 @@ export async function POST(req: NextRequest) {
       }, { status: 403 });
     }
 
-    const existing = await convexQuery("videos:getByYoutubeUrl", { youtubeUrl });
+    const userId = user._id;
     const maxEnd = Math.max(...highlights.map((h: { endTime: number }) => h.endTime));
+
+    const existing = await convexQuery("videos:getByYoutubeUrl", { youtubeUrl });
     const videoId = existing?._id ?? await convexMutation("videos:create", {
-      youtubeUrl, title: videoTitle || "Video", duration: Math.max(maxEnd, 600), userId: user._id,
+      youtubeUrl, title: videoTitle || "Video", duration: Math.max(maxEnd, 600), userId,
     });
 
     const results: { highlightId: string; exportId: string; title: string }[] = [];
@@ -71,7 +73,7 @@ export async function POST(req: NextRequest) {
       });
 
       const exportId = await convexMutation("exports:create", {
-        highlightId, userId: user._id, creditCost: 20,
+        highlightId, userId, creditCost: 20,
         includeCaptions: includeCaptions !== false,
         template: template || "default",
       });
@@ -80,8 +82,8 @@ export async function POST(req: NextRequest) {
     }
 
     await convexMutation("credits:spendCredits", {
-      userId: user._id,
-      amount: totalCost,
+      userId,
+      amount: highlights.length * 20,
       description: `Generate ${highlights.length} clips: ${videoTitle || "Video"}`,
     });
 

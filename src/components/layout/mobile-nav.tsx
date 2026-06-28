@@ -25,8 +25,6 @@ export function MobileNav() {
   );
   const [showUpgrade, setShowUpgrade] = useState(false);
 
-  if (!session) return null;
-
   const isAuthPage =
     pathname.startsWith("/workspace") ||
     pathname.startsWith("/analyze") ||
@@ -43,38 +41,58 @@ export function MobileNav() {
         className="fixed bottom-0 left-0 right-0 z-50 flex items-center border-t border-zinc-800 bg-zinc-900/90 backdrop-blur-md sm:hidden"
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
-        {tabs.map((tab) => {
-          const active = pathname === tab.href;
-          const isAiAnalyze = tab.href === "/chat-ai";
+        {session ? (
+          tabs.map((tab) => {
+            const active = pathname === tab.href;
+            const isAiAnalyze = tab.href === "/chat-ai";
 
-          if (isAiAnalyze && !isPaid) {
+            if (isAiAnalyze && !isPaid) {
+              return (
+                <button
+                  key={tab.href}
+                  onClick={() => setShowUpgrade(true)}
+                  className={`flex flex-1 flex-col items-center gap-0.5 py-3 text-[14px] font-medium transition-colors cursor-pointer ${
+                    active ? "text-emerald-400" : "text-zinc-500 hover:text-zinc-300"
+                  }`}
+                >
+                  <tab.icon className="h-6 w-6" />
+                  {tab.label}
+                </button>
+              );
+            }
+
             return (
-              <button
+              <Link
                 key={tab.href}
-                onClick={() => setShowUpgrade(true)}
-                className={`flex flex-1 flex-col items-center gap-0.5 py-3 text-[14px] font-medium transition-colors cursor-pointer ${
+                href={tab.href}
+                className={`flex flex-1 flex-col items-center gap-0.5 py-3 text-[14px] font-medium transition-colors ${
                   active ? "text-emerald-400" : "text-zinc-500 hover:text-zinc-300"
                 }`}
               >
                 <tab.icon className="h-6 w-6" />
                 {tab.label}
-              </button>
+              </Link>
             );
-          }
-
-          return (
+          })
+        ) : (
+          <>
             <Link
-              key={tab.href}
-              href={tab.href}
+              href="/workspace"
               className={`flex flex-1 flex-col items-center gap-0.5 py-3 text-[14px] font-medium transition-colors ${
-                active ? "text-emerald-400" : "text-zinc-500 hover:text-zinc-300"
+                pathname === "/workspace" ? "text-emerald-400" : "text-zinc-500 hover:text-zinc-300"
               }`}
             >
-              <tab.icon className="h-6 w-6" />
-              {tab.label}
+              <Film className="h-6 w-6" />
+              Clip
             </Link>
-          );
-        })}
+            <Link
+              href="/login"
+              className="flex flex-1 flex-col items-center gap-0.5 py-3 text-[14px] font-medium text-emerald-400 transition-colors hover:text-emerald-300"
+            >
+              <span className="text-xs">Masuk</span>
+            </Link>
+          </>
+        )}
       </nav>
       <UpgradeModal open={showUpgrade} onClose={() => setShowUpgrade(false)} />
     </>

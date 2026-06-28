@@ -30,6 +30,7 @@ import { useToast } from "@/components/ui/toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTypewriter } from "@/hooks/use-typewriter";
 
+
 function getInitialBatchSize() {
   if (typeof window !== "undefined" && window.innerWidth < 640) return 2;
   return 15;
@@ -152,7 +153,10 @@ const ClipCard = React.memo(function ClipCard({
   const togglePlay = () => {
     const v = videoRef.current;
     if (!v) return;
-    if (v.paused) {
+    if (v.ended) {
+      v.currentTime = 0;
+      v.play().catch(() => {});
+    } else if (v.paused) {
       v.play().catch(() => {});
     } else {
       v.pause();
@@ -175,7 +179,7 @@ const ClipCard = React.memo(function ClipCard({
           preload="none"
           onPlay={() => setPlaying(true)}
           onPause={() => setPlaying(false)}
-
+          onEnded={() => setPlaying(false)}
           className="h-full w-full object-contain pointer-events-none"
         />
         <div className="absolute inset-0 flex items-center justify-center">
@@ -609,17 +613,19 @@ export default function WorkspacePage() {
             }
             )
           </button>
-          <button
-            onClick={() => setFilterStatus("history")}
-            className={`cursor-pointer rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-              filterStatus === "history"
-                ? "bg-emerald-500/20 text-emerald-400"
-                : "text-zinc-500 hover:text-zinc-300"
-            }`}
-          >
-            <List className="mr-1 inline h-3 w-3" />
-            Riwayat
-          </button>
+          {userEmail && (
+            <button
+              onClick={() => setFilterStatus("history")}
+              className={`cursor-pointer rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                filterStatus === "history"
+                  ? "bg-emerald-500/20 text-emerald-400"
+                  : "text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              <List className="mr-1 inline h-3 w-3" />
+              Riwayat
+            </button>
+          )}
         </div>
         {filterStatus !== "history" && (
           <div className="flex items-center gap-2">
@@ -847,7 +853,7 @@ export default function WorkspacePage() {
             )}
           </h2>
 
-          {paginationStatus === "Loading" ? (
+          {userEmail && paginationStatus === "Loading" ? (
             <div className="grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4">
               {Array.from({ length: 10 }).map((_, i) => (
                 <div

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useSession } from "next-auth/react";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { useToast } from "@/components/ui/toast";
 import { api } from "@convex/_generated/api";
 import type { Doc } from "@convex/_generated/dataModel";
@@ -70,6 +70,9 @@ export default function UsersPage() {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState<string | null>(null);
+  const addCredits = useMutation(api.credits.addCredits);
+  const [editCredit, setEditCredit] = useState<{ userId: string; value: string } | null>(null);
+  const editRef = useRef<HTMLInputElement>(null);
 
   /* modals */
   const [roleModal, setRoleModal] = useState<{
@@ -132,6 +135,23 @@ export default function UsersPage() {
       setDeleteModal(null);
     } catch (err) {
       toast({ title: "Gagal hapus user", description: err instanceof Error ? err.message : String(err), variant: "error" });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleSaveCredit = async (userId: string, currentCredits: number) => {
+    if (!editCredit) return;
+    const newVal = parseInt(editCredit.value, 10);
+    if (isNaN(newVal) || newVal < 0) return;
+    const diff = newVal - currentCredits;
+    if (diff === 0) { setEditCredit(null); return; }
+    setBusy(`credit-${userId}`);
+    try {
+      await addCredits({ userId: userId as any, amount: diff, description: "Admin adjustment" });
+      setEditCredit(null);
+    } catch (err) {
+      toast({ title: "Gagal update kredit", description: err instanceof Error ? err.message : String(err), variant: "error" });
     } finally {
       setBusy(null);
     }
@@ -249,7 +269,36 @@ export default function UsersPage() {
                         <span className={`text-xs ${status.color}`}>{status.label}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-zinc-300">{user.credits}</td>
+                    <td className="px-4 py-3">
+                      {editCredit?.userId === user._id ? (
+                        <input
+                          ref={editRef}
+                          type="number"
+                          min="0"
+                          value={editCredit.value}
+                          onChange={(e) => setEditCredit({ userId: user._id, value: e.target.value })}
+                          onBlur={() => handleSaveCredit(user._id, user.credits)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleSaveCredit(user._id, user.credits);
+                            if (e.key === "Escape") setEditCredit(null);
+                          }}
+                          className="w-24 rounded-lg border border-emerald-500/50 bg-zinc-800 px-2 py-1 text-sm text-white outline-none focus:border-emerald-400"
+                          autoFocus
+                        />
+                      ) : (
+                        <button
+                          onClick={() => setEditCredit({ userId: user._id, value: String(user.credits) })}
+                          className="cursor-pointer rounded px-2 py-1 text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-white"
+                          title="Klik untuk edit kredit"
+                        >
+                          {busy === `credit-${user._id}` ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-emerald-400" />
+                          ) : (
+                            user.credits
+                          )}
+                        </button>
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       {user.role === "admin" ? (
                         <span className="inline-flex items-center rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-400">

@@ -30,8 +30,6 @@ export function DesktopNav() {
   const isAdmin = user?.role === "admin";
   const isLoading = user === undefined;
 
-  if (!session) return null;
-
   return (
     <header className="py-4">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
@@ -53,107 +51,129 @@ export function DesktopNav() {
             <Film className="h-3.5 w-3.5" />
             Clip
           </Link>
-          <Link
-            href="/workspace/history"
-            className={`flex items-center gap-1 text-sm ${
-              pathname === "/workspace/history"
-                ? "text-emerald-400"
-                : "text-zinc-500 hover:text-white"
-            }`}
-          >
-            <History className="h-3.5 w-3.5" />
-            Riwayat
-          </Link>
-          <Link
-            href="/workspace/billing"
-            className={`flex items-center gap-1 text-sm ${
-              pathname === "/workspace/billing"
-                ? "text-emerald-400"
-                : "text-zinc-500 hover:text-white"
-            }`}
-          >
-            <CreditCard className="h-3.5 w-3.5" />
-            Isi Credit
-          </Link>
-          <AiAnalyzeLink
-            className={`flex items-center gap-1 text-sm ${
-              pathname === "/chat-ai" || pathname.startsWith("/chat-ai/")
-                ? "text-emerald-400"
-                : "text-zinc-500 hover:text-white"
-            }`}
-          >
-            <MessageCircle className="h-3.5 w-3.5" />
-            AI Analyze
-          </AiAnalyzeLink>
-          {isAdmin && (
+          {session ? (
+            <>
+              <Link
+                href="/workspace/history"
+                className={`flex items-center gap-1 text-sm ${
+                  pathname === "/workspace/history"
+                    ? "text-emerald-400"
+                    : "text-zinc-500 hover:text-white"
+                }`}
+              >
+                <History className="h-3.5 w-3.5" />
+                Riwayat
+              </Link>
+              <Link
+                href="/workspace/billing"
+                className={`flex items-center gap-1 text-sm ${
+                  pathname === "/workspace/billing"
+                    ? "text-emerald-400"
+                    : "text-zinc-500 hover:text-white"
+                }`}
+              >
+                <CreditCard className="h-3.5 w-3.5" />
+                Isi Credit
+              </Link>
+              <AiAnalyzeLink
+                className={`flex items-center gap-1 text-sm ${
+                  pathname === "/chat-ai" || pathname.startsWith("/chat-ai/")
+                    ? "text-emerald-400"
+                    : "text-zinc-500 hover:text-white"
+                }`}
+              >
+                <MessageCircle className="h-3.5 w-3.5" />
+                AI Analyze
+              </AiAnalyzeLink>
+              {isAdmin && (
+                <Link
+                  href="/dashboard"
+                  className={`flex items-center gap-1 text-sm ${
+                    pathname.startsWith("/dashboard")
+                      ? "text-emerald-400"
+                      : "text-zinc-500 hover:text-white"
+                  }`}
+                >
+                  <LayoutDashboard className="h-3.5 w-3.5" />
+                  Dashboard
+                </Link>
+              )}
+            </>
+          ) : (
             <Link
-              href="/dashboard"
-              className={`flex items-center gap-1 text-sm ${
-                pathname.startsWith("/dashboard")
-                  ? "text-emerald-400"
-                  : "text-zinc-500 hover:text-white"
-              }`}
+              href="/login"
+              className="rounded-xl border border-emerald-400 px-4 py-2 text-sm font-medium text-emerald-400 transition-colors hover:bg-emerald-300 hover:text-zinc-900"
             >
-              <LayoutDashboard className="h-3.5 w-3.5" />
-              Dashboard
+              Masuk
             </Link>
           )}
-          <div className="ml-2 flex items-center gap-4 border-l border-zinc-800 pl-4">
-            <Link
-              href="/workspace/billing"
-              className="text-sm text-zinc-400 hover:text-white"
-            >
-              Credits ={" "}
-              {isLoading ? (
-                <Skeleton className="inline-block h-4 w-10 align-middle" />
-              ) : (
-                (credits ?? 0)
-              )}
-            </Link>
-            <Link
-              href="/workspace/user-info"
-              className="cursor-pointer text-sm text-zinc-500 hover:text-white"
-            >
-              <Image
-                src={session?.user?.image || "/avatar.png"}
-                alt=""
-                width={32}
-                height={32}
-                className="object-cover rounded-full"
-                unoptimized
-              />
-            </Link>
-          </div>
+          {session && (
+            <div className="ml-2 flex items-center gap-4 border-l border-zinc-800 pl-4">
+              <Link
+                href="/workspace/billing"
+                className="text-sm text-zinc-400 hover:text-white"
+              >
+                Credits ={" "}
+                {isLoading ? (
+                  <Skeleton className="inline-block h-4 w-10 align-middle" />
+                ) : (
+                  (credits ?? 0)
+                )}
+              </Link>
+              <Link
+                href="/workspace/user-info"
+                className="cursor-pointer text-sm text-zinc-500 hover:text-white"
+              >
+                <Image
+                  src={session?.user?.image || "/avatar.png"}
+                  alt=""
+                  width={32}
+                  height={32}
+                  className="object-cover rounded-full"
+                  unoptimized
+                />
+              </Link>
+            </div>
+          )}
         </nav>
 
         {/* Mobile */}
-        <Link
-          href="/workspace/user-info"
-          className="flex sm:hidden items-center gap-1 text-xs font-medium text-zinc-200"
-        >
-          {isLoading ? (
-            <div className="flex items-center gap-2">
-              <Skeleton className="h-7 w-7 rounded-full" />
-              <Skeleton className="h-3 w-16" />
-            </div>
-          ) : user?.name ? (
-            <>
-              <Image
-                src={user.image || "/avatar.png"}
-                alt=""
-                width={28}
-                height={28}
-                className="object-cover rounded-full"
-                unoptimized
-              />
-              <p>
-                {user.name.length > 6
-                  ? user.name.slice(0, 5) + "..."
-                  : user.name}
-              </p>
-            </>
-          ) : null}
-        </Link>
+        {session ? (
+          <Link
+            href="/workspace/user-info"
+            className="flex sm:hidden items-center gap-1 text-xs font-medium text-zinc-200"
+          >
+            {isLoading ? (
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-7 w-7 rounded-full" />
+                <Skeleton className="h-3 w-16" />
+              </div>
+            ) : user?.name ? (
+              <>
+                <Image
+                  src={user.image || "/avatar.png"}
+                  alt=""
+                  width={28}
+                  height={28}
+                  className="object-cover rounded-full"
+                  unoptimized
+                />
+                <p>
+                  {user.name.length > 6
+                    ? user.name.slice(0, 5) + "..."
+                    : user.name}
+                </p>
+              </>
+            ) : null}
+          </Link>
+        ) : (
+          <Link
+            href="/login"
+            className="flex sm:hidden items-center gap-1 rounded-xl border border-emerald-400 px-3 py-1.5 text-xs font-medium text-emerald-400"
+          >
+            Masuk
+          </Link>
+        )}
       </div>
     </header>
   );

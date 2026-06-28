@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { useSession } from "next-auth/react";
 import { api } from "@convex/_generated/api";
@@ -15,6 +15,7 @@ import {
   Brain,
   RotateCcw,
   Ban,
+  Trash2,
 } from "lucide-react";
 
 /* ---------- helpers ---------- */
@@ -199,9 +200,15 @@ export default function MonitoringPage() {
   const data = useQuery(api.exports.getMonitorData);
   const requeueExport = useMutation(api.exports.requeueExport);
   const cancelExport = useMutation(api.exports.cancelExport);
+  const removeExport = useMutation(api.exports.adminRemove);
+  const removeBulkExport = useMutation(api.exports.removeBulk);
   const requeueAnalyze = useMutation(api.analyzeJobs.requeueAnalyze);
   const cancelAnalyze = useMutation(api.analyzeJobs.cancelAnalyze);
+  const removeAnalyze = useMutation(api.analyzeJobs.remove);
+  const removeBulkAnalyze = useMutation(api.analyzeJobs.removeBulk);
   const [loadingMap, setLoadingMap] = useState<Record<string, boolean>>({});
+  const [selectedExports, setSelectedExports] = useState<Set<Id<"exports">>>(new Set());
+  const [selectedAnalyzeJobs, setSelectedAnalyzeJobs] = useState<Set<Id<"analyzeJobs">>>(new Set());
   const ready = data !== undefined;
 
   const exportRate = useMemo(() => {
@@ -225,6 +232,30 @@ export default function MonitoringPage() {
       setLoadingMap((prev) => ({ ...prev, [key]: false }));
     }
   };
+
+  const toggleExport = useCallback((id: Id<"exports">) => {
+    setSelectedExports((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleAllExports = useCallback((ids: Id<"exports">[]) => {
+    setSelectedExports((prev) => prev.size === ids.length ? new Set() : new Set(ids));
+  }, []);
+
+  const toggleAnalyzeJob = useCallback((id: Id<"analyzeJobs">) => {
+    setSelectedAnalyzeJobs((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleAllAnalyzeJobs = useCallback((ids: Id<"analyzeJobs">[]) => {
+    setSelectedAnalyzeJobs((prev) => prev.size === ids.length ? new Set() : new Set(ids));
+  }, []);
 
   return (
     <div className="space-y-8">
@@ -278,26 +309,10 @@ export default function MonitoringPage() {
           data={
             ready
               ? [
-                  {
-                    label: "Queued",
-                    value: data.exports.counts.queued,
-                    color: "#eab308",
-                  },
-                  {
-                    label: "Processing",
-                    value: data.exports.counts.processing,
-                    color: "#3b82f6",
-                  },
-                  {
-                    label: "Completed",
-                    value: data.exports.counts.completed,
-                    color: "#10b981",
-                  },
-                  {
-                    label: "Failed",
-                    value: data.exports.counts.failed,
-                    color: "#ef4444",
-                  },
+                  { label: "Queued", value: data.exports.counts.queued, color: "#eab308" },
+                  { label: "Processing", value: data.exports.counts.processing, color: "#3b82f6" },
+                  { label: "Completed", value: data.exports.counts.completed, color: "#10b981" },
+                  { label: "Failed", value: data.exports.counts.failed, color: "#ef4444" },
                 ]
               : []
           }
@@ -307,26 +322,10 @@ export default function MonitoringPage() {
           data={
             ready
               ? [
-                  {
-                    label: "Queued",
-                    value: data.analyzeJobs.counts.queued,
-                    color: "#eab308",
-                  },
-                  {
-                    label: "Processing",
-                    value: data.analyzeJobs.counts.processing,
-                    color: "#3b82f6",
-                  },
-                  {
-                    label: "Completed",
-                    value: data.analyzeJobs.counts.completed,
-                    color: "#10b981",
-                  },
-                  {
-                    label: "Failed",
-                    value: data.analyzeJobs.counts.failed,
-                    color: "#ef4444",
-                  },
+                  { label: "Queued", value: data.analyzeJobs.counts.queued, color: "#eab308" },
+                  { label: "Processing", value: data.analyzeJobs.counts.processing, color: "#3b82f6" },
+                  { label: "Completed", value: data.analyzeJobs.counts.completed, color: "#10b981" },
+                  { label: "Failed", value: data.analyzeJobs.counts.failed, color: "#ef4444" },
                 ]
               : []
           }
@@ -335,9 +334,25 @@ export default function MonitoringPage() {
 
       {/* recent exports */}
       <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5">
-        <h3 className="mb-4 text-sm font-medium text-zinc-400">
-          Export Terbaru
-        </h3>
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-sm font-medium text-zinc-400">
+            Export Terbaru
+          </h3>
+          {selectedExports.size > 0 && (
+            <button
+              onClick={() =>
+                act("bulk-delete-exports", () =>
+                  removeBulkExport({ exportIds: Array.from(selectedExports), email }),
+                ).then(() => setSelectedExports(new Set()))
+              }
+              disabled={loadingMap["bulk-delete-exports"] ?? false}
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/20"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Hapus {selectedExports.size} Terpilih
+            </button>
+          )}
+        </div>
         {!ready ? (
           <div className="py-8 text-center text-sm text-zinc-600">
             Loading...
@@ -351,6 +366,14 @@ export default function MonitoringPage() {
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-zinc-800 text-xs text-zinc-500">
+                  <th className="w-8 pb-2 pr-2">
+                    <input
+                      type="checkbox"
+                      checked={data.exports.recent.length > 0 && selectedExports.size === data.exports.recent.length}
+                      onChange={() => toggleAllExports(data.exports.recent.map((e: { _id: Id<"exports"> }) => e._id))}
+                      className="cursor-pointer accent-emerald-500"
+                    />
+                  </th>
                   <th className="pb-2 pr-4 font-medium">Status</th>
                   <th className="pb-2 pr-4 font-medium">Video</th>
                   <th className="pb-2 pr-4 font-medium">Highlight</th>
@@ -365,18 +388,26 @@ export default function MonitoringPage() {
                 {data.exports.recent.map((exp: { _id: Id<"exports">; status: string; progress: string | number | null; error: string | null; videoTitle: string | null; highlightTitle: string | null; userEmail: string | null; createdAt: number }) => (
                   <tr
                     key={exp._id}
-                    className="border-b border-zinc-800/50 text-zinc-300"
+                    className={`border-b border-zinc-800/50 text-zinc-300 transition-colors ${selectedExports.has(exp._id) ? "bg-zinc-800/30" : ""}`}
                   >
+                    <td className="py-3 pr-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedExports.has(exp._id)}
+                        onChange={() => toggleExport(exp._id)}
+                        className="cursor-pointer accent-emerald-500"
+                      />
+                    </td>
                     <td className="py-3 pr-4">
                       <StatusBadge status={exp.status} />
                     </td>
-                    <td className="max-w-[140px] truncate py-3 pr-4 text-zinc-400">
+                    <td className="max-w-[130px] truncate py-3 pr-4 text-zinc-400">
                       {exp.videoTitle || "—"}
                     </td>
-                    <td className="max-w-[120px] truncate py-3 pr-4 text-zinc-400">
+                    <td className="max-w-[110px] truncate py-3 pr-4 text-zinc-400">
                       {exp.highlightTitle || "—"}
                     </td>
-                    <td className="max-w-[120px] truncate py-3 pr-4 text-zinc-500">
+                    <td className="max-w-[110px] truncate py-3 pr-4 text-zinc-500">
                       {exp.userEmail || "—"}
                     </td>
                     <td className="py-3 pr-4">
@@ -389,7 +420,7 @@ export default function MonitoringPage() {
                     <td className="py-3 pr-4 text-zinc-500">
                       {timeAgo(exp.createdAt)}
                     </td>
-                    <td className="max-w-[140px] truncate py-3 text-red-400">
+                    <td className="max-w-[130px] truncate py-3 text-red-400">
                       {exp.status === "failed" ? exp.error || "Unknown" : ""}
                     </td>
                     <td className="py-3">
@@ -420,6 +451,17 @@ export default function MonitoringPage() {
                             }
                           />
                         )}
+                        <ActionButton
+                          label="Hapus"
+                          icon={Trash2}
+                          loading={loadingMap[`edel-${exp._id}`] ?? false}
+                          color="text-zinc-500 hover:bg-red-500/10 hover:text-red-400"
+                          onClick={() =>
+                            act(`edel-${exp._id}`, () =>
+                              removeExport({ exportId: exp._id, email }),
+                            )
+                          }
+                        />
                       </div>
                     </td>
                   </tr>
@@ -432,9 +474,25 @@ export default function MonitoringPage() {
 
       {/* recent analyze jobs */}
       <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5">
-        <h3 className="mb-4 text-sm font-medium text-zinc-400">
-          Analyze Job Terbaru
-        </h3>
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-sm font-medium text-zinc-400">
+            Analyze Job Terbaru
+          </h3>
+          {selectedAnalyzeJobs.size > 0 && (
+            <button
+              onClick={() =>
+                act("bulk-delete-analyze", () =>
+                  removeBulkAnalyze({ jobIds: Array.from(selectedAnalyzeJobs), email }),
+                ).then(() => setSelectedAnalyzeJobs(new Set()))
+              }
+              disabled={loadingMap["bulk-delete-analyze"] ?? false}
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/20"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Hapus {selectedAnalyzeJobs.size} Terpilih
+            </button>
+          )}
+        </div>
         {!ready ? (
           <div className="py-8 text-center text-sm text-zinc-600">
             Loading...
@@ -448,6 +506,14 @@ export default function MonitoringPage() {
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-zinc-800 text-xs text-zinc-500">
+                  <th className="w-8 pb-2 pr-2">
+                    <input
+                      type="checkbox"
+                      checked={data.analyzeJobs.recent.length > 0 && selectedAnalyzeJobs.size === data.analyzeJobs.recent.length}
+                      onChange={() => toggleAllAnalyzeJobs(data.analyzeJobs.recent.map((j: { _id: Id<"analyzeJobs"> }) => j._id))}
+                      className="cursor-pointer accent-emerald-500"
+                    />
+                  </th>
                   <th className="pb-2 pr-4 font-medium">Status</th>
                   <th className="pb-2 pr-4 font-medium">Title</th>
                   <th className="pb-2 pr-4 font-medium">YouTube</th>
@@ -460,15 +526,23 @@ export default function MonitoringPage() {
                 {data.analyzeJobs.recent.map((job: { _id: Id<"analyzeJobs">; status: string; title: string | null; youtubeUrl: string | null; createdAt: number; error: string | null }) => (
                   <tr
                     key={job._id}
-                    className="border-b border-zinc-800/50 text-zinc-300"
+                    className={`border-b border-zinc-800/50 text-zinc-300 transition-colors ${selectedAnalyzeJobs.has(job._id) ? "bg-zinc-800/30" : ""}`}
                   >
+                    <td className="py-3 pr-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedAnalyzeJobs.has(job._id)}
+                        onChange={() => toggleAnalyzeJob(job._id)}
+                        className="cursor-pointer accent-emerald-500"
+                      />
+                    </td>
                     <td className="py-3 pr-4">
                       <StatusBadge status={job.status} />
                     </td>
-                    <td className="max-w-[160px] truncate py-3 pr-4 text-zinc-400">
+                    <td className="max-w-[150px] truncate py-3 pr-4 text-zinc-400">
                       {job.title || "—"}
                     </td>
-                    <td className="max-w-[140px] truncate py-3 pr-4">
+                    <td className="max-w-[130px] truncate py-3 pr-4">
                       <a
                         href={`https://youtube.com/watch?v=${job.youtubeUrl}`}
                         target="_blank"
@@ -480,7 +554,7 @@ export default function MonitoringPage() {
                     <td className="py-3 pr-4 text-zinc-500">
                       {timeAgo(job.createdAt)}
                     </td>
-                    <td className="max-w-[160px] truncate py-3 text-red-400">
+                    <td className="max-w-[150px] truncate py-3 text-red-400">
                       {job.status === "failed" ? job.error || "Unknown" : ""}
                     </td>
                     <td className="py-3">
@@ -511,6 +585,17 @@ export default function MonitoringPage() {
                             }
                           />
                         )}
+                        <ActionButton
+                          label="Hapus"
+                          icon={Trash2}
+                          loading={loadingMap[`adel-${job._id}`] ?? false}
+                          color="text-zinc-500 hover:bg-red-500/10 hover:text-red-400"
+                          onClick={() =>
+                            act(`adel-${job._id}`, () =>
+                              removeAnalyze({ jobId: job._id, email }),
+                            )
+                          }
+                        />
                       </div>
                     </td>
                   </tr>

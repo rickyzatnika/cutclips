@@ -76,7 +76,7 @@ function AnalyzeContent() {
   const [hooksMap, setHooksMap] = useState<Record<string, string[]>>({});
   const [loadingHooks, setLoadingHooks] = useState<Record<string, boolean>>({});
   const [copiedHook, setCopiedHook] = useState<string | null>(null);
-  const [creditsBlocked, setCreditsBlocked] = useState(false);
+  const [userCredits, setUserCredits] = useState<number | null>(null);
   const [creditsChecking, setCreditsChecking] = useState(true);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
@@ -94,13 +94,14 @@ function AnalyzeContent() {
     convexQuery("users:getByEmail", { email: session.user.email })
       .then((user) => {
         const userData = user as { credits?: number } | null;
-        if (userData && typeof userData.credits === "number" && userData.credits <= 0) {
-          setCreditsBlocked(true);
-        }
+        setUserCredits(userData?.credits ?? 0);
       })
       .catch(() => {})
       .finally(() => setCreditsChecking(false));
   }, [session, status]);
+
+  const totalCost = highlights.length * 20;
+  const insufficientCredits = session && userCredits !== null && userCredits < totalCost;
 
   useEffect(() => {
     if (status === "loading") return;
@@ -110,7 +111,6 @@ function AnalyzeContent() {
       return;
     }
     if (creditsChecking) return;
-    if (creditsBlocked) return;
     if (jobId) return;
     if (pollStatus === "done" || pollStatus === "error") return;
 
@@ -145,7 +145,7 @@ function AnalyzeContent() {
       });
 
     return () => { cancelled = true; submittingRef.current = false; };
-  }, [url, creditsChecking, creditsBlocked, session, status, jobId, pollStatus]);
+  }, [url, creditsChecking, session, status, jobId, pollStatus]);
 
   const jobDoc = useQuery(
     api.analyzeJobs.getById,
@@ -193,6 +193,13 @@ function AnalyzeContent() {
 
   const generateAll = async () => {
     if (!highlights.length || generatingId) return;
+
+    if (!session) {
+      const callbackUrl = `/analyze?url=${encodeURIComponent(url || "")}`;
+      router.push(`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`);
+      return;
+    }
+
     setGeneratingId("all");
     try {
       const res = await fetch("/api/genclip/batch", {
@@ -215,8 +222,11 @@ function AnalyzeContent() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Batch generation failed");
-      router.push("/workspace?tab=processing");
+      if (!res.ok) {
+        throw new Error(data.error || "Batch generation failed");
+      } else {
+        router.push("/workspace?tab=processing");
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed";
       setError(msg);
@@ -261,6 +271,13 @@ function AnalyzeContent() {
 
   const generateSingle = async (highlight: Highlight) => {
     if (generatingId) return;
+
+    if (!session) {
+      const callbackUrl = `/analyze?url=${encodeURIComponent(url || "")}`;
+      router.push(`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`);
+      return;
+    }
+
     setGeneratingId(`s-${highlight.startTime}`);
     try {
       const res = await fetch("/api/genclip/batch", {
@@ -283,44 +300,17 @@ function AnalyzeContent() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Gagal membuat clip");
-      router.push("/workspace?tab=processing");
+      if (!res.ok) {
+        throw new Error(data.error || "Gagal membuat clip");
+      } else {
+        router.push("/workspace?tab=processing");
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed";
       setError(msg);
       setGeneratingId(null);
     }
   };
-
-  if (creditsBlocked) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4">
-        <div className="w-full max-w-sm rounded-2xl border border-emerald-500 bg-zinc-900/50 backdrop-blur-lg p-6 shadow-xl shadow-emerald-500/20 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-500/10">
-            <Coins className="h-7 w-7 text-amber-400" />
-          </div>
-          <h2 className="mt-4 text-lg font-semibold text-white">Kredit Tidak Mencukupi</h2>
-          <p className="mt-2 text-sm leading-relaxed text-zinc-400">
-            Saldo kredit kamu habis. Isi ulang untuk melanjutkan analisis dan generate clip.
-          </p>
-          <div className="mt-6 flex flex-col gap-3">
-            <Link
-              href="/workspace/billing"
-              className="w-full rounded-xl bg-emerald-500 py-3 text-sm font-semibold text-black transition-colors hover:bg-emerald-400"
-            >
-              Isi Credit
-            </Link>
-            <button
-              onClick={() => router.push("/")}
-              className="w-full cursor-pointer rounded-xl border border-zinc-700 py-3 text-sm font-medium text-zinc-400 transition-colors hover:text-white"
-            >
-              Nanti
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   if (error && pollStatus === "error") {
     return (
@@ -453,20 +443,38 @@ function AnalyzeContent() {
                 </div>
 
                 <button
-                  onClick={generateAll}
+                  onClick={insufficientCredits ? () => setUpgradeModalOpen(true) : generateAll}
                   disabled={generatingId !== null}
-                  className="mb-6 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-5 py-4 text-sm font-semibold text-black transition-colors hover:bg-emerald-400 disabled:opacity-50"
+                  className={`mb-6 flex w-full items-center justify-center gap-2 rounded-xl px-5 py-4 text-sm font-semibold text-black transition-colors disabled:opacity-50 ${
+                    insufficientCredits
+                      ? "cursor-pointer bg-zinc-700 text-zinc-400 hover:bg-zinc-600"
+                      : "cursor-pointer bg-emerald-500 hover:bg-emerald-400"
+                  }`}
                 >
                   {generatingId === "all" ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : insufficientCredits ? (
+                    <Coins className="h-4 w-4" />
                   ) : (
                     <Sparkles className="h-4 w-4" />
                   )}
                   {generatingId === "all"
                     ? `Membuat ${highlights.length} clip...`
-                    : `Generate Semua ${highlights.length} Clip (${highlights.length * 20} kredit)`}
+                    : insufficientCredits
+                      ? `Kredit tidak cukup (${userCredits}/${totalCost}) — Top Up`
+                      : `Generate Semua ${highlights.length} Clip (${totalCost} kredit)`}
                 </button>
               </>
+            )}
+
+            {!session && (
+              <button
+                onClick={generateAll}
+                className="mb-6 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-5 py-4 text-sm font-semibold text-black transition-colors hover:bg-emerald-400"
+              >
+                <Sparkles className="h-4 w-4" />
+                Masuk untuk Generate Clip
+              </button>
             )}
 
             <div className="space-y-4">
@@ -538,22 +546,34 @@ function AnalyzeContent() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => generateSingle(h)}
-                      disabled={generatingId !== null}
-                      className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-black transition-colors hover:bg-emerald-400 disabled:opacity-50"
-                    >
-                      <Flame className="h-4 w-4" />
-                      Buat Clip
-                    </button>
-                    <button
-                      onClick={() => generateHooks(h)}
-                      disabled={loadingHooks[`${h.startTime}-${h.endTime}`]}
-                      className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-zinc-800 px-4 py-3 text-sm font-medium text-zinc-400 transition-colors hover:border-zinc-700 hover:text-white disabled:opacity-50"
-                    >
-                      <Lightbulb className="h-4 w-4" />
-                      Hook
-                    </button>
+                    {session ? (
+                      <>
+                        <button
+                          onClick={() => generateSingle(h)}
+                          disabled={generatingId !== null}
+                          className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-black transition-colors hover:bg-emerald-400 disabled:opacity-50"
+                        >
+                          <Flame className="h-4 w-4" />
+                          Buat Clip
+                        </button>
+                        <button
+                          onClick={() => generateHooks(h)}
+                          disabled={loadingHooks[`${h.startTime}-${h.endTime}`]}
+                          className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-zinc-800 px-4 py-3 text-sm font-medium text-zinc-400 transition-colors hover:border-zinc-700 hover:text-white disabled:opacity-50"
+                        >
+                          <Lightbulb className="h-4 w-4" />
+                          Hook
+                        </button>
+                      </>
+                    ) : (
+                      <Link
+                        href={`/login?callbackUrl=${encodeURIComponent(`/analyze?url=${encodeURIComponent(url || "")}`)}`}
+                        className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-black transition-colors hover:bg-emerald-400"
+                      >
+                        <Flame className="h-4 w-4" />
+                        Masuk untuk Buat Clip
+                      </Link>
+                    )}
                   </div>
                 </div>
               ))}
@@ -561,10 +581,9 @@ function AnalyzeContent() {
 
             {!session && (
               <p className="text-center text-xs text-zinc-600">
-                Masuk untuk generate semua {highlights.length} clip sekaligus (hanya{" "}
-                <span className="text-emerald-400">{highlights.length * 20} kredit</span>).{" "}
+                Dapatkan 100 kredit gratis dengan daftar akun.{" "}
                 <Link href="/login" className="text-emerald-400 hover:underline">
-                  Masuk
+                  Daftar / Masuk
                 </Link>
               </p>
             )}

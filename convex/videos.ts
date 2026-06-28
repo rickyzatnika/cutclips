@@ -33,6 +33,29 @@ export const listByGuest = query({
   },
 });
 
+export const getByGuestSessionAndUrl = query({
+  args: { guestSessionId: v.string(), youtubeUrl: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("videos")
+      .withIndex("by_guestSessionId", (q) => q.eq("guestSessionId", args.guestSessionId))
+      .filter((q) => q.eq(q.field("youtubeUrl"), args.youtubeUrl))
+      .first();
+  },
+});
+
+export const decrementFreeCount = mutation({
+  args: { videoId: v.id("videos") },
+  handler: async (ctx, args) => {
+    const video = await ctx.db.get(args.videoId);
+    if (!video) throw new Error("Video not found");
+    const current = video.freeHighlightCount ?? 0;
+    if (current <= 0) throw new Error("Free clip limit reached");
+    await ctx.db.patch(args.videoId, { freeHighlightCount: current - 1 });
+    return current - 1;
+  },
+});
+
 export const getByYoutubeUrl = query({
   args: { youtubeUrl: v.string() },
   handler: async (ctx, args) => {

@@ -1,6 +1,61 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
+export const listByGuestSession = query({
+  args: { guestSessionId: v.string() },
+  handler: async (ctx, args) => {
+    const videos = await ctx.db
+      .query("videos")
+      .withIndex("by_guestSessionId", (q) => q.eq("guestSessionId", args.guestSessionId))
+      .collect();
+    if (videos.length === 0) return [];
+
+    const videoIds = new Set(videos.map((v) => v._id));
+    const allHighlights = await ctx.db.query("highlights").collect();
+    const videoHighlights = allHighlights.filter((h) => videoIds.has(h.videoId as any));
+
+    const highlightMap = new Map(videoHighlights.map((h) => [h._id, h]));
+    const allExports = await ctx.db.query("exports").collect();
+    const guestExports = allExports.filter((e) => highlightMap.has(e.highlightId));
+
+    const result = [];
+    for (const exp of guestExports) {
+      const highlight = highlightMap.get(exp.highlightId);
+      if (!highlight) continue;
+      const video = videos.find((v) => v._id === (highlight.videoId as any));
+      if (!video) continue;
+
+      result.push({
+        exportId: exp._id,
+        status: exp.status,
+        progress:
+          typeof exp.progress === "number"
+            ? exp.progress <= 1
+              ? Math.round(exp.progress * 100)
+              : Math.round(exp.progress)
+            : 0,
+        downloadUrl: exp.downloadUrl,
+        highlightId: highlight._id,
+        highlightTitle: highlight.title,
+        category: highlight.category,
+        viralityScore: highlight.viralityScore,
+        startTime: highlight.startTime,
+        endTime: highlight.endTime,
+        createdAt: exp.createdAt,
+        video: {
+          _id: video._id,
+          youtubeUrl: video.youtubeUrl,
+          title: video.title,
+          thumbnailUrl: video.thumbnailUrl,
+          duration: video.duration,
+        },
+      });
+    }
+
+    return result.sort((a, b) => b.createdAt - a.createdAt);
+  },
+});
+
 export const getById = query({
   args: { exportId: v.id("exports") },
   handler: async (ctx, args) => {
@@ -280,6 +335,35 @@ export const cancelExport = mutation({
       error: "Dibatalkan oleh admin",
       completedAt: Date.now(),
     });
+  },
+});
+
+export const adminRemove = mutation({
+  args: { exportId: v.id("exports"), email: v.string() },
+  handler: async (ctx, args) => {
+    const admin = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .unique();
+    if (!admin || admin.role !== "admin") throw new Error("Not authorized");
+    await ctx.db.delete(args.exportId);
+  },
+});
+
+export const removeBulk = mutation({
+  args: {
+    exportIds: v.array(v.id("exports")),
+    email: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const admin = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .unique();
+    if (!admin || admin.role !== "admin") throw new Error("Not authorized");
+    for (const id of args.exportIds) {
+      await ctx.db.delete(id);
+    }
   },
 });
 

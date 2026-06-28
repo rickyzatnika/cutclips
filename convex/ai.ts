@@ -27,7 +27,7 @@ export interface AIProvider {
   analyzeTranscript(context: TranscriptContext): Promise<Highlight[]>;
 }
 
-const MODELS = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
+const MODELS = ["llama-3.3-70b-versatile", "meta-llama/llama-4-scout-17b-16e-instruct"];
 
 function getApiKeys(): string[] {
   const keys: string[] = [];
@@ -178,8 +178,8 @@ class GroqProvider implements AIProvider {
   async analyzeTranscript(context: TranscriptContext): Promise<Highlight[]> {
     const keys = getApiKeys();
 
-    for (const key of keys) {
-      for (const model of MODELS) {
+    for (const model of MODELS) {
+      for (const key of keys) {
         try {
           console.log(`Groq trying key=${key.slice(0, 8)}... model=${model}`);
           return await callGroq(key, model, context);

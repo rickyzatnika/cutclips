@@ -10,12 +10,12 @@ export const create = mutation({
     userId: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
-    // Cegah duplikat: cek apakah sudah ada job queued/processing untuk URL yang sama
+    // Cegah duplikat: cek apakah sudah ada job untuk URL yang sama
     const existing = await ctx.db
       .query("analyzeJobs")
       .withIndex("by_youtubeUrl", (q) => q.eq("youtubeUrl", args.youtubeUrl))
       .filter((q) =>
-        q.or(q.eq(q.field("status"), "queued"), q.eq(q.field("status"), "processing")),
+        q.or(q.eq(q.field("status"), "queued"), q.eq(q.field("status"), "processing"), q.eq(q.field("status"), "completed")),
       )
       .first();
     if (existing) {
@@ -186,6 +186,38 @@ export const cancelAnalyze = mutation({
       error: "Dibatalkan oleh admin",
       completedAt: Date.now(),
     });
+  },
+});
+
+export const remove = mutation({
+  args: {
+    jobId: v.id("analyzeJobs"),
+    email: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const admin = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .unique();
+    if (!admin || admin.role !== "admin") throw new Error("Not authorized");
+    await ctx.db.delete(args.jobId);
+  },
+});
+
+export const removeBulk = mutation({
+  args: {
+    jobIds: v.array(v.id("analyzeJobs")),
+    email: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const admin = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .unique();
+    if (!admin || admin.role !== "admin") throw new Error("Not authorized");
+    for (const id of args.jobIds) {
+      await ctx.db.delete(id);
+    }
   },
 });
 
