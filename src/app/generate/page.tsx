@@ -318,19 +318,19 @@ function GenerateContent() {
                     {
                       id: "default",
                       label: "Default",
-                      desc: "Boxblur + caption bawah",
+                      desc: "Full 9:16 + caption bawah",
                       icon: "🎬",
                     },
                     {
                       id: "podcast",
                       label: "Podcast",
-                      desc: "Blur ringan + caption tengah",
+                      desc: "Zoom 9:16 + caption tengah",
                       icon: "🎙️",
                     },
                     {
                       id: "minimal",
                       label: "Minimal",
-                      desc: "BG gelap + caption tipis",
+                      desc: "Zoom 9:16 + caption tipis",
                       icon: "✨",
                     },
                   ].map((t) => (

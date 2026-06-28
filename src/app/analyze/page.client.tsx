@@ -430,9 +430,9 @@ function AnalyzeContent() {
                     <label className="text-sm text-zinc-400">Template Clip</label>
                     <div className="mt-2 grid grid-cols-3 gap-2">
                       {[
-                        { id: "default", label: "Default", desc: "Boxblur + caption bawah", icon: "🎬" },
-                        { id: "podcast", label: "Podcast", desc: "Blur ringan + caption tengah", icon: "🎙️" },
-                        { id: "minimal", label: "Minimal", desc: "BG gelap + caption tipis", icon: "✨" },
+                        { id: "default", label: "Default", desc: "Full 9:16 + caption bawah", icon: "🎬" },
+                        { id: "podcast", label: "Podcast", desc: "Zoom 9:16 + caption tengah", icon: "🎙️" },
+                        { id: "minimal", label: "Minimal", desc: "Zoom 9:16 + caption tipis", icon: "✨" },
                       ].map((t) => (
                         <button
                           key={t.id}
